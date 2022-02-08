@@ -16,7 +16,6 @@ MW_TO_KW = 1000
 SEK_TO_ORE = 100
 REGION = "SE3"
 ELLEVIO_HOURLY_DATA = "Förbrukning.csv"
-spot_prices = elspot.Prices("SEK")
 
 
 def analyze_ellevio_hourly_costs(csv_file_name, region):
@@ -24,11 +23,13 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
     Parses all rows in an Ellevio hourly consuption data export looks up the raw costs from Nordpool
     File shall have windows line and use comma as separator
     Collumn A shall contain the start hour and be on syntax "2022-01-01 0:00"
-    Collumn B shall contain the hours kilowatt usage on syntax "1,67"
+    Collumn B shall contain the hours kilowatt usage on syntax "1.67"
     """
     print(
         "Kostnader i SEK utan certifikat, moms, påslag, skatter och elnät vid timmätt debitering"
     )
+    
+    spot_prices = elspot.Prices("SEK")
 
     with open(csv_file_name, mode="r", newline="", encoding="UTF-8") as csvfile:
         datareader = csv.reader(csvfile, delimiter=",")
