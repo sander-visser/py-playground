@@ -4,7 +4,7 @@
 usage:
 python3 -m pip install nordpool
 python3 ellevio_hourly_costs.py
-tested only with winter time exports
+tested only with winter time exports and windows lineendings with a blank line at the end
 """
 
 from datetime import date
@@ -22,6 +22,9 @@ spot_prices = elspot.Prices("SEK")
 def analyze_ellevio_hourly_costs(csv_file_name, region):
     """
     Parses all rows in an Ellevio hourly consuption data export looks up the raw costs from Nordpool
+    File shall have windows line and use comma as separator
+    Collumn A shall contain the start hour and be on syntax "2022-01-01 0:00"
+    Collumn B shall contain the hours kilowatt usage on syntax "1,67"
     """
     print(
         "Kostnader i SEK utan certifikat, moms, påslag, skatter och elnät vid timmätt debitering"
