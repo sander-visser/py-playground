@@ -8,6 +8,7 @@ tested only with winter time exports and windows lineendings with a blank line a
 """
 
 from datetime import date
+from math import isinf
 import csv
 from nordpool import elspot
 
@@ -39,6 +40,29 @@ def print_and_calc_move_saving(
     return savings_per_moved_kwh_in_period
 
 
+def update_cheapest_hour(cheapest_hour_analysis, day_spot_prices):
+    """
+    Analyses what hour 00-07 on average is the cheapest in the analysed period
+    """
+    cheapest_hour_price = float("inf")
+    cheapest_hour = 0
+    curr_hour = 0
+    for hour_price in day_spot_prices:
+        if hour_price["value"] < cheapest_hour_price:
+            cheapest_hour_price = hour_price["value"]
+            cheapest_hour = curr_hour
+        curr_hour = curr_hour + 1
+        if curr_hour > CET_CEST_06_TO_07:
+            break
+    if cheapest_hour not in cheapest_hour_analysis:
+        cheapest_hour_analysis[cheapest_hour] = 1
+    else:
+        cheapest_hour_analysis[cheapest_hour] = (
+            cheapest_hour_analysis[cheapest_hour] + 1
+        )
+    return cheapest_hour_analysis
+
+
 def analyze_ellevio_hourly_costs(csv_file_name, region):
     """
     Parses all rows in an Ellevio hourly consumption data export
@@ -67,6 +91,7 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
         lowest_price_17_to_07 = None
         savings_per_moved_kwh_in_period = 0
         day_spot_prices = {}
+        cheapest_hour_analysis = {}
         for consumption_row in datareader:
             century = consumption_row[0][:2]
             if century != "20":
@@ -94,6 +119,9 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
                 day_spot_prices = spot_prices.hourly(end_date=this_day, areas=[region])[
                     "areas"
                 ][region]["values"]
+                cheapest_hour_analysis = update_cheapest_hour(
+                    cheapest_hour_analysis, day_spot_prices
+                )
                 most_expensive_hour_sek_cost = (
                     this_hour_kw * float(day_spot_prices[this_hour]["value"]) / MW_TO_KW
                 )
@@ -105,7 +133,13 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
                 this_hour_cost = (
                     this_hour_kw * float(day_spot_prices[this_hour]["value"]) / MW_TO_KW
                 )
+
+                if isinf(this_hour_cost):
+                    # Ignore spring summertime error
+                    this_hour_cost = 0
+
                 day_cost = day_cost + this_hour_cost
+
                 if this_hour_cost > most_expensive_hour_sek_cost:
                     most_expensive_hour_sek_cost = this_hour_cost
                     most_expensive_hour = this_hour
@@ -151,6 +185,12 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
             + "Total besparing för flyttad kWh från eftermiddag till kväll i perioden:"
             + f" {savings_per_moved_kwh_in_period}kr"
         )
+
+        for cheapest_hour in sorted(cheapest_hour_analysis):
+            print(
+                f"Timmen som börjar {cheapest_hour}:00 var billigast"
+                + f" {cheapest_hour_analysis[cheapest_hour]} dagar i perioden"
+            )
 
 
 if __name__ == "__main__":
