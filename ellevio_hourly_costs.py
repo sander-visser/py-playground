@@ -85,13 +85,25 @@ def print_last_day_info(
     )
 
 
+def is_integer(n):
+    """
+    Test if a string is an integer or not
+    """
+    try:
+        float(n)
+    except ValueError:
+        return False
+    else:
+        return float(n).is_integer()
+
+
 def analyze_ellevio_hourly_costs(csv_file_name, region):
     """
     Parses all rows in an Ellevio hourly consumption data export
     and looks up the raw costs from Nordpool
     File shall have windows line and use comma as separator
     Collumn A shall contain the start hour and be on syntax "2022-01-01 0:00"
-    Collumn B shall contain the hours kilowatt usage on syntax "1.67"
+    Collumn B(+C) shall contain the hours kilowatt usage on syntax "1.67" or "1,67"
     """
     print(
         "Kostnader i SEK utan certifikat, moms, påslag, skatter och elnät vid timmätt debitering"
@@ -122,6 +134,15 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
 
             this_day = date.fromisoformat(consumption_row[0].split()[0])
             this_hour_kw = float(consumption_row[1])
+            if is_integer(consumption_row[2]):
+                # Handle wierd decimal split in export
+                if len(consumption_row[2]) == 1:
+                    this_hour_kw += 0.1 * float(consumption_row[2])
+                elif len(consumption_row[2]) == 2:
+                    this_hour_kw += 0.01 * float(consumption_row[2])
+                else:
+                    print ("Error in csv export")
+
             if prev_day != this_day:
                 last_avg_price_17_to_20 = curr_avg_price_17_to_20
                 curr_avg_price_17_to_20 = 0
@@ -203,7 +224,7 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
         total_cost = total_cost + day_cost
         savings_per_moved_kwh_in_period = int(savings_per_moved_kwh_in_period)
         print(
-            f"\n\nTotal kostnad för perioden {first_day} tom {this_day}: {int(total_cost)}kr\n"
+            f"\n\nTotal timdebiterad kostnad för perioden {first_day} tom {this_day}: {int(total_cost)}kr\n"
             + "Total besparing för varje daglig flyttad kWh från eftermiddag till kväll:"
             + f" (i perioden) {savings_per_moved_kwh_in_period}kr"
         )
