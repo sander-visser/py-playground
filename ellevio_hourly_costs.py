@@ -79,8 +79,8 @@ def print_last_day_info(
     most_expensive_hour_cost = int(most_expensive_hour_sek_cost * SEK_TO_ORE)
     print(
         f"\n{prev_day} kostade {round(day_cost, 2)}kr:"
-        + f"\nDin dyraste timmen började {most_expensive_hour}:00 "
-        + f"och förbrukningen denna timme kostade dig {most_expensive_hour_cost}öre."
+        + f"\nDin dyraste timme började {most_expensive_hour}:00. "
+        + f"Denna timmen kostade dig {most_expensive_hour_cost} öre."
         + f" ({most_expensive_hour_price} öre/kWh)"
     )
 
@@ -224,7 +224,8 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
         total_cost = total_cost + day_cost
         savings_per_moved_kwh_in_period = int(savings_per_moved_kwh_in_period)
         print(
-            f"\n\nTotal timdebiterad kostnad för perioden {first_day} tom {this_day}: {int(total_cost)}kr\n"
+            f"\n\nTotal timdebiterad kostnad för perioden {first_day} tom {this_day}: {int(total_cost)}kr "
+            + "för elhandels (exkl moms, elcertifikat, påslag och månadsavgift)\n"
             + "Total besparing för varje daglig flyttad kWh från eftermiddag till kväll:"
             + f" (i perioden) {savings_per_moved_kwh_in_period}kr"
         )
