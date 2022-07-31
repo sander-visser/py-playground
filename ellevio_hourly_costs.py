@@ -28,7 +28,7 @@ def print_and_calc_move_saving(
     """
     Sums up the savings made by moving consumption, and outputs info for the last days savings
     """
-    if last_avg_price_17_to_20 is not None:
+    if last_avg_price_17_to_20 is not None and lowest_price_17_to_07 is not None:
         last_days_savings = last_avg_price_17_to_20 - lowest_price_17_to_07
         savings_per_moved_kwh_in_period += last_days_savings
         last_days_savings = int(last_days_savings * SEK_TO_ORE)
