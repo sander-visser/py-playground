@@ -119,6 +119,7 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
         most_expensive_hour_sek_cost = 0
         day_cost = 0
         total_cost = 0
+        total_usage = 0
         this_hour = None
         curr_avg_price_17_to_20 = None
         last_avg_price_17_to_20 = None
@@ -142,6 +143,8 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
                     this_hour_kw += 0.01 * float(consumption_row[2])
                 else:
                     print ("Error in csv export")
+
+            total_usage = total_usage + this_hour_kw
 
             if prev_day != this_day:
                 last_avg_price_17_to_20 = curr_avg_price_17_to_20
@@ -225,7 +228,7 @@ def analyze_ellevio_hourly_costs(csv_file_name, region):
         savings_per_moved_kwh_in_period = int(savings_per_moved_kwh_in_period)
         print(
             f"\n\nTotal timdebiterad kostnad för perioden {first_day} tom {this_day}: {int(total_cost)}kr "
-            + "för elhandels (exkl moms, elcertifikat, påslag och månadsavgift)\n"
+            + f"för elhandel av {int(total_usage)} kWh (exkl moms, elcertifikat, påslag och månadsavgift)\n"
             + "Total besparing för varje daglig flyttad kWh från eftermiddag till kväll:"
             + f" (i perioden) {savings_per_moved_kwh_in_period}kr"
         )
