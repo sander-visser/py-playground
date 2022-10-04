@@ -20,19 +20,24 @@ import copy
 # "python3 -m pip install X" below python modules
 import requests
 import pause
+import holidays
 from nordpool import elspot
 import pytz
 import sensibo_client  # https://github.com/Sensibo/sensibo-python-sdk with py3 print fix
 
 
 REGION = "SE3"
+REGION_HOLIDAYS = holidays.country_holidays("SE")
 TIME_ZONE = "CET"
 ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY = 1.05
 COMFORT_WORKDAY_MORNING_HEATING_BY_HOUR = 6
 COMFORT_DAYOFF_MORNING_HEATING_BY_HOUR = 7
+WORKDAY_MORNING_COMFORT_UNTIL_HOUR = 8
 EARLIEST_AFTERNOON_PREHEAT_HOUR = 11  # Must be a pause since morning hour
 BEGIN_AFTERNOON_HEATING_BY_HOUR = 14
 WORKDAY_AFTERNOON_COMFORT_BY_HOUR = 16
+WORKDAY_COMFORT_UNTIL_HOUR = 22
+WEEKEND_COMFORT_UNTIL_HOUR = 23
 DEGREES_PER_HOUR_DURING_RAMPUP = 1
 SECONDS_BETWEEN_COMMANDS = 1.5
 AT_HOME_DAYS = [5, 6, 7]
@@ -71,7 +76,7 @@ COMFORT_PLUS_HEAT_SETTINGS = {
     "horizontalSwing": "fixedCenterLeft",
     "swing": "fixedTop",
     "fanLevel": "medium_high",
-    "targetTemperature": 21,
+    "targetTemperature": 22,
 }
 
 COMFORT_ALT_HEAT_SETTINGS = {
@@ -228,7 +233,13 @@ class SensiboOptimizer:
                 self.apply_multi_settings(pause_setting)
 
     def run_workday_8_to_22_schedule(self):
-        self.wait_for_hour(8)
+        pause.until(
+            self._prev_midnight
+            + timedelta(hours=WORKDAY_MORNING_COMFORT_UNTIL_HOUR - 1, minutes=30)
+        )
+        self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
+
+        self.wait_for_hour(WORKDAY_MORNING_COMFORT_UNTIL_HOUR)
         self.apply_multi_settings(IDLE_SETTINGS)
 
         self.run_boost_rampup_to_comfort(
@@ -240,13 +251,13 @@ class SensiboOptimizer:
         self.wait_for_hour(17)
         self.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
-        self.manage_comfort_hours(range(18, 22))
+        self.manage_comfort_hours(range(18, WORKDAY_COMFORT_UNTIL_HOUR))
 
     def manage_comfort_hours(self, comfort_range):
         current_floor_sensor_value = MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
-            for sample_minute in range(5, 60, 10):
+            for sample_minute in range(9, 60, 10):
                 try:
                     current_floor_sensor_value = self.client.pod_measurement(self._uid)[
                         0
@@ -259,6 +270,13 @@ class SensiboOptimizer:
                 sleep(SECONDS_BETWEEN_COMMANDS)
                 if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_multi_settings(MAX_HEAT_SETTINGS)
+                elif (
+                    sample_minute == 59  # boost 49-59 if price will rise
+                    and comfort_hour in self._pre_heat_favorable_hours
+                    and current_floor_sensor_value
+                    <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                ):
+                    self.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
                 elif (
                     current_floor_sensor_value
                     <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
@@ -273,13 +291,6 @@ class SensiboOptimizer:
                     self._prev_midnight
                     + timedelta(hours=comfort_hour, minutes=sample_minute)
                 )
-                if (
-                    sample_minute == 55
-                    and comfort_hour in self._pre_heat_favorable_hours
-                    and current_floor_sensor_value
-                    <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
-                ):
-                    self.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
 
     def run(self, device_name):
         devices = self.client.devices()
@@ -310,7 +321,7 @@ class SensiboOptimizer:
         while True:
             optimizing_a_workday = (
                 self._prev_midnight.date().isoweekday() not in AT_HOME_DAYS
-            )
+            ) and self._prev_midnight.date() not in REGION_HOLIDAYS
             comfort_heating_by_hour = (
                 COMFORT_WORKDAY_MORNING_HEATING_BY_HOUR
                 if optimizing_a_workday
@@ -336,10 +347,18 @@ class SensiboOptimizer:
             self.wait_for_hour(comfort_heating_by_hour + 1)
             self.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
+            keep_comfort_until_hour = WORKDAY_COMFORT_UNTIL_HOUR
             if optimizing_a_workday:
                 self.run_workday_8_to_22_schedule()
             else:
-                self.manage_comfort_hours(range(8, 22))
+                keep_comfort_until_hour = WEEKEND_COMFORT_UNTIL_HOUR
+                self.manage_comfort_hours(range(8, WEEKEND_COMFORT_UNTIL_HOUR))
+
+            pause.until(
+                self._prev_midnight
+                + timedelta(hours=keep_comfort_until_hour - 1, minutes=30)
+            )
+            self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
 
             self.wait_for_hour(22)
             self.apply_multi_settings(IDLE_SETTINGS)
