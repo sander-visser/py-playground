@@ -44,6 +44,7 @@ AT_HOME_DAYS = [5, 6, 7]
 TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY = 40.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
+ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
 MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 19.0
 
@@ -119,7 +120,7 @@ class SensiboOptimizer:
     def find_warmup_hours(region, lookup_date, morning_comfort_by_hour):
         spot_prices = elspot.Prices("SEK")
 
-        print(f"getting prices for {lookup_date} to find cheap hours...")
+        print(f"Getting prices for {lookup_date} to find cheap hours...")
         day_spot_prices = spot_prices.hourly(end_date=lookup_date, areas=[region])[
             "areas"
         ][region]["values"]
@@ -131,23 +132,24 @@ class SensiboOptimizer:
         lowest_price = None
         reasonably_priced_hours = []
         pre_heat_favorable_hours = []
-        previous_hour_price = None
         for hour_price in day_spot_prices:
             if lowest_price is None or hour_price["value"] < lowest_price:
                 lowest_price = hour_price["value"]
 
+        curr_hour_idx = 0
         for hour_price in day_spot_prices:
             price_period_start_hour = hour_price["start"].astimezone(local_tz).hour
             print(
-                f"Analyzing pricing for: {hour_price['start'].astimezone(local_tz)}: "
-                + f"{hour_price['value']} beginning at {price_period_start_hour}:00"
+                f"{hour_price['start'].astimezone(local_tz)} @ {hour_price['value']} SEK/MWh"
             )
-            if previous_hour_price is not None and hour_price["value"] > (
-                (previous_hour_price * ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY)
+            if curr_hour_idx > 0 and hour_price["value"] > (
+                (
+                    day_spot_prices[curr_hour_idx - 1]["value"]
+                    * ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY
+                )
                 + TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY
             ):
                 pre_heat_favorable_hours.append(price_period_start_hour - 1)
-            previous_hour_price = hour_price["value"]
             if (
                 hour_price["value"]
                 <= (
@@ -155,7 +157,15 @@ class SensiboOptimizer:
                     + RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST
                 )
             ) or hour_price["value"] <= ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE:
-                reasonably_priced_hours.append(price_period_start_hour)
+                if (
+                    (curr_hour_idx + 1) < len(day_spot_prices)
+                    and (
+                        hour_price["value"]
+                        <= day_spot_prices[curr_hour_idx + 1]["value"]
+                        or (price_period_start_hour - 1) not in reasonably_priced_hours
+                    )
+                ) or hour_price["value"] <= ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP:
+                    reasonably_priced_hours.append(price_period_start_hour)
 
             if price_period_start_hour < morning_comfort_by_hour:
                 if (
@@ -183,6 +193,7 @@ class SensiboOptimizer:
                 ) + TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY
             else:
                 price_period_price = None
+            curr_hour_idx += 1
 
         return (
             morning_heat_period_start_hour,
