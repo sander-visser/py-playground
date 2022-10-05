@@ -47,6 +47,7 @@ RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
 MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 19.0
+MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
 
 IDLE_SETTINGS = {
     "on": True,
@@ -220,21 +221,38 @@ class SensiboOptimizer:
                     sleep(SECONDS_BETWEEN_COMMANDS)
                 first_setting = False
 
+    def get_current_floor_temp(self, na_temp_val):
+        current_floor_sensor_value = na_temp_val
+        try:
+            current_floor_sensor_value = self.client.pod_measurement(self._uid)[0][
+                "temperature"
+            ]
+        except requests.exceptions.ConnectionError:
+            print(
+                f"Ignoring temperature read error - using {current_floor_sensor_value}"
+            )
+        return current_floor_sensor_value
+
     def run_boost_rampup_to_comfort(
-        self, boost_hour_start, short_boost, comfort_hour_start
+        self, idle_hour_start, boost_hour_start, short_boost, comfort_hour_start
     ):
+        current_floor_sensor_value = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+        for pause_hour in range(idle_hour_start, boost_hour_start - 1):
+            self.wait_for_hour(pause_hour)
+            current_floor_sensor_value = self.get_current_floor_temp(
+                current_floor_sensor_value
+            )
+            if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
+                self.apply_multi_settings(COMFORT_ALT_HEAT_SETTINGS)
+            else:
+                self.apply_multi_settings(IDLE_SETTINGS)
+
         if short_boost:
             self.wait_for_hour(boost_hour_start - 1)
-            current_floor_sensor_value = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
             for sample_minute in range(9, 60, 10):
-                try:
-                    current_floor_sensor_value = self.client.pod_measurement(self._uid)[
-                        0
-                    ]["temperature"]
-                except requests.exceptions.ConnectionError:
-                    print(
-                        f"Ignoring temperature read error - using {current_floor_sensor_value}"
-                    )
+                current_floor_sensor_value = self.get_current_floor_temp(
+                    current_floor_sensor_value
+                )
 
                 sleep(SECONDS_BETWEEN_COMMANDS)
                 if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
@@ -270,10 +288,8 @@ class SensiboOptimizer:
         )
         self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
 
-        self.wait_for_hour(WORKDAY_MORNING_COMFORT_UNTIL_HOUR)
-        self.apply_multi_settings(IDLE_SETTINGS)
-
         self.run_boost_rampup_to_comfort(
+            WORKDAY_MORNING_COMFORT_UNTIL_HOUR,
             self._cheap_afternoon_hour,
             self._cheap_afternoon_hour == BEGIN_AFTERNOON_HEATING_BY_HOUR,
             WORKDAY_AFTERNOON_COMFORT_BY_HOUR,
@@ -291,16 +307,9 @@ class SensiboOptimizer:
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
             for sample_minute in range(9, 60, 10):
-                try:
-                    current_floor_sensor_value = self.client.pod_measurement(self._uid)[
-                        0
-                    ]["temperature"]
-                except requests.exceptions.ConnectionError:
-                    print(
-                        f"Ignoring temperature read error - using {current_floor_sensor_value}"
-                    )
-
-                sleep(SECONDS_BETWEEN_COMMANDS)
+                current_floor_sensor_value = self.get_current_floor_temp(
+                    current_floor_sensor_value
+                )
                 if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_multi_settings(MAX_HEAT_SETTINGS)
                 elif (
@@ -372,6 +381,7 @@ class SensiboOptimizer:
             self.apply_multi_settings(IDLE_SETTINGS, True)
 
             self.run_boost_rampup_to_comfort(
+                0,
                 cheap_morning_hour,
                 cheap_morning_hour == (comfort_heating_by_hour - 1),
                 comfort_heating_by_hour,
@@ -396,7 +406,6 @@ class SensiboOptimizer:
             self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
 
             self.wait_for_hour(22)
-            self.apply_multi_settings(IDLE_SETTINGS)
 
             self._prev_midnight += timedelta(days=1)
 
