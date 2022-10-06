@@ -59,6 +59,7 @@ IDLE_SETTINGS = {
 }
 
 MAX_HEAT_SETTINGS = {
+    "mode": "heat",
     "horizontalSwing": "fixedLeft",
     "swing": "fixedTop",
     "fanLevel": "high",
@@ -66,6 +67,7 @@ MAX_HEAT_SETTINGS = {
 }
 
 COMFORT_HEAT_SETTINGS = {
+    "mode": "heat",
     "horizontalSwing": "fixedCenterLeft",
     "swing": "fixedTop",
     "fanLevel": "medium_high",
@@ -73,20 +75,23 @@ COMFORT_HEAT_SETTINGS = {
 }
 
 COMFORT_PLUS_HEAT_SETTINGS = {
+    "mode": "heat",
     "horizontalSwing": "fixedCenterLeft",
     "swing": "fixedTop",
     "fanLevel": "medium_high",
     "targetTemperature": 22,
 }
 
-COMFORT_ALT_HEAT_SETTINGS = {
+HEAT_DISTRIBUTION_SETTINGS = {
+    "targetTemperature": 16,  # Ignored,b ut needed during restore
+    "mode": "fan",
     "horizontalSwing": "fixedLeft",
     "swing": "fixedTop",
     "fanLevel": "medium_high",
-    "targetTemperature": 20,
 }
 
 COMFORT_EATING_HEAT_SETTINGS = {
+    "mode": "heat",
     "horizontalSwing": "fixedCenterRight",
     "swing": "fixedMiddle",
     "fanLevel": "medium_high",
@@ -236,16 +241,25 @@ class SensiboOptimizer:
     def run_boost_rampup_to_comfort(
         self, idle_hour_start, boost_hour_start, short_boost, comfort_hour_start
     ):
+        self.wait_for_hour(idle_hour_start)
         current_floor_sensor_value = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
         for pause_hour in range(idle_hour_start, boost_hour_start - 1):
-            self.wait_for_hour(pause_hour)
-            current_floor_sensor_value = self.get_current_floor_temp(
-                current_floor_sensor_value
-            )
-            if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
-                self.apply_multi_settings(COMFORT_ALT_HEAT_SETTINGS)
-            else:
-                self.apply_multi_settings(IDLE_SETTINGS)
+            for sample_minute in range(9, 60, 10):
+                current_floor_sensor_value = self.get_current_floor_temp(
+                    current_floor_sensor_value
+                )
+                if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
+                    self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
+                elif (
+                    current_floor_sensor_value >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                ):
+                    self.apply_multi_settings(HEAT_DISTRIBUTION_SETTINGS)
+                else:
+                    self.apply_multi_settings(IDLE_SETTINGS)
+                pause.until(
+                    self._prev_midnight
+                    + timedelta(hours=pause_hour, minutes=sample_minute)
+                )
 
         if short_boost:
             self.wait_for_hour(boost_hour_start - 1)
@@ -258,7 +272,7 @@ class SensiboOptimizer:
                 if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_multi_settings(MAX_HEAT_SETTINGS)
                 else:
-                    self.apply_multi_settings(COMFORT_ALT_HEAT_SETTINGS)
+                    self.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
                 pause.until(
                     self._prev_midnight
                     + timedelta(hours=boost_hour_start - 1, minutes=sample_minute)
@@ -328,7 +342,7 @@ class SensiboOptimizer:
                     else:
                         self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 else:
-                    self.apply_multi_settings(COMFORT_ALT_HEAT_SETTINGS)
+                    self.apply_multi_settings(HEAT_DISTRIBUTION_SETTINGS)
                 pause.until(
                     self._prev_midnight
                     + timedelta(hours=comfort_hour, minutes=sample_minute)
