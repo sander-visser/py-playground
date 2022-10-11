@@ -25,11 +25,15 @@ from nordpool import elspot
 import pytz
 import sensibo_client  # https://github.com/Sensibo/sensibo-python-sdk with py3 print fix
 
-
+# should return a number "x.y"
+TEMPERATURE_URL = (
+    "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
+)
 REGION = "SE3"
 REGION_HOLIDAYS = holidays.country_holidays("SE")
 TIME_ZONE = "CET"
-ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY = 1.05
+# Expecting about 10% of heat energy to be leaked per hour
+ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY = 1.10
 WORKDAY_MORNING = {
     "comfort_by_hour": 6,
     "comfort_until_hour": 7,
@@ -53,6 +57,11 @@ TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY = 40.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
+ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 7000.0
+MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3
+MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = (
+    2.0  # Pure electric heaters should be off abouve
+)
 MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 19.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
@@ -84,10 +93,18 @@ COMFORT_HEAT_SETTINGS = {
 
 COMFORT_PLUS_HEAT_SETTINGS = {
     "mode": "heat",
-    "horizontalSwing": "fixedCenterLeft",
+    "horizontalSwing": "fixedLeft",
     "swing": "fixedTop",
     "fanLevel": "medium_high",
     "targetTemperature": 22,
+}
+
+COMFORT_REDUCED_HEAT_SETTINGS = {
+    "mode": "heat",
+    "horizontalSwing": "fixedLeft",
+    "swing": "fixedTop",
+    "fanLevel": "medium",
+    "targetTemperature": 18,
 }
 
 HEAT_DISTRIBUTION_SETTINGS = {
@@ -113,8 +130,12 @@ class PriceAnalyzer:
         self.cheap_morning_hour = None
         self.cheap_afternoon_hour = None
         self._reasonably_priced_hours = None
+        self._reduced_comfort_hours = None
         self._pre_heat_favorable_hours = None
         self.significantly_more_expensive_after_midnight = False
+
+    def is_hour_with_reduced_comfort(self, hour):
+        return hour in self._reduced_comfort_hours
 
     def is_hour_reasonably_priced(self, hour):
         return hour in self._reasonably_priced_hours
@@ -140,12 +161,22 @@ class PriceAnalyzer:
             ) < self._day_spot_prices[23]["value"]
         self._day_spot_prices = day_spot_prices
 
-    def find_warmup_hours(self, morning_comfort_by_hour):
+    def process_preheat_favourable_hour(
+        self, previous_hour_price, current_hour_price, previous_price_period_start_hour
+    ):
+        if previous_hour_price is not None and current_hour_price > (
+            (previous_hour_price * ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY)
+            + TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY
+        ):
+            self._pre_heat_favorable_hours.append(previous_price_period_start_hour)
+
+    def find_warmup_hours(self, first_comfort_range, second_comfort_range):
         price_period_price = None
         self.cheap_morning_hour = None
         self.cheap_afternoon_hour = None
         local_tz = pytz.timezone(TIME_ZONE)
         lowest_price = None
+        previous_hour_price = None
         self._reasonably_priced_hours = []
         self._pre_heat_favorable_hours = []
         for hour_price in self._day_spot_prices:
@@ -153,19 +184,31 @@ class PriceAnalyzer:
                 lowest_price = hour_price["value"]
 
         curr_hour_idx = 0
+        comfort_hours = {}
         for hour_price in self._day_spot_prices:
             price_period_start_hour = hour_price["start"].astimezone(local_tz).hour
             print(
                 f"{hour_price['start'].astimezone(local_tz)} @ {hour_price['value']} SEK/MWh"
             )
-            if curr_hour_idx > 0 and hour_price["value"] > (
-                (
-                    self._day_spot_prices[curr_hour_idx - 1]["value"]
-                    * ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY
-                )
-                + TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY
+            if (
+                price_period_start_hour in first_comfort_range
+                or price_period_start_hour == first_comfort_range.stop
             ):
-                self._pre_heat_favorable_hours.append(price_period_start_hour - 1)
+                comfort_hours[
+                    hour_price["value"] + 0.000001 * len(comfort_hours)
+                ] = price_period_start_hour
+            if second_comfort_range is not None and (
+                price_period_start_hour in second_comfort_range
+                or price_period_start_hour == second_comfort_range.stop
+            ):
+                comfort_hours[
+                    hour_price["value"] + 0.000001 * len(comfort_hours)
+                ] = price_period_start_hour
+
+            self.process_preheat_favourable_hour(
+                previous_hour_price, hour_price["value"], price_period_start_hour - 1
+            )
+
             if (
                 hour_price["value"]
                 <= (
@@ -184,7 +227,7 @@ class PriceAnalyzer:
                 ) or hour_price["value"] <= ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP:
                     self._reasonably_priced_hours.append(price_period_start_hour)
 
-            if price_period_start_hour < morning_comfort_by_hour:
+            if price_period_start_hour < first_comfort_range.start:
                 if (
                     price_period_price is None
                     or hour_price["value"] <= price_period_price
@@ -194,10 +237,10 @@ class PriceAnalyzer:
                 price_period_price = (
                     price_period_price * ACCEPTABLE_PRICE_INCREASE_FOR_ONE_HOUR_DELAY
                 ) + TRANSFER_AND_TAX_COST_PER_MWH_TO_PREHEAT_EARLY
-            elif (
+            elif second_comfort_range is not None and (
                 EARLIEST_AFTERNOON_PREHEAT_HOUR
                 <= price_period_start_hour
-                <= BEGIN_AFTERNOON_HEATING_BY_HOUR
+                <= second_comfort_range.start
             ):
                 if (
                     price_period_price is None
@@ -211,6 +254,21 @@ class PriceAnalyzer:
             else:
                 price_period_price = None
             curr_hour_idx += 1
+            previous_hour_price = hour_price["value"]
+        self.calculate_reduced_comfort_hours(comfort_hours)
+
+    def calculate_reduced_comfort_hours(self, comfort_hours):
+        self._reduced_comfort_hours = []
+        for comfort_hour_price, comfort_hour_start in sorted(
+            comfort_hours.items(), reverse=True
+        ):
+            if comfort_hour_price > ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT:
+                self._reduced_comfort_hours.append(comfort_hour_start)
+                if (
+                    len(self._reduced_comfort_hours)
+                    >= MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY
+                ):
+                    break
 
 
 class SensiboOptimizer:
@@ -369,20 +427,34 @@ class SensiboOptimizer:
 
     def manage_comfort_hours(self, comfort_range):
         current_floor_sensor_value = MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+        current_outdoor_temperature = MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp(
                     current_floor_sensor_value
                 )
+                outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
+                if outdoor_temperature_req.status_code == 200:
+                    current_outdoor_temperature = float(outdoor_temperature_req.text)
+
                 if (
                     current_floor_sensor_value
                     <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
                 ):
                     self._step_1_overtemperature_distribution_active = False
 
-                if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+                if (
+                    current_outdoor_temperature > MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT
+                    and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
+                ):
+                    self.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
+                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_multi_settings(MAX_HEAT_SETTINGS)
+                elif (
+                    current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+                ):
+                    self.apply_multi_settings(IDLE_SETTINGS)
                 elif (
                     sample_minute == 59  # boost 49-59 if price will rise
                     and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
@@ -436,12 +508,24 @@ class SensiboOptimizer:
             optimizing_a_workday = (
                 self._prev_midnight.date().isoweekday() not in AT_HOME_DAYS
             ) and self._prev_midnight.date() not in REGION_HOLIDAYS
-            comfort_heating_by_hour = (
-                WORKDAY_MORNING["comfort_by_hour"]
+            comfort_heating_first_range = (
+                range(
+                    WORKDAY_MORNING["comfort_by_hour"],
+                    WORKDAY_MORNING_COMFORT_UNTIL_HOUR,
+                )
                 if optimizing_a_workday
-                else DAYOFF_MORNING["comfort_by_hour"]
+                else range(
+                    DAYOFF_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
+                )
             )
-            self._price_analyzer.find_warmup_hours(comfort_heating_by_hour)
+            comfort_heating_second_range = (
+                range(WORKDAY_AFTERNOON_COMFORT_BY_HOUR, WORKDAY_COMFORT_UNTIL_HOUR)
+                if optimizing_a_workday
+                else None
+            )
+            self._price_analyzer.find_warmup_hours(
+                comfort_heating_first_range, comfort_heating_second_range
+            )
             cheap_morning_hour = self._price_analyzer.cheap_morning_hour
 
             self.apply_multi_settings(IDLE_SETTINGS, True)
@@ -449,13 +533,13 @@ class SensiboOptimizer:
             self.run_boost_rampup_to_comfort(
                 0,
                 cheap_morning_hour,
-                cheap_morning_hour == (comfort_heating_by_hour - 1),
-                comfort_heating_by_hour,
+                cheap_morning_hour == (comfort_heating_first_range.start - 1),
+                comfort_heating_first_range.start,
             )
 
-            self.manage_comfort_hours([comfort_heating_by_hour])
+            self.manage_comfort_hours([comfort_heating_first_range.start])
 
-            self.wait_for_hour(comfort_heating_by_hour + 1)
+            self.wait_for_hour(comfort_heating_first_range.start + 1)
             self.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
             keep_comfort_until_hour = WORKDAY_COMFORT_UNTIL_HOUR
