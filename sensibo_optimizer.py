@@ -8,6 +8,7 @@ Optimizer balancing comfort vs price for an IR remote controlled heatpump
 Usage:
 Install needed pip packages
 Run this script on a internet connected machine configured with relevant timezone
+ - Tip: Use environment variable TZ='Europe/Stockholm'
 Script tested with a Sensibo Sky placed 20cm above floor level
 Adapt constants as needed for your home
 """
@@ -240,7 +241,7 @@ class PriceAnalyzer:
             elif second_comfort_range is not None and (
                 EARLIEST_AFTERNOON_PREHEAT_HOUR
                 <= price_period_start_hour
-                <= second_comfort_range.start
+                <= BEGIN_AFTERNOON_HEATING_BY_HOUR
             ):
                 if (
                     price_period_price is None
@@ -272,7 +273,8 @@ class PriceAnalyzer:
 
 
 class SensiboOptimizer:
-    def __init__(self):
+    def __init__(self, verbose):
+        self.verbose = verbose
         self.client = None
         self._uid = None
         self._price_analyzer = PriceAnalyzer()
@@ -287,14 +289,16 @@ class SensiboOptimizer:
             0,
         )
 
-    def wait_for_hour(self, hour):
+    def wait_for_hour(self, hour, minute=0):
         pause.until(
-            self._prev_midnight + timedelta(hours=hour)
+            self._prev_midnight + timedelta(hours=hour, minutes=minute)
         )  # Direct return if in the past...
-        print(f"At {hour}:00")
+        if self.verbose:
+            print(f"At {hour}:{str(minute).zfill(2)}")
 
     def apply_multi_settings(self, settings, force=False):
-        # print(f"Applying: {settings}")
+        if self.verbose:
+            print(f"Applying: {settings}")
         if force:
             self._current_settings = {}
         first_setting = True
@@ -317,11 +321,33 @@ class SensiboOptimizer:
             current_floor_sensor_value = self.client.pod_measurement(self._uid)[0][
                 "temperature"
             ]
+            if self.verbose:
+                print(f"floor temperature: {current_floor_sensor_value}")
         except requests.exceptions.ConnectionError:
             print(
                 f"Ignoring temperature read error - using {current_floor_sensor_value}"
             )
         return current_floor_sensor_value
+
+    def get_current_outdoor_temp(self, na_temp_val):
+        current_outdoor_temperature = na_temp_val
+        try:
+            outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
+            if outdoor_temperature_req.status_code == 200:
+                try:
+                    current_outdoor_temperature = float(outdoor_temperature_req.text)
+                    if self.verbose:
+                        print(f"outdoor temperature: {current_outdoor_temperature}")
+                except ValueError:
+                    print(
+                        f"{outdoor_temperature_req.text} Temperature is not possible to use"
+                        + " - using {current_outdoor_temperature}"
+                    )
+        except requests.exceptions.ConnectionError:
+            print(
+                f"Ignoring temperature read error - using {current_outdoor_temperature}"
+            )
+        return current_outdoor_temperature
 
     def manage_over_temperature(self):
         if self._step_1_overtemperature_distribution_active:
@@ -351,12 +377,11 @@ class SensiboOptimizer:
                 else:
                     self._step_1_overtemperature_distribution_active = False
                     self.apply_multi_settings(IDLE_SETTINGS)
-                pause.until(
-                    self._prev_midnight
-                    + timedelta(hours=pause_hour, minutes=sample_minute)
-                )
+                self.wait_for_hour(pause_hour, sample_minute)
 
         if short_boost:
+            if self.verbose:
+                print("Short boost monitoring")
             self.wait_for_hour(boost_hour_start - 1)
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp(
@@ -373,17 +398,24 @@ class SensiboOptimizer:
                     self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 else:
                     self.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
-                pause.until(
-                    self._prev_midnight
-                    + timedelta(hours=boost_hour_start - 1, minutes=sample_minute)
-                )
+                self.wait_for_hour(boost_hour_start - 1, sample_minute)
         self.wait_for_hour(boost_hour_start)
+        if self.verbose:
+            print("boosting")
         self.apply_multi_settings(MAX_HEAT_SETTINGS)
 
         self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
 
     def handle_post_boost(self, post_boost_hour_start, comfort_hour_start):
+        if self.verbose:
+            print(
+                f"post boost monitorning {post_boost_hour_start} to {comfort_hour_start}"
+            )
         pause_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
+        if post_boost_hour_start >= comfort_hour_start:
+            if self.verbose:
+                print("skipping post boost due to imminent comfort")
+            self.wait_for_hour(post_boost_hour_start)
         for pause_hour in range(post_boost_hour_start, comfort_hour_start):
             self.wait_for_hour(pause_hour)
             pause_setting["targetTemperature"] = int(
@@ -400,12 +432,9 @@ class SensiboOptimizer:
                 self.apply_multi_settings(pause_setting)
 
     def run_workday_8_to_22_schedule(self):
-        pause.until(
-            self._prev_midnight
-            + timedelta(
-                hours=WORKDAY_MORNING["comfort_until_hour"],
-                minutes=WORKDAY_MORNING["comfort_until_minute"],
-            )
+        self.wait_for_hour(
+            WORKDAY_MORNING["comfort_until_hour"],
+            WORKDAY_MORNING["comfort_until_minute"],
         )
 
         self.apply_multi_settings(IDLE_SETTINGS)
@@ -434,9 +463,9 @@ class SensiboOptimizer:
                 current_floor_sensor_value = self.get_current_floor_temp(
                     current_floor_sensor_value
                 )
-                outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
-                if outdoor_temperature_req.status_code == 200:
-                    current_outdoor_temperature = float(outdoor_temperature_req.text)
+                current_outdoor_temperature = self.get_current_outdoor_temp(
+                    current_outdoor_temperature
+                )
 
                 if (
                     current_floor_sensor_value
@@ -472,10 +501,7 @@ class SensiboOptimizer:
                         self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 else:
                     self.manage_over_temperature()
-                pause.until(
-                    self._prev_midnight
-                    + timedelta(hours=comfort_hour, minutes=sample_minute)
-                )
+                self.wait_for_hour(comfort_hour, sample_minute)
 
     def run(self, device_name):
         devices = self.client.devices()
@@ -551,10 +577,7 @@ class SensiboOptimizer:
                     range(DAYOFF_MORNING["eat_until_hour"], WEEKEND_COMFORT_UNTIL_HOUR)
                 )
 
-            pause.until(
-                self._prev_midnight
-                + timedelta(hours=keep_comfort_until_hour - 1, minutes=30)
-            )
+            self.wait_for_hour(keep_comfort_until_hour - 1, 30)
             self.apply_multi_settings(COMFORT_HEAT_SETTINGS)
 
             self.wait_for_hour(22)
@@ -582,9 +605,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "-d", "--device", type=str, default=None, required=False, dest="deviceName"
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        default=False,
+        required=False,
+        dest="verbose",
+        help="increase output verbosity",
+        action="store_true",
+    )
     args = parser.parse_args()
 
-    optimizer = SensiboOptimizer()
+    optimizer = SensiboOptimizer(args.verbose)
 
     while True:
         try:
