@@ -61,7 +61,7 @@ ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 7000.0
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3
 MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = 2.0  # Pure electric heaters should be off above
 MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
-MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 19.0
+MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
 
 # Data for MSZ-FD35VA - at 100% compressor
@@ -295,19 +295,19 @@ class PriceAnalyzer:
             ):
                 self._cheap_hours["morning_price"] = hour_price
                 self._cheap_hours["morning"] = price_period_start_hour
-            elif (
-                EARLIEST_AFTERNOON_PREHEAT_HOUR
-                <= price_period_start_hour
-                <= BEGIN_AFTERNOON_HEATING_BY_HOUR
+        elif (
+            EARLIEST_AFTERNOON_PREHEAT_HOUR
+            <= price_period_start_hour
+            <= BEGIN_AFTERNOON_HEATING_BY_HOUR
+        ):
+            if "afternoon_price" not in self._cheap_hours or (
+                hour_price + TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT
+            ) <= self.cost_of_early_consumed_mwh(
+                self._cheap_hours["afternoon_price"],
+                price_period_start_hour - self._cheap_hours["afternoon"],
             ):
-                if "afternoon_price" not in self._cheap_hours or (
-                    hour_price + TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT
-                ) <= self.cost_of_early_consumed_mwh(
-                    self._cheap_hours["afternoon_price"],
-                    price_period_start_hour - self._cheap_hours["afternoon"],
-                ):
-                    self._cheap_hours["afternoon_price"] = hour_price
-                    self._cheap_hours["afternoon"] = price_period_start_hour
+                self._cheap_hours["afternoon_price"] = hour_price
+                self._cheap_hours["afternoon"] = price_period_start_hour
 
     def calculate_reduced_comfort_hours(self, comfort_hours):
         self._reduced_comfort_hours = []
@@ -338,7 +338,10 @@ class TemperatureProvider:
         ):
             return self.indoor_temperature
         try:
-            self.indoor_temperature = (self.indoor_temperature + self._controller.read_temperature()) / 2
+            self.indoor_temperature = (
+                self.indoor_temperature + self._controller.read_temperature()
+            ) / 2
+            sleep(SECONDS_BETWEEN_COMMANDS)
             self.last_indoor_update = datetime.today()
             if verbose:
                 print(f"floor temperature: {self.indoor_temperature}")
@@ -449,7 +452,6 @@ class SensiboOptimizer:
         self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
 
     def monitor_idle_period(self, idle_hour_start, idle_hour_end):
-        current_floor_sensor_value = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
         for pause_hour in range(idle_hour_start, idle_hour_end):
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
@@ -472,8 +474,6 @@ class SensiboOptimizer:
         self.wait_for_hour(pre_boost_hour_start)
         for sample_minute in range(9, 60, 10):
             current_floor_sensor_value = self.get_current_floor_temp()
-
-            sleep(SECONDS_BETWEEN_COMMANDS)
             if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                 self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
             elif (
@@ -493,8 +493,6 @@ class SensiboOptimizer:
                 print("mild boosting")
         for sample_minute in range(9, 60, 10):
             current_floor_sensor_value = self.get_current_floor_temp()
-
-            sleep(SECONDS_BETWEEN_COMMANDS)
             if (
                 current_floor_sensor_value < MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
                 and max_boost
@@ -544,56 +542,63 @@ class SensiboOptimizer:
             WORKDAY_AFTERNOON_COMFORT_BY_HOUR,
         )
 
-        self.manage_comfort_hours([WORKDAY_AFTERNOON_COMFORT_BY_HOUR])
+        self.manage_comfort_hours(
+            [WORKDAY_AFTERNOON_COMFORT_BY_HOUR], idle_after_comfort=False
+        )
 
         self.wait_for_hour(17)
         self._controller.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
         self.manage_comfort_hours(range(18, WORKDAY_COMFORT_UNTIL_HOUR))
 
-    def manage_comfort_hours(self, comfort_range):
+    def check_and_reset_overtemp(self, current_floor_sensor_value):
+        if current_floor_sensor_value <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE:
+            self._step_1_overtemperature_distribution_active = False
+
+    def manage_comfort_rampout(self, current_floor_sensor_value):
+        if current_floor_sensor_value > MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+            self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
+        else:
+            self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
+
+    def manage_comfort_hours(self, comfort_range, idle_after_comfort=True):
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
                 current_outdoor_temperature = self.get_current_outdoor_temp()
-
-                if (
-                    current_floor_sensor_value
-                    <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
-                ):
-                    self._step_1_overtemperature_distribution_active = False
+                self.check_and_reset_overtemp(current_floor_sensor_value)
 
                 if (
                     current_outdoor_temperature > MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT
                     and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
                 ):
                     self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
-                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                    self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
                 elif (
                     current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
                 ):
                     self._controller.apply_multi_settings(IDLE_SETTINGS)
-                elif (
-                    sample_minute == 59  # boost 49-59 if price will rise
-                    and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
-                    and current_floor_sensor_value
-                    <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
-                ):
-                    self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
-                elif (
-                    current_floor_sensor_value
-                    < MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
-                ):
-                    if self._price_analyzer.is_hour_reasonably_priced(comfort_hour):
+                elif idle_after_comfort and comfort_hour == comfort_range[-1]:
+                    self.manage_comfort_rampout(current_floor_sensor_value)
+                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+                    if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
+                        self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+                    else:
                         self._controller.apply_multi_settings(
                             COMFORT_PLUS_HEAT_SETTINGS
                         )
-                    else:
-                        self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
-                else:
+                elif (
+                    current_floor_sensor_value
+                    >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                ):
                     self.manage_over_temperature()
+                elif self._price_analyzer.is_hour_reasonably_priced(comfort_hour) or (
+                    sample_minute == 59  # boost 49-59 if price will rise
+                    and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+                ):
+                    self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
+                else:
+                    self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 self.wait_for_hour(comfort_hour, sample_minute)
 
     def get_delta_degree_percent(self, delta):
