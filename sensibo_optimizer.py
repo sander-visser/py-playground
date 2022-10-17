@@ -172,9 +172,10 @@ class PriceAnalyzer:
             percent_additional_heat_leak_from_two_degrees_warmer
         )
 
-        print(f"Getting prices for {lookup_date} to find cheap hours...")
         print(
-            f"Plus comfort loss: {percent_additional_heat_leak_from_two_degrees_warmer}"
+            f"Getting prices for {lookup_date} to find cheap hours. Plus comfort loss is: "
+            + f"{round(100.0 * percent_additional_heat_leak_from_two_degrees_warmer, 2)}"
+            + " % given current outdoor temperature"
         )
         day_spot_prices = spot_prices.hourly(end_date=lookup_date, areas=[REGION])[
             "areas"
@@ -188,6 +189,8 @@ class PriceAnalyzer:
             self.significantly_more_expensive_after_midnight = (
                 TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + lowest_price_first_three_hours
             ) > self.cost_of_early_consumed_mwh(self._day_spot_prices[23]["value"])
+            if self.significantly_more_expensive_after_midnight:
+                print("Prepared to boost before midnight..")
         self._day_spot_prices = day_spot_prices
 
     def cost_of_early_consumed_mwh(self, raw_mwh_cost, nbr_of_hours_too_early=1):
@@ -448,7 +451,10 @@ class SensiboOptimizer:
             self.manage_pre_boost(boost_hour_start - 1)
         self.wait_for_hour(boost_hour_start)
 
-        self.handle_boost(boost_hour_start)
+        self.handle_boost(
+            boost_hour_start,
+            max_boost=self._price_analyzer.is_hour_preheat_favorable(boost_hour_start),
+        )
         self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
 
     def monitor_idle_period(self, idle_hour_start, idle_hour_end):
@@ -484,8 +490,7 @@ class SensiboOptimizer:
                 self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
             self.wait_for_hour(pre_boost_hour_start, sample_minute)
 
-    def handle_boost(self, boost_hour_start):
-        max_boost = self._price_analyzer.is_hour_preheat_favorable(boost_hour_start)
+    def handle_boost(self, boost_hour_start, max_boost):
         if self.verbose:
             if max_boost:
                 print("max boosting")
@@ -674,24 +679,20 @@ class SensiboOptimizer:
                 comfort_heating_first_range.start,
             )
 
-            self.manage_comfort_hours([comfort_heating_first_range.start])
+            self.manage_comfort_hours(
+                [comfort_heating_first_range.start], idle_after_comfort=False
+            )
 
             self.wait_for_hour(comfort_heating_first_range.start + 1)
             self._controller.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
-            keep_comfort_until_hour = WORKDAY_COMFORT_UNTIL_HOUR
             if optimizing_a_workday:
                 self.run_workday_8_to_22_schedule()
             else:
-                keep_comfort_until_hour = WEEKEND_COMFORT_UNTIL_HOUR
                 self.manage_comfort_hours(
                     range(DAYOFF_MORNING["eat_until_hour"], WEEKEND_COMFORT_UNTIL_HOUR)
                 )
 
-            self.wait_for_hour(keep_comfort_until_hour - 1, 30)
-            self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
-
-            self.wait_for_hour(22)
             self._controller.apply_multi_settings(IDLE_SETTINGS)
 
             self._price_analyzer.prepare_next_day(
@@ -701,7 +702,7 @@ class SensiboOptimizer:
 
             if self._price_analyzer.significantly_more_expensive_after_midnight:
                 self.wait_for_hour(23)
-                self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+                self.handle_boost(23, max_boost=True)
                 self.wait_for_hour(24)
 
             self._prev_midnight += timedelta(days=1)
