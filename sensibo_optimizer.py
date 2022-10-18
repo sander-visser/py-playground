@@ -447,13 +447,14 @@ class SensiboOptimizer:
     ):
         self.wait_for_hour(idle_hour_start)
         self.monitor_idle_period(idle_hour_start, boost_hour_start - 1)
+        max_boost = self._price_analyzer.is_hour_preheat_favorable(boost_hour_start)
         if short_boost:
-            self.manage_pre_boost(boost_hour_start - 1)
+            self.manage_pre_boost(boost_hour_start - 1, max_boost)
         self.wait_for_hour(boost_hour_start)
 
         self.handle_boost(
             boost_hour_start,
-            max_boost=self._price_analyzer.is_hour_preheat_favorable(boost_hour_start),
+            max_boost,
         )
         self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
 
@@ -474,16 +475,21 @@ class SensiboOptimizer:
                     self._controller.apply_multi_settings(IDLE_SETTINGS)
                 self.wait_for_hour(pause_hour, sample_minute)
 
-    def manage_pre_boost(self, pre_boost_hour_start):
+    def manage_pre_boost(self, pre_boost_hour_start, max_boost):
         if self.verbose:
             print("Short boost monitoring")
         self.wait_for_hour(pre_boost_hour_start)
         for sample_minute in range(9, 60, 10):
             current_floor_sensor_value = self.get_current_floor_temp()
             if current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+                if max_boost:
+                    self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+                else:
+                    self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
             elif (
-                current_floor_sensor_value >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                not max_boost
+                or current_floor_sensor_value
+                >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
             ):
                 self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
             else:
@@ -505,12 +511,12 @@ class SensiboOptimizer:
                 self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
             else:
                 self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
-            self.wait_for_hour(boost_hour_start - 1, sample_minute)
+            self.wait_for_hour(boost_hour_start, sample_minute)
 
     def handle_post_boost(self, post_boost_hour_start, comfort_hour_start):
         if self.verbose:
             print(
-                f"post boost monitorning {post_boost_hour_start} to {comfort_hour_start}"
+                f"Post boost monitoring {post_boost_hour_start} to {comfort_hour_start}"
             )
         pause_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
         if post_boost_hour_start >= comfort_hour_start:
