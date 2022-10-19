@@ -369,7 +369,7 @@ class TemperatureProvider:
                 except ValueError:
                     print(
                         f"{outdoor_temperature_req.text} Temperature is not possible to use"
-                        + " - using {self.outdoor_temperature}"
+                        + f" - using {self.outdoor_temperature}"
                     )
         except requests.exceptions.ConnectionError:
             print(f"Ignoring temperature read error - using {self.outdoor_temperature}")
@@ -621,7 +621,7 @@ class SensiboOptimizer:
             delta_degree_percent = 1 - ((delta_degrees - delta) / delta_degrees)
         return delta_degree_percent
 
-    def run(self, device_name, client):
+    def run(self, at_home_until_end_of, device_name, client):
         devices = client.devices()
         print("-" * 10, "devices", "-" * 10)
         print(devices)
@@ -652,10 +652,17 @@ class SensiboOptimizer:
             self._prev_midnight.date(),
             self.get_delta_degree_percent(COMFORT_PLUS_TEMP_DELTA),
         )
+        if at_home_until_end_of is not None:
+            at_home_until_end_of = datetime.strptime(at_home_until_end_of, "%Y-%m-%d")
         while True:
             optimizing_a_workday = (
                 self._prev_midnight.date().isoweekday() not in AT_HOME_DAYS
             ) and self._prev_midnight.date() not in REGION_HOLIDAYS
+            if (
+                at_home_until_end_of is not None
+                and at_home_until_end_of.date() >= self._prev_midnight.date()
+            ):
+                optimizing_a_workday = False
             comfort_heating_first_range = (
                 range(
                     WORKDAY_MORNING["comfort_by_hour"],
@@ -725,6 +732,15 @@ if __name__ == "__main__":
         "-d", "--device", type=str, default=None, required=False, dest="deviceName"
     )
     parser.add_argument(
+        "-e",
+        "--extra-at-home-override-until-end-of",
+        type=str,
+        default=None,
+        required=False,
+        dest="atHomeOverrideUntilEndOf",
+        help="Provide day off work comfort up to and including YYYY-MM-DD",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         default=False,
@@ -740,7 +756,9 @@ if __name__ == "__main__":
     while True:
         try:
             fresh_sensibo_client = sensibo_client.SensiboClientAPI(args.apikey)
-            optimizer.run(args.deviceName, fresh_sensibo_client)
+            optimizer.run(
+                args.atHomeOverrideUntilEndOf, args.deviceName, fresh_sensibo_client
+            )
         except requests.exceptions.ReadTimeout:
             print("Resetting optimizer due to error 2")
         except requests.exceptions.ConnectTimeout:
