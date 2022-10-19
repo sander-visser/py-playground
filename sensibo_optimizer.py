@@ -739,26 +739,21 @@ if __name__ == "__main__":
 
     while True:
         try:
-            sensibo_client = sensibo_client.SensiboClientAPI(args.apikey)
-            optimizer.run(args.deviceName, sensibo_client)
+            fresh_sensibo_client = sensibo_client.SensiboClientAPI(args.apikey)
+            optimizer.run(args.deviceName, fresh_sensibo_client)
         except requests.exceptions.ReadTimeout:
             print("Resetting optimizer due to error 2")
-            sleep(300)
         except requests.exceptions.ConnectTimeout:
             print("Resetting optimizer due to error 3")
-            sleep(300)
         except requests.exceptions.Timeout:
             print("Resetting optimizer due to error 1")
-            sleep(300)
         except requests.exceptions.ConnectionError:
             print("Resetting optimizer due to error 5")
-            sleep(300)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403:
                 print("403: check the API key")
                 sys.exit(1)
             print("Resetting optimizer due to error 6")
-            sleep(300)
         except requests.exceptions.RequestException:
             print("Resetting optimizer due to error 4")
-            sleep(300)
+        sleep(300)
