@@ -3,10 +3,15 @@
 """
 Optimizer balancing comfort vs price for an IR remote controlled heatpump
 - pre-heats the home in an optimal way when occupants are away or sleeping
-- offers extra heat when the price is affordable
+- offers extra heat when the price is affordable or outdoor temp. is low
+
+MIT license (as the rest of the repo)
+
+If you plan to migrate to Tibber electricity broker I can provide a referral
+giving us both 500 SEK. Contact: github[a]visser.se
 
 Usage:
-Install needed pip packages
+Install needed pip packages (see below imports)
 Run this script on a internet connected machine configured with relevant timezone
  - Tip: Use environment variable TZ='Europe/Stockholm'
 Script tested with a Sensibo Sky placed 20cm above floor level
@@ -48,10 +53,11 @@ WORKDAY_MORNING_COMFORT_UNTIL_HOUR = 8
 EARLIEST_AFTERNOON_PREHEAT_HOUR = 11  # Must be a pause since morning hour
 BEGIN_AFTERNOON_HEATING_BY_HOUR = 14
 WORKDAY_AFTERNOON_COMFORT_BY_HOUR = 16
+DINNER_HOUR = 17
 WORKDAY_COMFORT_UNTIL_HOUR = 22
 WEEKEND_COMFORT_UNTIL_HOUR = 23
-DEGREES_PER_HOUR_DURING_RAMPUP = 1
 SECONDS_BETWEEN_COMMANDS = 1.5
+SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [5, 6, 7]
 TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 634.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
@@ -59,7 +65,9 @@ RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
 ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 7000.0
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3
-MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = 2.0  # Pure electric heaters should be off above
+MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = 3.0  # Pure electric heaters should be off above
+COLD_OUTDOOR_TEMP = 0.0
+EXTREME_OUTDOOR_TEMP = -7.0
 MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
@@ -73,11 +81,11 @@ HEATPUMP_HEATING_WATTS_AT_PLUS7 = 6600.0
 HEATPUMP_HEATING_WATTS_AT_PLUS2 = 5600.0
 HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
 HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
-# 5.6kW can be produced by above Mitsubishi heat pump at plus 2
+# 5.2kW can be produced by above Mitsubishi heat pump at minus 7
 # This info together with info that extra electrical heaters
-# are needed if colder gives dissiapation of the home in watts
-HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE = 320.0
-WATTS_STORED_IN_BUILDING_PER_DELTA_DEGREE = 22500.0
+# are needed if colder than -5 gives dissiapation of the home in watts
+HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE = 226.0
+WATT_HRS_STORED_IN_BUILDING_PER_DELTA_DEGREE = 3000.0
 
 COMFORT_PLUS_TEMP_DELTA = 2  # Int
 IDLE_SETTINGS = {
@@ -103,6 +111,14 @@ COMFORT_HEAT_SETTINGS = {
     "swing": "fixedTop",
     "fanLevel": "medium_high",
     "targetTemperature": 20,
+}
+
+COLD_HEAT_SETTINGS = {
+    "mode": "heat",
+    "horizontalSwing": "fixedLeft",
+    "swing": "fixedTop",
+    "fanLevel": "high",
+    "targetTemperature": 22,
 }
 
 COMFORT_PLUS_HEAT_SETTINGS = {
@@ -157,6 +173,14 @@ class PriceAnalyzer:
 
     def is_hour_with_reduced_comfort(self, hour):
         return hour in self._reduced_comfort_hours
+
+    def is_next_hour_cheaper(self, hour):
+        if hour == 23:
+            return True
+        return (
+            self._day_spot_prices[hour]["value"]
+            > self._day_spot_prices[hour + 1]["value"]
+        )
 
     def is_hour_reasonably_priced(self, hour):
         return hour in self._reasonably_priced_hours
@@ -513,6 +537,31 @@ class SensiboOptimizer:
                 self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
             self.wait_for_hour(boost_hour_start, sample_minute)
 
+    def get_current_heating_capacity(self, heating_hours):
+        outside_temp = self._temperature_provider.get_outdoor_temperature(self.verbose)
+        delta_temp = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - outside_temp
+        if delta_temp <= 0:
+            return 100.0
+        current_heating_watts = HEATPUMP_HEATING_WATTS_AT_PLUS7
+        if outside_temp <= 4.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_PLUS2
+        if outside_temp <= -4.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS7
+        if outside_temp <= -11.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS15
+        current_dissipation = HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE * delta_temp
+        boost_watts = current_heating_watts - current_dissipation
+        if self.verbose:
+            print(f"Current boosting capacity is {boost_watts} watts")
+        if boost_watts < 1.0:
+            return 0.0
+        heating_capacity = heating_hours * (
+            boost_watts / WATT_HRS_STORED_IN_BUILDING_PER_DELTA_DEGREE
+        )
+        if self.verbose:
+            print(f"Can boost {heating_capacity} degrees in {heating_hours} hours")
+        return heating_capacity
+
     def handle_post_boost(self, post_boost_hour_start, comfort_hour_start):
         if self.verbose:
             print(
@@ -527,7 +576,7 @@ class SensiboOptimizer:
             self.wait_for_hour(pause_hour)
             pause_setting["targetTemperature"] = int(
                 COMFORT_HEAT_SETTINGS["targetTemperature"]
-                - (comfort_hour_start - pause_hour) * DEGREES_PER_HOUR_DURING_RAMPUP
+                - self.get_current_heating_capacity(comfort_hour_start - pause_hour)
             )
             if self._price_analyzer.is_hour_preheat_favorable(pause_hour):
                 self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
@@ -557,16 +606,28 @@ class SensiboOptimizer:
             [WORKDAY_AFTERNOON_COMFORT_BY_HOUR], idle_after_comfort=False
         )
 
-        self.wait_for_hour(17)
+        self.wait_for_hour(DINNER_HOUR)
         self._controller.apply_multi_settings(COMFORT_EATING_HEAT_SETTINGS)
 
-        self.manage_comfort_hours(range(18, WORKDAY_COMFORT_UNTIL_HOUR))
+        self.manage_comfort_hours(range(DINNER_HOUR + 1, WORKDAY_COMFORT_UNTIL_HOUR))
 
     def check_and_reset_overtemp(self, current_floor_sensor_value):
         if current_floor_sensor_value <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE:
             self._step_1_overtemperature_distribution_active = False
 
-    def manage_comfort_rampout(self, current_floor_sensor_value):
+    def apply_comfort_boost(self, comfort_hour):
+        if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
+            self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+        else:
+            self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
+
+    def apply_cold_comfort(self, current_outdoor_temperature):
+        if current_outdoor_temperature < EXTREME_OUTDOOR_TEMP:
+            self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+        else:
+            self._controller.apply_multi_settings(COLD_HEAT_SETTINGS)
+
+    def apply_comfort_rampout(self, current_floor_sensor_value):
         if current_floor_sensor_value > MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
             self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
         else:
@@ -580,29 +641,28 @@ class SensiboOptimizer:
                 current_outdoor_temperature = self.get_current_outdoor_temp()
                 self.check_and_reset_overtemp(current_floor_sensor_value)
 
-                if (
-                    current_outdoor_temperature > MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT
-                    and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
-                ):
-                    self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
-                elif (
-                    current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
-                ):
+                if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self._controller.apply_multi_settings(IDLE_SETTINGS)
-                elif idle_after_comfort and comfort_hour == comfort_range[-1]:
-                    self.manage_comfort_rampout(current_floor_sensor_value)
-                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                    if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
-                        self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
-                    else:
-                        self._controller.apply_multi_settings(
-                            COMFORT_PLUS_HEAT_SETTINGS
-                        )
                 elif (
                     current_floor_sensor_value
                     >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
                 ):
                     self.manage_over_temperature()
+                elif idle_after_comfort and comfort_hour == comfort_range[-1]:
+                    self.apply_comfort_rampout(current_floor_sensor_value)
+                elif (
+                    current_outdoor_temperature > MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT
+                    and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
+                ):
+                    self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
+                elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
+                    self.apply_cold_comfort(current_outdoor_temperature)
+                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+                    self.apply_comfort_boost(comfort_hour)
+                elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
+                    sample_minute == 59
+                ):
+                    self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 elif self._price_analyzer.is_hour_reasonably_priced(comfort_hour) or (
                     sample_minute == 59  # boost 49-59 if price will rise
                     and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
@@ -655,6 +715,9 @@ class SensiboOptimizer:
         if at_home_until_end_of is not None:
             at_home_until_end_of = datetime.strptime(at_home_until_end_of, "%Y-%m-%d")
         while True:
+            optimizing_a_schoolday = (
+                self._prev_midnight.date().isoweekday() in SCHOOL_DAYS
+            ) and self._prev_midnight.date() not in REGION_HOLIDAYS
             optimizing_a_workday = (
                 self._prev_midnight.date().isoweekday() not in AT_HOME_DAYS
             ) and self._prev_midnight.date() not in REGION_HOLIDAYS
@@ -663,12 +726,17 @@ class SensiboOptimizer:
                 and at_home_until_end_of.date() >= self._prev_midnight.date()
             ):
                 optimizing_a_workday = False
+                optimizing_a_schoolday = True
             comfort_heating_first_range = (
                 range(
                     WORKDAY_MORNING["comfort_by_hour"],
                     WORKDAY_MORNING_COMFORT_UNTIL_HOUR,
                 )
                 if optimizing_a_workday
+                else range(
+                    WORKDAY_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
+                )
+                if optimizing_a_schoolday
                 else range(
                     DAYOFF_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
                 )
