@@ -87,6 +87,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE = 226.0
 WATT_HRS_STORED_IN_BUILDING_PER_DELTA_DEGREE = 3000.0
 
+COMFORT_TEMPERATURE_HYSTERESIS = 0.75  # How far below comfort to aim for
 COMFORT_PLUS_TEMP_DELTA = 2  # Int
 IDLE_SETTINGS = {
     "on": True,
@@ -139,7 +140,7 @@ COMFORT_REDUCED_HEAT_SETTINGS = {
 }
 
 HEAT_DISTRIBUTION_SETTINGS = {
-    "targetTemperature": 16,  # Ignored,b ut needed during restore
+    "targetTemperature": 16,  # Ignored, but needed during restore
     "mode": "fan",
     "horizontalSwing": "fixedLeft",
     "swing": "fixedTop",
@@ -151,7 +152,7 @@ COMFORT_EATING_HEAT_SETTINGS = {
     "horizontalSwing": "fixedCenterRight",
     "swing": "fixedMiddle",
     "fanLevel": "medium_high",
-    "targetTemperature": 20,
+    "targetTemperature": 21,
 }
 
 
@@ -470,7 +471,9 @@ class SensiboOptimizer:
         self, idle_hour_start, boost_hour_start, short_boost, comfort_hour_start
     ):
         self.wait_for_hour(idle_hour_start)
-        self.monitor_idle_period(idle_hour_start, boost_hour_start - 1)
+        self.monitor_idle_period(
+            idle_hour_start, boost_hour_start - 1, comfort_hour_start
+        )
         max_boost = self._price_analyzer.is_hour_preheat_favorable(boost_hour_start)
         if short_boost:
             self.manage_pre_boost(boost_hour_start - 1, max_boost)
@@ -482,7 +485,7 @@ class SensiboOptimizer:
         )
         self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
 
-    def monitor_idle_period(self, idle_hour_start, idle_hour_end):
+    def monitor_idle_period(self, idle_hour_start, idle_hour_end, comfort_hour_start):
         for pause_hour in range(idle_hour_start, idle_hour_end):
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
@@ -496,7 +499,9 @@ class SensiboOptimizer:
                     self.manage_over_temperature()
                 else:
                     self._step_1_overtemperature_distribution_active = False
-                    self._controller.apply_multi_settings(IDLE_SETTINGS)
+                    self.apply_rampup_to_comfort(
+                        comfort_hour_start - pause_hour, COMFORT_TEMPERATURE_HYSTERESIS
+                    )
                 self.wait_for_hour(pause_hour, sample_minute)
 
     def manage_pre_boost(self, pre_boost_hour_start, max_boost):
@@ -580,12 +585,22 @@ class SensiboOptimizer:
             )
             if self._price_analyzer.is_hour_preheat_favorable(pause_hour):
                 self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
-            elif (
-                pause_setting["targetTemperature"] < IDLE_SETTINGS["targetTemperature"]
-            ):
-                self._controller.apply_multi_settings(IDLE_SETTINGS)
             else:
-                self._controller.apply_multi_settings(pause_setting)
+                self.apply_rampup_to_comfort(comfort_hour_start - pause_hour)
+
+    def apply_rampup_to_comfort(self, hours_remaining_til_comfort, rampup_offset=0):
+        pause_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
+        pause_setting["targetTemperature"] = int(
+            COMFORT_HEAT_SETTINGS["targetTemperature"]
+            - (
+                self.get_current_heating_capacity(hours_remaining_til_comfort)
+                + rampup_offset
+            )
+        )
+        if pause_setting["targetTemperature"] <= IDLE_SETTINGS["targetTemperature"]:
+            self._controller.apply_multi_settings(IDLE_SETTINGS)
+        else:
+            self._controller.apply_multi_settings(pause_setting)
 
     def run_workday_8_to_22_schedule(self):
         self.wait_for_hour(
@@ -615,11 +630,21 @@ class SensiboOptimizer:
         if current_floor_sensor_value <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE:
             self._step_1_overtemperature_distribution_active = False
 
-    def apply_comfort_boost(self, comfort_hour):
-        if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
-            self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+    def apply_comfort_boost(self, comfort_hour, boost_distance):
+        if boost_distance > COMFORT_TEMPERATURE_HYSTERESIS:
+            if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
+                self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
+            else:
+                self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
         else:
-            self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
+            if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
+                self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
+            else:
+                mild_boost_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
+                mild_boost_setting["targetTemperature"] = (
+                    COMFORT_HEAT_SETTINGS["targetTemperature"] + 1
+                )
+                self._controller.apply_multi_settings(mild_boost_setting)
 
     def apply_cold_comfort(self, current_outdoor_temperature):
         if current_outdoor_temperature < EXTREME_OUTDOOR_TEMP:
@@ -658,7 +683,11 @@ class SensiboOptimizer:
                 elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
                     self.apply_cold_comfort(current_outdoor_temperature)
                 elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                    self.apply_comfort_boost(comfort_hour)
+                    self.apply_comfort_boost(
+                        comfort_hour,
+                        MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+                        - current_floor_sensor_value,
+                    )
                 elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
                     sample_minute == 59
                 ):
@@ -752,6 +781,7 @@ class SensiboOptimizer:
             cheap_morning_hour = self._price_analyzer.cheap_morning_hour()
 
             self._controller.apply_multi_settings(IDLE_SETTINGS, True)
+            self.wait_for_hour(0)
 
             self.run_boost_rampup_to_comfort(
                 0,
