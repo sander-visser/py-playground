@@ -189,6 +189,31 @@ class PriceAnalyzer:
     def is_hour_preheat_favorable(self, hour):
         return hour in self._pre_heat_favorable_hours
 
+    def is_hour_longterm_preheat_favorable(self, hour, next_comfort_hour):
+        current_hour_price = self.cost_of_early_consumed_mwh(
+            self._day_spot_prices[hour]["value"], next_comfort_hour - hour
+        )
+        first_comfort_hour_price = self.cost_of_consumed_mwh(
+            self._day_spot_prices[next_comfort_hour]["value"]
+        )
+        second_comfort_hour_price = self.cost_of_consumed_mwh(
+            self._day_spot_prices[next_comfort_hour + 1]["value"]
+        )
+        comfort_hour_price = max(first_comfort_hour_price, second_comfort_hour_price)
+        if comfort_hour_price < current_hour_price:
+            return False  # It is more expensive now than at desired comfort
+        if (hour + 1) == next_comfort_hour:
+            return bool(
+                comfort_hour_price > current_hour_price
+            )  # simple to judge when close by
+        for idle_hour in range(hour + 1, next_comfort_hour):
+            future_hour_price = self.cost_of_early_consumed_mwh(
+                self._day_spot_prices[idle_hour]["value"], next_comfort_hour - idle_hour
+            )
+            if future_hour_price < current_hour_price:
+                return False  # Wait; it will become even cheaper
+        return True
+
     def prepare_next_day(
         self, lookup_date, percent_additional_heat_leak_from_two_degrees_warmer
     ):
@@ -212,18 +237,22 @@ class PriceAnalyzer:
                 day_spot_prices[2]["value"],
             )
             self.significantly_more_expensive_after_midnight = (
-                TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + lowest_price_first_three_hours
-            ) > self.cost_of_early_consumed_mwh(self._day_spot_prices[23]["value"])
+                self.cost_of_consumed_mwh(lowest_price_first_three_hours)
+                > self.cost_of_early_consumed_mwh(self._day_spot_prices[23]["value"])
+            )
             if self.significantly_more_expensive_after_midnight:
                 print("Prepared to boost before midnight..")
         self._day_spot_prices = day_spot_prices
 
     def cost_of_early_consumed_mwh(self, raw_mwh_cost, nbr_of_hours_too_early=1):
-        return (TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + raw_mwh_cost) * (
+        return self.cost_of_consumed_mwh(raw_mwh_cost) * (
             1
             + self._percent_additional_heat_leak_from_two_degrees_warmer
             * nbr_of_hours_too_early
         )
+
+    def cost_of_consumed_mwh(self, raw_mwh_cost):
+        return TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + raw_mwh_cost
 
     def process_preheat_favourable_hour(
         self,
@@ -232,7 +261,7 @@ class PriceAnalyzer:
         previous_price_period_start_hour,
     ):
         if previous_hour_price is not None and (
-            TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + current_hour_price
+            self.cost_of_consumed_mwh(current_hour_price)
         ) > self.cost_of_early_consumed_mwh(previous_hour_price):
             self._pre_heat_favorable_hours.append(previous_price_period_start_hour)
 
@@ -483,9 +512,15 @@ class SensiboOptimizer:
             boost_hour_start,
             max_boost,
         )
-        self.handle_post_boost(boost_hour_start + 1, comfort_hour_start)
+        self.monitor_idle_period(
+            boost_hour_start + 1, comfort_hour_start, comfort_hour_start
+        )
 
     def monitor_idle_period(self, idle_hour_start, idle_hour_end, comfort_hour_start):
+        if idle_hour_start >= idle_hour_end:
+            if self.verbose:
+                print("skipping idle period monitoring")
+            self.wait_for_hour(idle_hour_start)
         for pause_hour in range(idle_hour_start, idle_hour_end):
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
@@ -497,10 +532,19 @@ class SensiboOptimizer:
                     >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
                 ):
                     self.manage_over_temperature()
+                elif self._price_analyzer.is_hour_longterm_preheat_favorable(
+                    pause_hour, comfort_hour_start
+                ):
+                    self._step_1_overtemperature_distribution_active = False
+                    self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
                 else:
                     self._step_1_overtemperature_distribution_active = False
+                    idle_ends_in_comfort = idle_hour_end == comfort_hour_start
+                    comfort_offset = (
+                        0 if idle_ends_in_comfort else COMFORT_TEMPERATURE_HYSTERESIS
+                    )
                     self.apply_rampup_to_comfort(
-                        comfort_hour_start - pause_hour, COMFORT_TEMPERATURE_HYSTERESIS
+                        comfort_hour_start - pause_hour, comfort_offset
                     )
                 self.wait_for_hour(pause_hour, sample_minute)
 
@@ -516,9 +560,7 @@ class SensiboOptimizer:
                 else:
                     self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
             elif (
-                not max_boost
-                or current_floor_sensor_value
-                >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                current_floor_sensor_value >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
             ):
                 self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
             else:
@@ -566,27 +608,6 @@ class SensiboOptimizer:
         if self.verbose:
             print(f"Can boost {heating_capacity} degrees in {heating_hours} hours")
         return heating_capacity
-
-    def handle_post_boost(self, post_boost_hour_start, comfort_hour_start):
-        if self.verbose:
-            print(
-                f"Post boost monitoring {post_boost_hour_start} to {comfort_hour_start}"
-            )
-        pause_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
-        if post_boost_hour_start >= comfort_hour_start:
-            if self.verbose:
-                print("skipping post boost due to imminent comfort")
-            self.wait_for_hour(post_boost_hour_start)
-        for pause_hour in range(post_boost_hour_start, comfort_hour_start):
-            self.wait_for_hour(pause_hour)
-            pause_setting["targetTemperature"] = int(
-                COMFORT_HEAT_SETTINGS["targetTemperature"]
-                - self.get_current_heating_capacity(comfort_hour_start - pause_hour)
-            )
-            if self._price_analyzer.is_hour_preheat_favorable(pause_hour):
-                self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
-            else:
-                self.apply_rampup_to_comfort(comfort_hour_start - pause_hour)
 
     def apply_rampup_to_comfort(self, hours_remaining_til_comfort, rampup_offset=0):
         pause_setting = copy.deepcopy(COMFORT_HEAT_SETTINGS)
@@ -682,16 +703,16 @@ class SensiboOptimizer:
                     self._controller.apply_multi_settings(COMFORT_REDUCED_HEAT_SETTINGS)
                 elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
                     self.apply_cold_comfort(current_outdoor_temperature)
+                elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
+                    sample_minute == 59
+                ):
+                    self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_comfort_boost(
                         comfort_hour,
                         MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
                         - current_floor_sensor_value,
                     )
-                elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
-                    sample_minute == 59
-                ):
-                    self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
                 elif self._price_analyzer.is_hour_reasonably_priced(comfort_hour) or (
                     sample_minute == 59  # boost 49-59 if price will rise
                     and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
@@ -705,7 +726,7 @@ class SensiboOptimizer:
         delta_degrees = self._temperature_provider.get_indoor_temperature(
             self.verbose
         ) - self._temperature_provider.get_outdoor_temperature(self.verbose)
-        delta_degree_percent = 99.0  # Super high to disalbe comfort plus
+        delta_degree_percent = 99.0  # Super high to disable comfort plus
         if delta_degrees > delta:
             delta_degree_percent = 1 - ((delta_degrees - delta) / delta_degrees)
         return delta_degree_percent
