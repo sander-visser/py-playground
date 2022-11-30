@@ -66,10 +66,12 @@ RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
 ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 7000.0
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3
-MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = 3.0  # Pure electric heaters should be off above
+MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = (
+    -2.0
+)  # Pure electric heaters should be off above
 COLD_OUTDOOR_TEMP = 0.0
 EXTREME_OUTDOOR_TEMP = -7.0
-MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.5
+MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.3
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
 
@@ -115,7 +117,7 @@ COMFORT_HEAT_SETTINGS = {
     "targetTemperature": 20,
 }
 
-COLD_HEAT_SETTINGS = {
+HIGH_HEAT_SETTINGS = {
     "mode": "heat",
     "horizontalSwing": "fixedLeft",
     "swing": "fixedTop",
@@ -255,7 +257,8 @@ class PriceAnalyzer:
             * nbr_of_hours_too_early
         )
 
-    def cost_of_consumed_mwh(self, raw_mwh_cost):
+    @staticmethod
+    def cost_of_consumed_mwh(raw_mwh_cost):
         return TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT + raw_mwh_cost
 
     def process_preheat_favourable_hour(
@@ -558,7 +561,7 @@ class SensiboOptimizer:
                     pause_hour, comfort_hour_start
                 ):
                     self._step_1_overtemperature_distribution_active = False
-                    self._controller.apply_multi_settings(COLD_HEAT_SETTINGS)
+                    self._controller.apply_multi_settings(HIGH_HEAT_SETTINGS)
                 else:
                     self._step_1_overtemperature_distribution_active = False
                     idle_ends_in_comfort = idle_hour_end == comfort_hour_start
@@ -584,12 +587,19 @@ class SensiboOptimizer:
                 pre_boost_setting = (
                     copy.deepcopy(MAX_HEAT_SETTINGS)
                     if max_boost
-                    else copy.deepcopy(COLD_HEAT_SETTINGS)
+                    else copy.deepcopy(HIGH_HEAT_SETTINGS)
                 )
                 pre_boost_setting["targetTemperature"] = math.ceil(
                     pre_boost_setting["targetTemperature"]
                     - wanted_boost_temperature_offset
                 )
+                if (
+                    pre_boost_setting["targetTemperature"]
+                    <= IDLE_SETTINGS["targetTemperature"]
+                ):
+                    pre_boost_setting["targetTemperature"] = IDLE_SETTINGS[
+                        "targetTemperature"
+                    ]
                 self._controller.apply_multi_settings(pre_boost_setting)
             self.wait_for_hour(pre_boost_hour_start, sample_minute)
 
@@ -607,7 +617,7 @@ class SensiboOptimizer:
             ):
                 self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
             else:
-                self._controller.apply_multi_settings(COMFORT_PLUS_HEAT_SETTINGS)
+                self._controller.apply_multi_settings(HIGH_HEAT_SETTINGS)
             self.wait_for_hour(boost_hour_start, sample_minute)
 
     def get_current_heating_capacity(self, heating_hours):
@@ -616,11 +626,34 @@ class SensiboOptimizer:
         if delta_temp <= 0:
             return 100.0
         current_heating_watts = HEATPUMP_HEATING_WATTS_AT_PLUS7
-        if outside_temp <= 4.0:
-            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_PLUS2
-        if outside_temp <= -4.0:
-            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS7
-        if outside_temp <= -11.0:
+        if outside_temp < 7.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_PLUS2 + (
+                (outside_temp - 2.0)
+                * (
+                    (HEATPUMP_HEATING_WATTS_AT_PLUS7 - HEATPUMP_HEATING_WATTS_AT_PLUS2)
+                    / 5.0
+                )
+            )
+        if outside_temp < 2.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS7 + (
+                (outside_temp + 7.0)
+                * (
+                    (HEATPUMP_HEATING_WATTS_AT_PLUS2 - HEATPUMP_HEATING_WATTS_AT_MINUS7)
+                    / 9.0
+                )
+            )
+        if outside_temp < -7.0:
+            current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS15 + (
+                (outside_temp + 15.0)
+                * (
+                    (
+                        HEATPUMP_HEATING_WATTS_AT_MINUS7
+                        - HEATPUMP_HEATING_WATTS_AT_MINUS15
+                    )
+                    / 8.0
+                )
+            )
+        if outside_temp <= -15.0:
             current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS15
         current_dissipation = HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE * delta_temp
         boost_watts = current_heating_watts - current_dissipation
@@ -639,7 +672,7 @@ class SensiboOptimizer:
         pause_setting = (
             copy.deepcopy(COMFORT_HEAT_SETTINGS)
             if self.get_current_outdoor_temp() > COLD_OUTDOOR_TEMP
-            else copy.deepcopy(COLD_HEAT_SETTINGS)
+            else copy.deepcopy(HIGH_HEAT_SETTINGS)
         )
         pause_setting["targetTemperature"] = math.ceil(
             COMFORT_HEAT_SETTINGS["targetTemperature"]
@@ -704,7 +737,7 @@ class SensiboOptimizer:
         if current_outdoor_temperature < EXTREME_OUTDOOR_TEMP:
             self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
         else:
-            self._controller.apply_multi_settings(COLD_HEAT_SETTINGS)
+            self._controller.apply_multi_settings(HIGH_HEAT_SETTINGS)
 
     def apply_comfort_rampout(self, current_floor_sensor_value):
         if current_floor_sensor_value > MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
