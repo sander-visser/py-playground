@@ -71,7 +71,7 @@ MIN_OUTDOOR_TEMP_TO_REDUCE_COMFORT_AT = (
 )  # Pure electric heaters should be off above
 COLD_OUTDOOR_TEMP = 0.0
 EXTREME_OUTDOOR_TEMP = -7.0
-MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE = 22.3
+MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 0.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
 
@@ -496,6 +496,9 @@ class SensiboOptimizer:
     def get_current_outdoor_temp(self):
         return self._temperature_provider.get_outdoor_temperature(self.verbose)
 
+    def allowed_over_temperature(self, max_target_setting):
+        return max_target_setting["targetTemperature"] + MAX_FLOOR_SENSOR_OVER_TEMPERATURE
+
     def manage_over_temperature(self):
         if self._step_1_overtemperature_distribution_active:
             self._controller.apply_multi_settings(HEAT_DISTRIBUTION_SETTINGS)
@@ -549,28 +552,28 @@ class SensiboOptimizer:
         for pause_hour in range(idle_hour_start, idle_hour_end):
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
-                if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
-                    self._step_1_overtemperature_distribution_active = False
-                    self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
-                elif (
-                    current_floor_sensor_value
-                    >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                if current_floor_sensor_value >= self.allowed_over_temperature(
+                    COMFORT_HEAT_SETTINGS
                 ):
                     self.manage_over_temperature()
-                elif self._price_analyzer.is_hour_longterm_preheat_favorable(
-                    pause_hour, comfort_hour_start
-                ):
-                    self._step_1_overtemperature_distribution_active = False
-                    self._controller.apply_multi_settings(HIGH_HEAT_SETTINGS)
                 else:
                     self._step_1_overtemperature_distribution_active = False
-                    idle_ends_in_comfort = idle_hour_end == comfort_hour_start
-                    comfort_offset = (
-                        0 if idle_ends_in_comfort else COMFORT_TEMPERATURE_HYSTERESIS
-                    )
-                    self.apply_rampup_to_comfort(
-                        comfort_hour_start - pause_hour, comfort_offset
-                    )
+                    if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
+                        self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
+                    elif self._price_analyzer.is_hour_longterm_preheat_favorable(
+                        pause_hour, comfort_hour_start
+                    ):
+                        self._controller.apply_multi_settings(HIGH_HEAT_SETTINGS)
+                    else:
+                        idle_ends_in_comfort = idle_hour_end == comfort_hour_start
+                        comfort_offset = (
+                            0
+                            if idle_ends_in_comfort
+                            else COMFORT_TEMPERATURE_HYSTERESIS
+                        )
+                        self.apply_rampup_to_comfort(
+                            comfort_hour_start - pause_hour, comfort_offset
+                        )
                 self.wait_for_hour(pause_hour, sample_minute)
 
     def manage_pre_boost(
@@ -581,7 +584,9 @@ class SensiboOptimizer:
         self.wait_for_hour(pre_boost_hour_start)
         for sample_minute in range(9, 60, 10):
             current_floor_sensor_value = self.get_current_floor_temp()
-            if current_floor_sensor_value >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE:
+            if current_floor_sensor_value >= self.allowed_over_temperature(
+                COMFORT_PLUS_HEAT_SETTINGS
+            ):
                 self._controller.apply_multi_settings(COMFORT_HEAT_SETTINGS)
             else:
                 pre_boost_setting = (
@@ -612,7 +617,8 @@ class SensiboOptimizer:
         for sample_minute in range(9, 60, 10):
             current_floor_sensor_value = self.get_current_floor_temp()
             if (
-                current_floor_sensor_value < MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                current_floor_sensor_value
+                < self.allowed_over_temperature(COMFORT_PLUS_HEAT_SETTINGS)
                 and max_boost
             ):
                 self._controller.apply_multi_settings(MAX_HEAT_SETTINGS)
@@ -713,10 +719,6 @@ class SensiboOptimizer:
 
         self.manage_comfort_hours(range(DINNER_HOUR + 1, WORKDAY_COMFORT_UNTIL_HOUR))
 
-    def check_and_reset_overtemp(self, current_floor_sensor_value):
-        if current_floor_sensor_value <= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE:
-            self._step_1_overtemperature_distribution_active = False
-
     def apply_comfort_boost(self, comfort_hour, boost_distance):
         if boost_distance > COMFORT_TEMPERATURE_HYSTERESIS:
             if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
@@ -751,13 +753,15 @@ class SensiboOptimizer:
             for sample_minute in range(9, 60, 10):
                 current_floor_sensor_value = self.get_current_floor_temp()
                 current_outdoor_temperature = self.get_current_outdoor_temp()
-                self.check_and_reset_overtemp(current_floor_sensor_value)
+                if current_floor_sensor_value <= self.allowed_over_temperature(
+                    COMFORT_HEAT_SETTINGS
+                ):
+                    self._step_1_overtemperature_distribution_active = False
 
                 if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self._controller.apply_multi_settings(IDLE_SETTINGS)
-                elif (
-                    current_floor_sensor_value
-                    >= MAX_FLOOR_SENSOR_COMFORT_PLUS_TEMPERATURE
+                elif current_floor_sensor_value >= self.allowed_over_temperature(
+                    COMFORT_HEAT_SETTINGS
                 ):
                     self.manage_over_temperature()
                 elif idle_after_comfort and comfort_hour == comfort_range[-1]:
