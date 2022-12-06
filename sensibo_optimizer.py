@@ -117,13 +117,6 @@ HIGH_HEAT_SETTINGS = {
     "fanLevel": "high",
     "targetTemperature": 22,
 }
-HEAT_DISTRIBUTION_SETTINGS = {
-    "targetTemperature": 16,  # Ignored, but needed during restore
-    "mode": "fan",
-    "horizontalSwing": "fixedLeft",
-    "swing": "fixedTop",
-    "fanLevel": "medium",
-}
 COMFORT_EATING_HEAT_SETTINGS = {
     "mode": "heat",
     "horizontalSwing": "fixedCenterRight",
@@ -483,10 +476,24 @@ class SensiboOptimizer:
         return min(target_temp, HIGH_HEAT_SETTINGS["targetTemperature"])
 
     def manage_over_temperature(self):
+        heat_distribution_settings = {
+            "targetTemperature": 16,  # Ignored, but needed during restore
+            "mode": "fan",
+            "horizontalSwing": "fixedLeft",
+            "swing": "fixedTop",
+            "fanLevel": "medium",
+        }
+        if self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
+            heat_distribution_settings["fanLevel"] = "medium_high"
+            if self.get_current_outdoor_temp() < HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP:
+                heat_distribution_settings["fanLevel"] = "high"
         if self._step_1_overtemperature_distribution_active:
-            self._controller.apply(HEAT_DISTRIBUTION_SETTINGS)
+            self._controller.apply(heat_distribution_settings)
         else:
-            self._controller.apply(COMFORT_HEAT_SETTINGS)
+            if self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
+                self._controller.apply(COMFORT_HEAT_SETTINGS, COMFORT_PLUS_TEMP_DELTA)
+            else:
+                self._controller.apply(COMFORT_HEAT_SETTINGS)
             self._step_1_overtemperature_distribution_active = True
 
     def run_boost_rampup_to_comfort(
@@ -496,25 +503,6 @@ class SensiboOptimizer:
         pre_boost_offset = None
         self.wait_for_hour(idle_hour_start)
         for pre_boost_hour in range(idle_hour_start, boost_hour_start + 1):
-            preboost_start_hour = boost_hour_start
-            allowed_boost_degrees = COMFORT_PLUS_TEMP_DELTA + (
-                MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
-                - self._temperature_provider.get_indoor_temperature(self.verbose)
-            )
-            boost_capacity = 0.0
-            while boost_capacity < allowed_boost_degrees:
-                boost_capacity += self.get_current_heating_capacity(1)
-                preboost_start_hour -= 1
-                if preboost_start_hour <= idle_hour_start:
-                    preboost_start_hour = idle_hour_start
-                    break
-
-            if pre_boost_hour < preboost_start_hour:
-                self.monitor_idle_period(
-                    pre_boost_hour, pre_boost_hour + 1, comfort_hour_start
-                )
-                continue
-
             preheating_for_comfort_is_favorable = (
                 self._price_analyzer.is_hour_longterm_preheat_favorable(
                     pre_boost_hour, comfort_hour_start
@@ -528,6 +516,29 @@ class SensiboOptimizer:
                     pre_boost_hour, comfort_hour_start + 2
                 )
             )
+            allowed_boost_degrees = (
+                MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+                - self._temperature_provider.get_indoor_temperature(self.verbose)
+            )
+            if (
+                preheating_for_comfort_is_favorable
+                or preheating_for_future_comfort_is_favorable
+            ):
+                allowed_boost_degrees += COMFORT_PLUS_TEMP_DELTA
+            preboost_start_hour = boost_hour_start
+            boost_capacity = 0.0
+            while boost_capacity < allowed_boost_degrees:
+                boost_capacity += self.get_current_heating_capacity(1)
+                preboost_start_hour -= 1
+                if preboost_start_hour <= idle_hour_start:
+                    preboost_start_hour = idle_hour_start
+                    break
+
+            if pre_boost_hour < preboost_start_hour:
+                self.monitor_idle_period(
+                    pre_boost_hour, pre_boost_hour + 1, comfort_hour_start
+                )
+                continue
 
             if self.verbose:
                 cheap_boost = self._price_analyzer.is_hour_preheat_favorable(
