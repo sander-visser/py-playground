@@ -790,10 +790,10 @@ class SensiboOptimizer:
 
                 if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self._controller.apply(IDLE_SETTINGS)
-                elif current_floor_sensor_value >= self.allowed_over_temperature():
-                    self.manage_over_temperature()
                 elif idle_after_comfort and comfort_hour == comfort_range[-1]:
                     self.apply_comfort_rampout(current_floor_sensor_value)
+                elif current_floor_sensor_value >= self.allowed_over_temperature():
+                    self.manage_over_temperature()
                 elif (
                     current_outdoor_temperature > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
                     and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
@@ -806,7 +806,7 @@ class SensiboOptimizer:
                 elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
                     sample_minute == 59
                 ):
-                    self._controller.apply(COMFORT_HEAT_SETTINGS)
+                    self._controller.apply(COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET)
                 elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
                     self.apply_comfort_boost(
                         comfort_hour,
