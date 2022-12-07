@@ -67,7 +67,7 @@ TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 634.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
-ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 6000.0
+ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 5500.0
 
 # Heat pump data (for MSZ-FD35VA - at 100% compressor)
 HEATPUMP_HEATING_WATTS_AT_PLUS7 = 6600.0
@@ -251,14 +251,13 @@ class PriceAnalyzer:
             if (
                 price_period_start_hour in first_comfort_range
                 or price_period_start_hour == first_comfort_range.stop
-            ):
-                comfort_hours[
-                    hour_price["value"] + 0.000001 * len(comfort_hours)
-                ] = price_period_start_hour
-            if second_comfort_range is not None and (
-                price_period_start_hour in second_comfort_range
-                or price_period_start_hour == second_comfort_range.stop
-            ):
+            ) or (
+                second_comfort_range is not None
+                and (
+                    price_period_start_hour in second_comfort_range
+                    or price_period_start_hour == second_comfort_range.stop
+                )
+            ):  # Store as comfort hour
                 comfort_hours[
                     hour_price["value"] + 0.000001 * len(comfort_hours)
                 ] = price_period_start_hour
@@ -931,7 +930,9 @@ class SensiboOptimizer:
             )
 
             if self._price_analyzer.significantly_more_expensive_after_midnight:
-                self.wait_for_hour(23)
+                self.monitor_idle_period(
+                    22, 23, (24 + WORKDAY_MORNING["comfort_by_hour"])
+                )
                 self.manage_pre_boost(
                     23,
                     NORMAL_TEMP_OFFSET,
@@ -939,7 +940,7 @@ class SensiboOptimizer:
                         comfort_heating_first_range[0] + 1
                     ),
                 )
-                self.wait_for_hour(24)
+            self.monitor_idle_period(23, 24, (24 + WORKDAY_MORNING["comfort_by_hour"]))
 
             self._prev_midnight += timedelta(days=1)
 
@@ -973,7 +974,6 @@ if __name__ == "__main__":
         action="store_true",
     )
     args = parser.parse_args()
-
     optimizer = SensiboOptimizer(args.verbose)
 
     while True:
