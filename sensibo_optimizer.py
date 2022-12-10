@@ -49,7 +49,6 @@ WORKDAY_MORNING = {
 }
 DAYOFF_MORNING = {
     "comfort_by_hour": 8,
-    "eat_until_hour": 9,
 }
 WORKDAY_MORNING_COMFORT_UNTIL_HOUR = 8
 EARLIEST_AFTERNOON_PREHEAT_HOUR = 11  # Must be a pause since morning hour
@@ -77,13 +76,13 @@ HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 
 # Temperature and heating settings
 COLD_OUTDOOR_TEMP = -0.5  # Increased fan speed below this temperature
-HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.0  # Pure electric heaters should be off above
+HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
 EXTREMELY_COLD_OUTDOOR_TEMP = -7.0
-MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3
+MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
 MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 0.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
 MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
-COMFORT_TEMPERATURE_HYSTERESIS = 0.75  # How far below comfort to aim for
+COMFORT_TEMPERATURE_HYSTERESIS = 0.75  # How far below comfort to aim for in idle
 COMFORT_PLUS_TEMP_DELTA = int(2)
 EXTRA_TEMP_OFFSET = int(1)
 NORMAL_TEMP_OFFSET = int(0)
@@ -453,7 +452,7 @@ class SensiboOptimizer:
 
     def wait_for_hour(self, hour, minute=0):
         pause.until(
-            self._prev_midnight + timedelta(hours=hour, minutes=minute)
+            self._prev_midnight + timedelta(hours=hour, minutes=minute, seconds=35)
         )  # Direct return if in the past...
         if self.verbose:
             print(f"At {hour}:{str(minute).zfill(2)}")
@@ -470,8 +469,6 @@ class SensiboOptimizer:
             self._controller.last_requested_setting("targetTemperature"),
         )
         target_temp += MAX_FLOOR_SENSOR_OVER_TEMPERATURE
-        if self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
-            target_temp += MAX_FLOOR_SENSOR_OVER_TEMPERATURE  # Double margin if cold
         return min(target_temp, HIGH_HEAT_SETTINGS["targetTemperature"])
 
     def manage_over_temperature(self):
@@ -784,7 +781,7 @@ class SensiboOptimizer:
                     sample_minute == 59  # boost 49-59 if price will rise
                     and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
                 )
-                if current_floor_sensor_value <= self.allowed_over_temperature():
+                if current_floor_sensor_value < self.allowed_over_temperature():
                     self._step_1_overtemperature_distribution_active = False
 
                 if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
@@ -919,7 +916,10 @@ class SensiboOptimizer:
                 self.run_workday_8_to_22_schedule()
             else:
                 self.manage_comfort_hours(
-                    range(DAYOFF_MORNING["eat_until_hour"], WEEKEND_COMFORT_UNTIL_HOUR)
+                    range(
+                        comfort_heating_first_range.start + 2,
+                        WEEKEND_COMFORT_UNTIL_HOUR,
+                    )
                 )
 
             self._controller.apply(IDLE_SETTINGS)
