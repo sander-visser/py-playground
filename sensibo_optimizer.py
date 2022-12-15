@@ -35,10 +35,11 @@ import sensibo_client  # https://github.com/Sensibo/sensibo-python-sdk with py3 
 REGION = "SE3"
 REGION_HOLIDAYS = holidays.country_holidays("SE")
 TIME_ZONE = "CET"
-# TEMPERATURE_URL should return a number "x.y"
-TEMPERATURE_URL = (
-    "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
-)
+# Each url in TEMPERATURE_URLS should return a number "x.y"
+TEMPERATURE_URLS = [
+    "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp",
+    "https://www.temperatur.nu/termo/gettemp.php?stadname=ojersjo&what=temp",
+]
 
 # Schedule info
 WORKDAY_MORNING = {
@@ -77,7 +78,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 # Temperature and heating settings
 COLD_OUTDOOR_TEMP = -0.5  # Increased fan speed below this temperature
 HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
-EXTREMELY_COLD_OUTDOOR_TEMP = -7.0
+EXTREMELY_COLD_OUTDOOR_TEMP = -8.0
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
 MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 0.5
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
@@ -90,8 +91,8 @@ REDUCED_TEMP_OFFSET = int(-1)
 
 # 5.2kW can be produced by above Mitsubishi heat pump at minus 7
 # This info together with info that extra electrical heaters
-# are needed if colder than -5 gives dissiapation of the home in watts
-HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE = 208.0
+# are needed if colder than -7 gives dissiapation of the home in watts
+HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE = 193.0
 WATT_HRS_STORED_IN_BUILDING_PER_DELTA_DEGREE = 3000.0
 
 IDLE_SETTINGS = {
@@ -371,29 +372,34 @@ class TemperatureProvider:
             )
         return self.indoor_temperature
 
+    def update_outdoor_temperature(self, verbose):
+        temperature_sum = 0.0
+        temperatures_collected = int(0)
+        for temperature_url in TEMPERATURE_URLS:
+            try:
+                outdoor_temperature_req = requests.get(temperature_url, timeout=10.0)
+                if outdoor_temperature_req.status_code == 200:
+                    try:
+                        temperature_sum += float(outdoor_temperature_req.text)
+                        temperatures_collected += int(1)
+                        self.last_outdoor_update = datetime.today()
+                    except ValueError:
+                        print(
+                            f"Ignored {outdoor_temperature_req.text} from {temperature_url}"
+                        )
+            except requests.exceptions.ConnectionError:
+                print(f"Ignoring outdoor temperature read error from {temperature_url}")
+        if temperatures_collected > int(0):
+            self.outdoor_temperature = temperature_sum / temperatures_collected
+        if verbose:
+            print(f"Outdoor temperature: {self.outdoor_temperature}")
+
     def get_outdoor_temperature(self, verbose):
         if (
-            self.last_outdoor_update is not None
-            and (self.last_outdoor_update + timedelta(minutes=5)) > datetime.today()
+            self.last_outdoor_update is None
+            or (self.last_outdoor_update + timedelta(minutes=5)) < datetime.today()
         ):
-            return self.outdoor_temperature
-        try:
-            outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
-            if outdoor_temperature_req.status_code == 200:
-                try:
-                    self.outdoor_temperature = float(outdoor_temperature_req.text)
-                    self.last_outdoor_update = datetime.today()
-                    if verbose:
-                        print(f"Outdoor temperature: {self.outdoor_temperature}")
-                except ValueError:
-                    print(
-                        f"{outdoor_temperature_req.text} Temperature is not possible to use"
-                        + f" - using {self.outdoor_temperature}"
-                    )
-        except requests.exceptions.ConnectionError:
-            print(
-                f"Ignoring outdoor temperature read error - using {self.outdoor_temperature}"
-            )
+            self.update_outdoor_temperature(verbose)
         return self.outdoor_temperature
 
 
@@ -591,9 +597,7 @@ class SensiboOptimizer:
                 else:
                     self._step_1_overtemperature_distribution_active = False
                     idle_ends_in_comfort = idle_hour_end == comfort_hour_start
-                    if current_floor_sensor_value < MIN_FLOOR_SENSOR_IDLE_TEMPERATURE:
-                        self._controller.apply(COMFORT_HEAT_SETTINGS)
-                    elif (
+                    if (
                         idle_ends_in_comfort
                         and self._price_analyzer.is_hour_longterm_preheat_favorable(
                             pause_hour, comfort_hour_start
@@ -649,7 +653,7 @@ class SensiboOptimizer:
         )
 
     def get_current_heating_capacity(self, heating_hours):
-        outside_temp = self._temperature_provider.get_outdoor_temperature(self.verbose)
+        outside_temp = self.get_current_outdoor_temp()
         delta_temp = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - outside_temp
         if delta_temp <= 0:
             return 100.0
@@ -818,9 +822,7 @@ class SensiboOptimizer:
                 self.wait_for_hour(comfort_hour, sample_minute)
 
     def get_delta_degree_percent(self, delta):
-        delta_degrees = self._temperature_provider.get_indoor_temperature(
-            self.verbose
-        ) - self._temperature_provider.get_outdoor_temperature(self.verbose)
+        delta_degrees = self.get_current_floor_temp() - self.get_current_outdoor_temp()
         delta_degree_percent = 99.0  # Super high to disable comfort plus
         if delta_degrees > delta:
             delta_degree_percent = 1 - ((delta_degrees - delta) / delta_degrees)
@@ -845,10 +847,7 @@ class SensiboOptimizer:
         print("-" * 10, f"AC State of {device_name}", "_" * 10)
         try:
             print(client.pod_measurement(uid))
-            ac_state = client.pod_ac_state(
-                uid
-            )  # If no result then stop/start in the Sensibo App
-            print(ac_state)
+            print(client.pod_ac_state(uid))
         except IndexError:
             print(
                 "Warning: Server does not know current state - try to stop/start in the Sensibo App"
