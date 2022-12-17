@@ -365,7 +365,7 @@ class TemperatureProvider:
             sleep(SECONDS_BETWEEN_COMMANDS)
             self.last_indoor_update = datetime.today()
             if verbose:
-                print(f"Indoor temperature: {self.indoor_temperature}")
+                print(f"Indoor temperature: {self.indoor_temperature:.2f}")
         except requests.exceptions.ConnectionError:
             print(
                 f"Ignoring indoor temperature read error - using {self.indoor_temperature}"
@@ -392,7 +392,7 @@ class TemperatureProvider:
         if temperatures_collected > int(0):
             self.outdoor_temperature = temperature_sum / temperatures_collected
         if verbose:
-            print(f"Outdoor temperature: {self.outdoor_temperature}")
+            print(f"Outdoor temperature: {self.outdoor_temperature:.2f}")
 
     def get_outdoor_temperature(self, verbose):
         if (
@@ -547,12 +547,12 @@ class SensiboOptimizer:
                     pre_boost_hour
                 )
                 print(
-                    "Boosting based on: :\n"
-                    + f"comfort: {preheating_for_comfort_is_favorable}\n"
-                    + f"future comfort: {preheating_for_future_comfort_is_favorable}\n"
-                    + f"preheat during boost: {cheap_boost}\n"
-                    + f"was_extra_boosting: {was_extra_boosting}\n"
-                    + f"cold outside: {self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP}"
+                    "Boosting based on:\n"
+                    + f"   comfort: {preheating_for_comfort_is_favorable}\n"
+                    + f"   future comfort: {preheating_for_future_comfort_is_favorable}\n"
+                    + f"   preheat during boost: {cheap_boost}\n"
+                    + f"   was_extra_boosting: {was_extra_boosting}\n"
+                    + f"   cold outside: {self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP}"
                 )
 
             if (
@@ -587,7 +587,9 @@ class SensiboOptimizer:
     def monitor_idle_period(self, idle_hour_start, idle_hour_end, comfort_hour_start):
         if idle_hour_start >= idle_hour_end:
             if self.verbose:
-                print("skipping idle period monitoring")
+                print(
+                    "skipping idle period monitoring ({idle_hour_start} >= {idle_hour_end})"
+                )
             self.wait_for_hour(idle_hour_start)
         for pause_hour in range(idle_hour_start, idle_hour_end):
             for sample_minute in range(9, 60, 10):
@@ -686,15 +688,13 @@ class SensiboOptimizer:
             current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS15
         current_dissipation = HEAT_DISSIPATION_WATTS_PER_DELTA_DEGREE * delta_temp
         boost_watts = current_heating_watts - current_dissipation
-        if self.verbose:
-            print(f"Current boosting capacity is {boost_watts} watts")
-        if boost_watts < 1.0:
-            return 0.0
         heating_capacity = heating_hours * (
             boost_watts / WATT_HRS_STORED_IN_BUILDING_PER_DELTA_DEGREE
         )
         if self.verbose:
-            print(f"Can boost {heating_capacity} degrees in {heating_hours} hours")
+            print(f"Can boost {heating_capacity:.2f} degrees in {heating_hours} hours")
+        if heating_capacity <= 0.0:
+            return 0.0
         return heating_capacity
 
     def apply_rampup_to_comfort(self, hours_remaining_til_comfort, rampup_offset=0):
@@ -830,13 +830,10 @@ class SensiboOptimizer:
 
     def run(self, at_home_until_end_of, device_name, client):
         devices = client.devices()
-        print("-" * 10, "devices", "-" * 10)
-        print(devices)
-
         if len(devices) == 0:
             print("No devices present in account associated with API key...")
             sys.exit(0)
-
+        print(f"----- devices -----\n{devices}")
         if device_name is None:
             print("No device selected for optimization - exiting")
             sys.exit(0)
@@ -844,7 +841,7 @@ class SensiboOptimizer:
         uid = devices[device_name]
         self._controller = SensiboController(client, uid, self.verbose)
         self._temperature_provider = TemperatureProvider(self._controller)
-        print("-" * 10, f"AC State of {device_name}", "_" * 10)
+        print("-" * 5, f"AC State of {device_name}", "-" * 5)
         try:
             print(client.pod_measurement(uid))
             print(client.pod_ac_state(uid))
@@ -870,7 +867,11 @@ class SensiboOptimizer:
                 and at_home_until_end_of.date() >= self._prev_midnight.date()
             ):
                 optimizing_a_workday = False
-                optimizing_a_schoolday = True
+            if self.verbose:
+                print(
+                    f"Optimizing {self._prev_midnight.date()}."
+                    + "Workday: {optimizing_a_workday} Schoolday: {optimizing_a_schoolday}"
+                )
             comfort_heating_first_range = (
                 range(
                     WORKDAY_MORNING["comfort_by_hour"],
@@ -920,7 +921,6 @@ class SensiboOptimizer:
                         WEEKEND_COMFORT_UNTIL_HOUR,
                     )
                 )
-
             self._controller.apply(IDLE_SETTINGS)
 
             self._price_analyzer.prepare_next_day(
