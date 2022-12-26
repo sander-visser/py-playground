@@ -63,7 +63,7 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [5, 6, 7]
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 634.0
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 637.2
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
@@ -226,11 +226,7 @@ class PriceAnalyzer:
         ) > self.cost_of_early_consumed_mwh(previous_hour_price):
             self._pre_heat_favorable_hours.append(previous_price_period_start_hour)
 
-    def find_warmup_hours(
-        self,
-        first_comfort_range,
-        second_comfort_range,
-    ):
+    def find_warmup_hours(self, first_comfort_range, second_comfort_range):
         self._cheap_hours = {}
         local_tz = pytz.timezone(TIME_ZONE)
         lowest_price = None
@@ -519,8 +515,7 @@ class SensiboOptimizer:
                 )
             )
             allowed_boost_degrees = (
-                MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
-                - self._temperature_provider.get_indoor_temperature(self.verbose)
+                MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - self.get_current_floor_temp()
             )
             if (
                 preheating_for_comfort_is_favorable
@@ -588,7 +583,7 @@ class SensiboOptimizer:
         if idle_hour_start >= idle_hour_end:
             if self.verbose:
                 print(
-                    "skipping idle period monitoring ({idle_hour_start} >= {idle_hour_end})"
+                    f"Skipping idle period monitoring ({idle_hour_start} >= {idle_hour_end})"
                 )
             self.wait_for_hour(idle_hour_start)
         for pause_hour in range(idle_hour_start, idle_hour_end):
@@ -773,53 +768,59 @@ class SensiboOptimizer:
         else:
             self._controller.apply(COMFORT_HEAT_SETTINGS)
 
+    def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
+        current_floor_sensor_value = self.get_current_floor_temp()
+        current_outdoor_temperature = self.get_current_outdoor_temp()
+        preheat_favorable = self._price_analyzer.is_hour_reasonably_priced(
+            comfort_hour
+        ) or (
+            sample_minute == 59  # boost 49-59 if price will rise
+            and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+        )
+        if current_floor_sensor_value < self.allowed_over_temperature():
+            self._step_1_overtemperature_distribution_active = False
+
+        if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+            self._controller.apply(IDLE_SETTINGS)
+        elif last_comfort_hour:
+            self.apply_comfort_rampout(current_floor_sensor_value)
+        elif current_floor_sensor_value >= self.allowed_over_temperature():
+            self.manage_over_temperature()
+        elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
+            if (
+                current_outdoor_temperature > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
+            ) and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour):
+                self._controller.apply(COMFORT_HEAT_SETTINGS)
+            else:
+                self.apply_cold_comfort(current_outdoor_temperature, preheat_favorable)
+        elif (
+            self._price_analyzer.is_next_hour_cheaper(comfort_hour)
+            and (sample_minute == 59)
+            or self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
+        ):
+            self._controller.apply(COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET)
+        elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+            self.apply_comfort_boost(
+                comfort_hour,
+                MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - current_floor_sensor_value,
+            )
+        elif preheat_favorable:
+            self._controller.apply(
+                COMFORT_HEAT_SETTINGS, temp_offset=COMFORT_PLUS_TEMP_DELTA
+            )
+        else:
+            self._controller.apply(COMFORT_HEAT_SETTINGS)
+        self.wait_for_hour(comfort_hour, sample_minute)
+
     def manage_comfort_hours(self, comfort_range, idle_after_comfort=True):
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
             for sample_minute in range(9, 60, 10):
-                current_floor_sensor_value = self.get_current_floor_temp()
-                current_outdoor_temperature = self.get_current_outdoor_temp()
-                preheat_favorable = self._price_analyzer.is_hour_reasonably_priced(
-                    comfort_hour
-                ) or (
-                    sample_minute == 59  # boost 49-59 if price will rise
-                    and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+                self.manage_comfort(
+                    comfort_hour,
+                    sample_minute,
+                    idle_after_comfort and comfort_hour == comfort_range[-1],
                 )
-                if current_floor_sensor_value < self.allowed_over_temperature():
-                    self._step_1_overtemperature_distribution_active = False
-
-                if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                    self._controller.apply(IDLE_SETTINGS)
-                elif idle_after_comfort and comfort_hour == comfort_range[-1]:
-                    self.apply_comfort_rampout(current_floor_sensor_value)
-                elif current_floor_sensor_value >= self.allowed_over_temperature():
-                    self.manage_over_temperature()
-                elif (
-                    current_outdoor_temperature > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
-                    and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
-                ):
-                    self._controller.apply(COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET)
-                elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
-                    self.apply_cold_comfort(
-                        current_outdoor_temperature, preheat_favorable
-                    )
-                elif self._price_analyzer.is_next_hour_cheaper(comfort_hour) and (
-                    sample_minute == 59
-                ):
-                    self._controller.apply(COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET)
-                elif current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
-                    self.apply_comfort_boost(
-                        comfort_hour,
-                        MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
-                        - current_floor_sensor_value,
-                    )
-                elif preheat_favorable:
-                    self._controller.apply(
-                        COMFORT_HEAT_SETTINGS, temp_offset=COMFORT_PLUS_TEMP_DELTA
-                    )
-                else:
-                    self._controller.apply(COMFORT_HEAT_SETTINGS)
-                self.wait_for_hour(comfort_hour, sample_minute)
 
     def get_delta_degree_percent(self, delta):
         delta_degrees = self.get_current_floor_temp() - self.get_current_outdoor_temp()
@@ -869,10 +870,10 @@ class SensiboOptimizer:
                 optimizing_a_workday = False
             if self.verbose:
                 print(
-                    f"Optimizing {self._prev_midnight.date()}."
-                    + "Workday: {optimizing_a_workday} Schoolday: {optimizing_a_schoolday}"
+                    f"Optimizing {self._prev_midnight.date()}. "
+                    + f"Workday: {optimizing_a_workday} Schoolday: {optimizing_a_schoolday}"
                 )
-            comfort_heating_first_range = (
+            comfort_first_range = (
                 range(
                     WORKDAY_MORNING["comfort_by_hour"],
                     WORKDAY_MORNING_COMFORT_UNTIL_HOUR,
@@ -886,13 +887,13 @@ class SensiboOptimizer:
                     DAYOFF_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
                 )
             )
-            comfort_heating_second_range = (
+            comfort_second_range = (
                 range(WORKDAY_AFTERNOON_COMFORT_BY_HOUR, WORKDAY_COMFORT_UNTIL_HOUR)
                 if optimizing_a_workday
                 else None
             )
             self._price_analyzer.find_warmup_hours(
-                comfort_heating_first_range, comfort_heating_second_range
+                comfort_first_range, comfort_second_range
             )
             cheap_morning_hour = self._price_analyzer.cheap_morning_hour()
 
@@ -902,25 +903,20 @@ class SensiboOptimizer:
             self.run_boost_rampup_to_comfort(
                 0,
                 cheap_morning_hour,
-                comfort_heating_first_range.start,
+                comfort_first_range.start,
             )
 
             self.manage_comfort_hours(
-                [comfort_heating_first_range.start], idle_after_comfort=False
+                [comfort_first_range.start], idle_after_comfort=False
             )
 
-            self.wait_for_hour(comfort_heating_first_range.start + 1)
+            self.wait_for_hour(comfort_first_range.start + 1)
             self._controller.apply(COMFORT_EATING_HEAT_SETTINGS)
 
             if optimizing_a_workday:
                 self.run_workday_8_to_22_schedule()
             else:
-                self.manage_comfort_hours(
-                    range(
-                        comfort_heating_first_range.start + 2,
-                        WEEKEND_COMFORT_UNTIL_HOUR,
-                    )
-                )
+                self.manage_comfort_hours(comfort_first_range[2:])
             self._controller.apply(IDLE_SETTINGS)
 
             self._price_analyzer.prepare_next_day(
@@ -935,9 +931,7 @@ class SensiboOptimizer:
                 self.manage_pre_boost(
                     23,
                     NORMAL_TEMP_OFFSET,
-                    self.get_current_heating_capacity(
-                        comfort_heating_first_range[0] + 1
-                    ),
+                    self.get_current_heating_capacity(comfort_first_range[0] + 1),
                 )
             self.monitor_idle_period(23, 24, (24 + WORKDAY_MORNING["comfort_by_hour"]))
 
