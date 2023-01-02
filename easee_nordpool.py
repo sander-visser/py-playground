@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Cost summarizer for Easee EV charger (using nordpool spot prices)
+Cost summarizer for Easee EV charger (using Nordpool spot prices)
 
 MIT license (as the rest of the repo)
 
@@ -141,7 +141,11 @@ if __name__ == "__main__":
         "api_access_token", type=str, help="API Access token form " + LOGIN_HELP
     )
     parser.add_argument(
-        "api_refresh_token", type=str, help="API Refresh token form " + LOGIN_HELP
+        "-rft",
+        dest="api_refresh_token",
+        type=str,
+        help="API Refresh token form " + LOGIN_HELP,
+        required=False,
     )
     parser.add_argument(
         "-f",
@@ -179,7 +183,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    api_token = refresh_api_token(args.api_access_token, args.api_refresh_token)
+    api_token = (
+        refresh_api_token(args.api_access_token, args.api_refresh_token)
+        if args.api_refresh_token is not None
+        else args.api_access_token
+    )
     cost_analyzer = EaseeCostAnalyzer(api_token, args.region, args.verbose)
 
     print(
