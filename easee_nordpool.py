@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Cost summarizer for Easee car charger (using nordpool spot prices)
+Cost summarizer for Easee EV charger (using nordpool spot prices)
 
 MIT license (as the rest of the repo)
 
@@ -13,12 +13,16 @@ Install needed pip packages (see below pip module imports)
 """
 
 import datetime
+import sys
 import requests
 
 # "python3 -m pip install X" below python module(s)
 from nordpool import elspot
 
 NORDPOOL_PRICE_CODE = "SEK"
+CHARGER_TIMEZONE_OFFSET = (
+    1  # Do not adjust for daylight savings - use from/to Zulu adjust
+)
 KWH_PER_MWH = 1000
 API_TIMEOUT = 10.0  # seconds
 CHARGER_ID_URL = "https://api.easee.cloud/api/chargers"
@@ -72,9 +76,13 @@ class EaseeCostAnalyzer:
             f"https://api.easee.cloud/api/chargers/lifetime-energy/{charger_id}/hourly?"
             + f"from={from_date}&to={to_date}"
         )
-        hourly_energy_json = requests.get(
+        hourly_energy = requests.get(
             hourly_energy_url, headers=self.api_header, timeout=API_TIMEOUT
-        ).json()
+        )
+        if hourly_energy.status_code != 200:
+            print(f"Error: {hourly_energy.text}")
+            sys.exit(1)
+        hourly_energy_json = hourly_energy.json()
         total_kwh = 0.0
         total_cost = 0.0
         looked_up_date = None
@@ -84,6 +92,8 @@ class EaseeCostAnalyzer:
             if hour_data["consumption"] != 0.0:
                 curr_date = datetime.datetime.strptime(
                     hour_data["date"], "%Y-%m-%dT%H:%M:%S%z"
+                ).astimezone(
+                    datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
                 )
                 total_kwh += hour_data["consumption"]
                 if looked_up_date is None or curr_date.date() != looked_up_date:
@@ -137,16 +147,16 @@ if __name__ == "__main__":
         "-f",
         dest="from_date",
         type=str,
-        help="ISO_8601 date of earliest consumed energy to include",
-        default="2022-12-01T00:00:00Z",
+        help="Zulu ISO_8601 date of earliest consumed energy to include",
+        default="2022-11-30T23:00:00Z",
         required=False,
     )
     parser.add_argument(
         "-t",
         dest="to_date",
         type=str,
-        help="ISO_8601 date of first consumed energy not to include",
-        default="2023-01-01T00:00:00Z",
+        help="Zulu ISO_8601 date of first consumed energy to exclude",
+        default="2022-12-31T23:00:00Z",
         required=False,
     )
     parser.add_argument(
