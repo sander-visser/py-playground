@@ -20,7 +20,7 @@ from nordpool import elspot
 
 NORDPOOL_PRICE_CODE = "SEK"
 KWH_PER_MWH = 1000
-API_TIMEPUT = 10.0  # seconds
+API_TIMEOUT = 10.0  # seconds
 CHARGER_ID_URL = "https://api.easee.cloud/api/chargers"
 REFRESH_TOKEN_URL = "https://api.easee.cloud/api/accounts/refresh_token"
 
@@ -39,7 +39,7 @@ def refresh_api_token(prev_api_access_token, api_refresh_token):
         REFRESH_TOKEN_URL,
         data=refresh_payload,
         headers=refresh_headers,
-        timeout=API_TIMEPUT,
+        timeout=API_TIMEOUT,
     )
     next_token = response.json()
     print(
@@ -61,7 +61,7 @@ class EaseeCostAnalyzer:
     def get_chargers(self):
         chargers = []
         chargers_json = requests.get(
-            CHARGER_ID_URL, headers=self.api_header, timeout=API_TIMEPUT
+            CHARGER_ID_URL, headers=self.api_header, timeout=API_TIMEOUT
         ).json()
         for charger_data in chargers_json:
             chargers.append((charger_data["id"], charger_data["name"]))
@@ -73,7 +73,7 @@ class EaseeCostAnalyzer:
             + f"from={from_date}&to={to_date}"
         )
         hourly_energy_json = requests.get(
-            hourly_energy_url, headers=self.api_header, timeout=API_TIMEPUT
+            hourly_energy_url, headers=self.api_header, timeout=API_TIMEOUT
         ).json()
         total_kwh = 0.0
         total_cost = 0.0
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         "-t",
         dest="to_date",
         type=str,
-        help="ISO_8601 date of first consumed energy not include",
+        help="ISO_8601 date of first consumed energy not to include",
         default="2023-01-01T00:00:00Z",
         required=False,
     )
