@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Cost summarizer for Easee EV charger (using Nordpool spot prices)
+Cost summarizer for Easee EV charger (using nordpool spot prices)
 
 MIT license (as the rest of the repo)
 
@@ -23,7 +23,9 @@ NORDPOOL_PRICE_CODE = "SEK"
 CHARGER_TIMEZONE_OFFSET = (
     1  # Do not adjust for daylight savings - use from/to Zulu adjust
 )
+HTTP_SUCCESS_CODE = 200
 KWH_PER_MWH = 1000
+VAT_SCALE = 1.25  # 25%
 API_TIMEOUT = 10.0  # seconds
 CHARGER_ID_URL = "https://api.easee.cloud/api/chargers"
 REFRESH_TOKEN_URL = "https://api.easee.cloud/api/accounts/refresh_token"
@@ -71,7 +73,7 @@ class EaseeCostAnalyzer:
             chargers.append((charger_data["id"], charger_data["name"]))
         return chargers
 
-    def print_cost_report(self, charger_id, from_date, to_date):
+    def get_hourly_energy_json(self, charger_id, from_date, to_date):
         hourly_energy_url = (
             f"https://api.easee.cloud/api/chargers/lifetime-energy/{charger_id}/hourly?"
             + f"from={from_date}&to={to_date}"
@@ -79,17 +81,27 @@ class EaseeCostAnalyzer:
         hourly_energy = requests.get(
             hourly_energy_url, headers=self.api_header, timeout=API_TIMEOUT
         )
-        if hourly_energy.status_code != 200:
+        if hourly_energy.status_code != HTTP_SUCCESS_CODE:
             print(f"Error: {hourly_energy.text}")
             sys.exit(1)
-        hourly_energy_json = hourly_energy.json()
+        return hourly_energy.json()
+
+    def print_cost_report(
+        self, charger_id, fees_and_tax_excl_vat, pwr_fee_excl_vat, date_range
+    ):
+        hourly_energy_json = self.get_hourly_energy_json(
+            charger_id, date_range[0], date_range[1]
+        )
         total_kwh = 0.0
+        peak_kwh_per_hour = 0.0
         total_cost = 0.0
         looked_up_date = None
         spot_prices = elspot.Prices(NORDPOOL_PRICE_CODE)
         day_spot_prices = None
         for hour_data in hourly_energy_json:
             if hour_data["consumption"] != 0.0:
+                if peak_kwh_per_hour < hour_data["consumption"]:
+                    peak_kwh_per_hour = hour_data["consumption"]
                 curr_date = datetime.datetime.strptime(
                     hour_data["date"], "%Y-%m-%dT%H:%M:%S%z"
                 ).astimezone(
@@ -115,9 +127,18 @@ class EaseeCostAnalyzer:
                 total_cost += hour_cost
 
         print(f"\nTotal consumption: {total_kwh:.3f} kWh")
+        print(f"Peak kWh/h {peak_kwh_per_hour:.03f}")
         print(
             f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
         )
+        if fees_and_tax_excl_vat is not None:
+            total_cost = (
+                (fees_and_tax_excl_vat * total_kwh + total_cost)
+                + (peak_kwh_per_hour * pwr_fee_excl_vat)
+            ) * VAT_SCALE
+            print(
+                f"Total cost incl all fees and VAT: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}"
+            )
 
 
 if __name__ == "__main__":
@@ -172,6 +193,25 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
+        "-power-fee",
+        dest="pwr_fee_excl_vat",
+        type=float,
+        help="Cost for peak power use (per kWh/h excl VAT) in the analyzed period"
+        + ". For instance 23.6 SEK/peak kW in Partille",
+        default=None,
+        required=False,
+    )
+    parser.add_argument(
+        "-fee",
+        dest="fees_and_tax_excl_vat",
+        type=float,
+        help="Cost for fees and taxes per kWh (excl VAT)."
+        + ' For instance "0.7756" for transmission, energytax, certificates etc.'
+        + " (27.4 + 39.2 + 10.96 öre for Partille enerig with Tibber in January 2023)",
+        default=None,
+        required=False,
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         default=False,
@@ -198,5 +238,10 @@ if __name__ == "__main__":
     for charger in cost_analyzer.get_chargers():
         print("\n======")
         print(f"Cost report for {charger[1]} ({charger[0]})")
-        cost_analyzer.print_cost_report(charger[0], args.from_date, args.to_date)
+        cost_analyzer.print_cost_report(
+            charger[0],
+            args.fees_and_tax_excl_vat,
+            args.pwr_fee_excl_vat,
+            (args.from_date, args.to_date),
+        )
         print("======\n")
