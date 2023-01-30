@@ -102,8 +102,14 @@ class EaseeCostAnalyzer:
             if hour_data["consumption"] != 0.0:
                 if peak_kwh_per_hour < hour_data["consumption"]:
                     peak_kwh_per_hour = hour_data["consumption"]
+                py36compat_date = hour_data["date"]
+                if py36compat_date.rindex(":") > py36compat_date.rindex("+"):
+                    py36compat_date = (
+                        py36compat_date[0 : py36compat_date.rindex(":")]
+                        + py36compat_date[py36compat_date.rindex(":") + 1 :]
+                    )
                 curr_date = datetime.datetime.strptime(
-                    hour_data["date"], "%Y-%m-%dT%H:%M:%S%z"
+                    py36compat_date, "%Y-%m-%dT%H:%M:%S%z"
                 ).astimezone(
                     datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
                 )
