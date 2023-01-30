@@ -6,7 +6,7 @@ Cost summarizer for Easee EV charger (using nordpool spot prices)
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadets with. Contact: github[a]visser.se
+giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se
 
 Usage:
 Install needed pip packages (see below pip module imports)
@@ -178,16 +178,16 @@ if __name__ == "__main__":
         "-f",
         dest="from_date",
         type=str,
-        help="Zulu ISO_8601 date of earliest consumed energy to include",
-        default="2022-11-30T23:00:00Z",
+        help="Zulu ISO_8601 date of earliest consumed energy to include (ex: 2022-12-30T23:00:00Z)",
+        default="2022-12-30T23:00:00Z",
         required=False,
     )
     parser.add_argument(
         "-t",
         dest="to_date",
         type=str,
-        help="Zulu ISO_8601 date of first consumed energy to exclude",
-        default="2022-12-31T23:00:00Z",
+        help="Zulu ISO_8601 date of first consumed energy to exclude (ex: 2023-01-31T23:00:00Z)",
+        default="2023-01-31T23:00:00Z",
         required=False,
     )
     parser.add_argument(
@@ -213,7 +213,7 @@ if __name__ == "__main__":
         type=float,
         help="Cost for fees and taxes per kWh (excl VAT)."
         + ' For instance "0.7756" for transmission, energytax, certificates etc.'
-        + " (27.4 + 39.2 + 10.96 öre for Partille enerig with Tibber in January 2023)",
+        + " (27.4 + 39.2 + 10.96 öre for Partille energi with normal tax via Tibber in January 2023)",
         default=None,
         required=False,
     )
