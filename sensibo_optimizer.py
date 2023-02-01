@@ -9,7 +9,7 @@ Script is tested with a Sensibo Sky placed 20cm above floor level
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadets with. Contact: github[a]visser.se
+giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se
 
 Usage (adapt constants as needed for your home=:
 Install needed pip packages (see below pip module imports)
@@ -40,6 +40,10 @@ TEMPERATURE_URLS = [
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp",
     "https://www.temperatur.nu/termo/gettemp.php?stadname=ojersjo&what=temp",
 ]
+FORECAST_URL = (
+    "https://opendata-download-metfcst.smhi.se/api/"
+    + "category/pmp3g/version/2/geotype/point/lon/12.12860/lat/57.71934/data.json"
+)
 
 # Schedule info
 WORKDAY_MORNING = {
@@ -63,7 +67,7 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [5, 6, 7]
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 637.2
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 778.3  # incl broker fee
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
@@ -76,7 +80,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
 HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 
 # Temperature and heating settings
-COLD_OUTDOOR_TEMP = -0.5  # Increased fan speed below this temperature
+COLD_OUTDOOR_TEMP = 1.0  # Increased fan speed below this temperature
 HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
 EXTREMELY_COLD_OUTDOOR_TEMP = -8.0
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
@@ -127,13 +131,13 @@ COMFORT_EATING_HEAT_SETTINGS = {
 
 
 class PriceAnalyzer:
-    def __init__(self):
+    def __init__(self, temperature_provider):
         self._day_spot_prices = None
         self._cheap_hours = {}
         self._reasonably_priced_hours = None
         self._reduced_comfort_hours = None
         self._pre_heat_favorable_hours = None
-        self._percent_additional_heat_leak_from_two_degrees_warmer = None
+        self._temperature_provider = temperature_provider
         self.significantly_more_expensive_after_midnight = False
 
     def cheap_morning_hour(self):
@@ -167,24 +171,33 @@ class PriceAnalyzer:
             return False
 
         current_hour_price = self.cost_of_early_consumed_mwh(
-            self._day_spot_prices[hour]["value"], target_hour - hour
+            self._day_spot_prices[hour]["value"],
+            target_hour - hour,
+            timedelta(hours=int((target_hour - hour) / 2)),
         )
         target_hour_price = self.cost_of_consumed_mwh(
             self._day_spot_prices[target_hour]["value"]
         )
         return bool(target_hour_price > current_hour_price)
 
-    def prepare_next_day(
-        self, lookup_date, percent_additional_heat_leak_from_two_degrees_warmer
-    ):
-        spot_prices = elspot.Prices("SEK")
-        self._percent_additional_heat_leak_from_two_degrees_warmer = (
-            percent_additional_heat_leak_from_two_degrees_warmer
+    def get_delta_degree_percent(self, delta, outdoor_estimated_temp):
+        delta_degrees = (
+            self._temperature_provider.get_indoor_temperature() - outdoor_estimated_temp
         )
+        delta_degree_percent = 99.0  # Super high to disable comfort plus
+        if delta_degrees > delta:
+            delta_degree_percent = 1 - ((delta_degrees - delta) / delta_degrees)
+        return delta_degree_percent
 
+    def prepare_next_day(self, lookup_date):
+        spot_prices = elspot.Prices("SEK")
+        current_loss = self.get_delta_degree_percent(
+            COMFORT_PLUS_TEMP_DELTA,
+            self._temperature_provider.get_outdoor_temperature(),
+        )
         print(
             f"Getting prices for {lookup_date} to find cheap hours. Plus comfort loss is: "
-            + f"{round(100.0 * percent_additional_heat_leak_from_two_degrees_warmer, 2)}"
+            + f"{round(100.0 * current_loss, 2)}"
             + " % given current outdoor temperature"
         )
         day_spot_prices = spot_prices.hourly(end_date=lookup_date, areas=[REGION])[
@@ -193,7 +206,8 @@ class PriceAnalyzer:
 
         if self._day_spot_prices is not None:
             lowest_price_first_three_hours = min(
-                min(day_spot_prices[0]["value"], day_spot_prices[1]["value"]),
+                day_spot_prices[0]["value"],
+                day_spot_prices[1]["value"],
                 day_spot_prices[2]["value"],
             )
             self.significantly_more_expensive_after_midnight = (
@@ -204,10 +218,25 @@ class PriceAnalyzer:
                 print("Prepared to boost before midnight..")
         self._day_spot_prices = day_spot_prices
 
-    def cost_of_early_consumed_mwh(self, raw_mwh_cost, nbr_of_hours_too_early=1):
+    def cost_of_early_consumed_mwh(
+        self, raw_mwh_cost, nbr_of_hours_too_early=1, temperature_time_delta=None
+    ):
+        outdoor_estimated_temp = None
+        if temperature_time_delta is not None:
+            outdoor_estimated_temp = (
+                self._temperature_provider.get_forecasted_temperature(
+                    datetime.utcnow() + temperature_time_delta
+                )
+            )
+        if outdoor_estimated_temp is None:
+            outdoor_estimated_temp = (
+                self._temperature_provider.get_outdoor_temperature()
+            )
         return self.cost_of_consumed_mwh(raw_mwh_cost) * (
             1
-            + self._percent_additional_heat_leak_from_two_degrees_warmer
+            + self.get_delta_degree_percent(
+                COMFORT_PLUS_TEMP_DELTA, outdoor_estimated_temp
+            )
             * nbr_of_hours_too_early
         )
 
@@ -223,7 +252,10 @@ class PriceAnalyzer:
     ):
         if previous_hour_price is not None and (
             self.cost_of_consumed_mwh(current_hour_price)
-        ) > self.cost_of_early_consumed_mwh(previous_hour_price):
+        ) > self.cost_of_early_consumed_mwh(
+            previous_hour_price,
+            temperature_time_delta=timedelta(hours=previous_price_period_start_hour),
+        ):
             self._pre_heat_favorable_hours.append(previous_price_period_start_hour)
 
     def find_warmup_hours(self, first_comfort_range, second_comfort_range):
@@ -305,6 +337,7 @@ class PriceAnalyzer:
             ) < self.cost_of_early_consumed_mwh(
                 self._cheap_hours["morning_price"],
                 price_period_start_hour - self._cheap_hours["morning"],
+                temperature_time_delta=timedelta(hours=price_period_start_hour),
             ):
                 self._cheap_hours["morning_price"] = hour_price
                 self._cheap_hours["morning"] = price_period_start_hour
@@ -318,6 +351,7 @@ class PriceAnalyzer:
             ) < self.cost_of_early_consumed_mwh(
                 self._cheap_hours["afternoon_price"],
                 price_period_start_hour - self._cheap_hours["afternoon"],
+                temperature_time_delta=timedelta(hours=price_period_start_hour),
             ):
                 self._cheap_hours["afternoon_price"] = hour_price
                 self._cheap_hours["afternoon"] = price_period_start_hour
@@ -341,14 +375,16 @@ class PriceAnalyzer:
 
 
 class TemperatureProvider:
-    def __init__(self, controller):
+    def __init__(self, controller, verbose):
         self.indoor_temperature = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
         self.outdoor_temperature = HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
         self.last_indoor_update = None
         self.last_outdoor_update = None
         self._controller = controller
+        self._last_forecast = None
+        self._verbose = verbose
 
-    def get_indoor_temperature(self, verbose):
+    def get_indoor_temperature(self):
         if (
             self.last_indoor_update is not None
             and (self.last_indoor_update + timedelta(minutes=5)) > datetime.today()
@@ -360,7 +396,7 @@ class TemperatureProvider:
             ) / 2
             sleep(SECONDS_BETWEEN_COMMANDS)
             self.last_indoor_update = datetime.today()
-            if verbose:
+            if self._verbose:
                 print(f"Indoor temperature: {self.indoor_temperature:.2f}")
         except requests.exceptions.ConnectionError:
             print(
@@ -368,16 +404,55 @@ class TemperatureProvider:
             )
         return self.indoor_temperature
 
-    def update_outdoor_temperature(self, verbose):
+    def get_forecasted_temperature(self, now_or_some_hours_ahead):
+        temperature_forecast_impact = None
+        if self._last_forecast is not None:
+            rounded_time = now_or_some_hours_ahead.replace(
+                microsecond=0, second=0, minute=0
+            )
+            for forecast_point in self._last_forecast:
+                if forecast_point["validTime"] == rounded_time.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ):
+                    for param in forecast_point["parameters"]:
+                        if param["name"] == "t":
+                            temperature_forecast_impact = param["values"][0]
+                        if (
+                            param["name"] == "ws"
+                            and temperature_forecast_impact is not None
+                        ):
+                            ws_kmph = 3.6 * param["values"][0]
+                            # 20% windchill impact
+                            temperature_forecast_impact = (
+                                temperature_forecast_impact * 4
+                                + (
+                                    13.12
+                                    + (0.6215 * temperature_forecast_impact)
+                                    - 11.37 * pow(ws_kmph, 0.16)
+                                    + 0.3965
+                                    * temperature_forecast_impact
+                                    * pow(ws_kmph, 0.16)
+                                )
+                            ) / 5
+                    break
+        return temperature_forecast_impact
+
+    def update_outdoor_temperature(self):
         temperature_sum = 0.0
-        temperatures_collected = int(0)
+        sources = int(0)
+        try:
+            forecast_req = requests.get(url=FORECAST_URL, timeout=10.0)
+            if forecast_req.status_code == 200:
+                self._last_forecast = forecast_req.json()["timeSeries"]
+        except requests.exceptions.ConnectionError:
+            print(f"Warning: forecast read error from {FORECAST_URL}")
         for temperature_url in TEMPERATURE_URLS:
             try:
                 outdoor_temperature_req = requests.get(temperature_url, timeout=10.0)
                 if outdoor_temperature_req.status_code == 200:
                     try:
                         temperature_sum += float(outdoor_temperature_req.text)
-                        temperatures_collected += int(1)
+                        sources += int(1)
                         self.last_outdoor_update = datetime.today()
                     except ValueError:
                         print(
@@ -385,17 +460,25 @@ class TemperatureProvider:
                         )
             except requests.exceptions.ConnectionError:
                 print(f"Ignoring outdoor temperature read error from {temperature_url}")
-        if temperatures_collected > int(0):
-            self.outdoor_temperature = temperature_sum / temperatures_collected
-        if verbose:
-            print(f"Outdoor temperature: {self.outdoor_temperature:.2f}")
+        forecasted_temp = self.get_forecasted_temperature(
+            datetime.utcnow() + timedelta(hours=1)
+        )
+        if forecasted_temp is not None:
+            temperature_sum += float(forecasted_temp)
+            sources += int(1)
+        if sources > int(0):
+            self.outdoor_temperature = temperature_sum / sources
+        if self._verbose:
+            print(
+                f"Outdoor temp (based on {sources} sources): {self.outdoor_temperature:.2f}"
+            )
 
-    def get_outdoor_temperature(self, verbose):
+    def get_outdoor_temperature(self):
         if (
             self.last_outdoor_update is None
             or (self.last_outdoor_update + timedelta(minutes=5)) < datetime.today()
         ):
-            self.update_outdoor_temperature(verbose)
+            self.update_outdoor_temperature()
         return self.outdoor_temperature
 
 
@@ -441,7 +524,7 @@ class SensiboOptimizer:
         self.verbose = verbose
         self._controller = None
         self._temperature_provider = None
-        self._price_analyzer = PriceAnalyzer()
+        self._price_analyzer = None
         self._step_1_overtemperature_distribution_active = False
         program_start_time = datetime.today()
         self._prev_midnight = datetime(
@@ -460,10 +543,10 @@ class SensiboOptimizer:
             print(f"At {hour}:{str(minute).zfill(2)}")
 
     def get_current_floor_temp(self):
-        return self._temperature_provider.get_indoor_temperature(self.verbose)
+        return self._temperature_provider.get_indoor_temperature()
 
     def get_current_outdoor_temp(self):
-        return self._temperature_provider.get_outdoor_temperature(self.verbose)
+        return self._temperature_provider.get_outdoor_temperature()
 
     def allowed_over_temperature(self):
         target_temp = max(
@@ -650,7 +733,11 @@ class SensiboOptimizer:
         )
 
     def get_current_heating_capacity(self, heating_hours):
-        outside_temp = self.get_current_outdoor_temp()
+        outside_temp = self._temperature_provider.get_forecasted_temperature(
+            datetime.utcnow() + timedelta(hours=heating_hours)
+        )
+        if outside_temp is None:
+            outside_temp = self.get_current_outdoor_temp()
         delta_temp = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - outside_temp
         if delta_temp <= 0:
             return 100.0
@@ -770,29 +857,26 @@ class SensiboOptimizer:
 
     def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
         current_floor_sensor_value = self.get_current_floor_temp()
-        current_outdoor_temperature = self.get_current_outdoor_temp()
-        preheat_favorable = self._price_analyzer.is_hour_reasonably_priced(
-            comfort_hour
-        ) or (
+        extra_boost = self._price_analyzer.is_hour_reasonably_priced(comfort_hour) or (
             sample_minute == 59  # boost 49-59 if price will rise
             and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
         )
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
 
-        if current_outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+        if self.get_current_outdoor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
             self._controller.apply(IDLE_SETTINGS)
         elif last_comfort_hour:
             self.apply_comfort_rampout(current_floor_sensor_value)
         elif current_floor_sensor_value >= self.allowed_over_temperature():
             self.manage_over_temperature()
-        elif current_outdoor_temperature < COLD_OUTDOOR_TEMP:
+        elif self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
             if (
-                current_outdoor_temperature > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
+                self.get_current_outdoor_temp() > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
             ) and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour):
                 self._controller.apply(COMFORT_HEAT_SETTINGS)
             else:
-                self.apply_cold_comfort(current_outdoor_temperature, preheat_favorable)
+                self.apply_cold_comfort(self.get_current_outdoor_temp(), extra_boost)
         elif (
             self._price_analyzer.is_next_hour_cheaper(comfort_hour)
             and (sample_minute == 59)
@@ -804,7 +888,7 @@ class SensiboOptimizer:
                 comfort_hour,
                 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - current_floor_sensor_value,
             )
-        elif preheat_favorable:
+        elif extra_boost:
             self._controller.apply(
                 COMFORT_HEAT_SETTINGS, temp_offset=COMFORT_PLUS_TEMP_DELTA
             )
@@ -822,13 +906,6 @@ class SensiboOptimizer:
                     idle_after_comfort and comfort_hour == comfort_range[-1],
                 )
 
-    def get_delta_degree_percent(self, delta):
-        delta_degrees = self.get_current_floor_temp() - self.get_current_outdoor_temp()
-        delta_degree_percent = 99.0  # Super high to disable comfort plus
-        if delta_degrees > delta:
-            delta_degree_percent = 1 - ((delta_degrees - delta) / delta_degrees)
-        return delta_degree_percent
-
     def run(self, at_home_until_end_of, device_name, client):
         devices = client.devices()
         if len(devices) == 0:
@@ -841,7 +918,8 @@ class SensiboOptimizer:
 
         uid = devices[device_name]
         self._controller = SensiboController(client, uid, self.verbose)
-        self._temperature_provider = TemperatureProvider(self._controller)
+        self._temperature_provider = TemperatureProvider(self._controller, self.verbose)
+        self._price_analyzer = PriceAnalyzer(self._temperature_provider)
         print("-" * 5, f"AC State of {device_name}", "-" * 5)
         try:
             print(client.pod_measurement(uid))
@@ -850,10 +928,7 @@ class SensiboOptimizer:
             print(
                 "Warning: Server does not know current state - try to stop/start in the Sensibo App"
             )
-        self._price_analyzer.prepare_next_day(
-            self._prev_midnight.date(),
-            self.get_delta_degree_percent(COMFORT_PLUS_TEMP_DELTA),
-        )
+        self._price_analyzer.prepare_next_day(self._prev_midnight.date())
         if at_home_until_end_of is not None:
             at_home_until_end_of = datetime.strptime(at_home_until_end_of, "%Y-%m-%d")
         while True:
@@ -920,8 +995,7 @@ class SensiboOptimizer:
             self._controller.apply(IDLE_SETTINGS)
 
             self._price_analyzer.prepare_next_day(
-                self._prev_midnight.date() + timedelta(days=1),
-                self.get_delta_degree_percent(COMFORT_PLUS_TEMP_DELTA),
+                self._prev_midnight.date() + timedelta(days=1)
             )
 
             if self._price_analyzer.significantly_more_expensive_after_midnight:
