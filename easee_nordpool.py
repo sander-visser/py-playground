@@ -66,9 +66,15 @@ class EaseeCostAnalyzer:
 
     def get_chargers(self):
         chargers = []
-        chargers_json = requests.get(
+        chargers_req = requests.get(
             CHARGER_ID_URL, headers=self.api_header, timeout=API_TIMEOUT
-        ).json()
+        )
+        if chargers_req.status_code != 200:
+            print(
+                f"Error getting chargers {chargers_req.status_code}: {chargers_req.text}"
+            )
+            sys.exit(1)
+        chargers_json = chargers_req.json()
         for charger_data in chargers_json:
             chargers.append((charger_data["id"], charger_data["name"]))
         return chargers
