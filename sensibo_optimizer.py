@@ -171,17 +171,17 @@ class PriceAnalyzer:
     def is_hour_preheat_favorable(self, hour):
         return hour in self._pre_heat_favorable_hours
 
-    def is_hour_longterm_preheat_favorable(self, early_hour, target_hour):
-        if target_hour <= early_hour:
+    def is_hour_longterm_preheat_favorable(self, current_hour, target_hour):
+        if target_hour <= current_hour:
             print(
-                f"Warning: unexpected longterm_preheat_favorable test {early_hour} {target_hour}"
+                f"Warning: unexpected longterm_preheat_favorable test {current_hour} {target_hour}"
             )
             return False
 
         current_hour_price = self.cost_of_early_consumed_mwh(
-            self._day_spot_prices[early_hour]["value"],
-            target_hour - early_hour,
-            timedelta(hours=int((target_hour - early_hour) / 2)),
+            self._day_spot_prices[current_hour]["value"],
+            target_hour - current_hour,
+            timedelta(hours=int((target_hour - current_hour) / 2)),
         )
         target_hour_price = self.cost_of_consumed_mwh(
             self._day_spot_prices[target_hour]["value"]
@@ -957,9 +957,13 @@ class SensiboOptimizer:
 
     def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
         current_floor_sensor_value = self.get_current_floor_temp()
-        extra_boost = self._price_analyzer.is_hour_reasonably_priced(comfort_hour) or (
-            sample_minute == 59  # boost 49-59 if price will rise
-            and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+        extra_boost = (
+            (current_floor_sensor_value < MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE)
+            or self._price_analyzer.is_hour_reasonably_priced(comfort_hour)
+            or (
+                sample_minute == 59  # boost 49-59 if price will rise
+                and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+            )
         )
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
