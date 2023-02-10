@@ -1078,12 +1078,11 @@ class SensiboOptimizer:
         else:
             self._controller.apply(COMFORT_HEAT_SETTINGS, boost_level)
 
-    def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
-        current_floor_sensor_value = self.get_current_floor_temp()
+    def get_temperature_offset(self, comfort_hour, last_period_in_hour):
         boost_level = NORMAL_TEMP_OFFSET
         if (
             (
-                current_floor_sensor_value
+                self.get_current_floor_temp()
                 <= (
                     MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
                     + COMFORT_TEMPERATURE_HYSTERESIS
@@ -1091,7 +1090,7 @@ class SensiboOptimizer:
             )
             or self._price_analyzer.is_hour_reasonably_priced(comfort_hour)
             or (
-                sample_minute == 59  # boost 49-59 if price will rise
+                last_period_in_hour  # boost if price will rise (enougth)
                 and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
             )
         ):
@@ -1100,6 +1099,16 @@ class SensiboOptimizer:
                 comfort_hour
             ) and self._price_analyzer.is_hour_reasonably_priced(comfort_hour):
                 boost_level = COMFORT_PLUS_TEMP_DELTA
+
+        if last_period_in_hour and self._price_analyzer.is_next_hour_cheaper(
+            comfort_hour
+        ):
+            boost_level += REDUCED_TEMP_OFFSET
+        return boost_level
+
+    def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
+        current_floor_sensor_value = self.get_current_floor_temp()
+        boost_level = self.get_temperature_offset(comfort_hour, sample_minute == 59)
 
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
@@ -1117,11 +1126,7 @@ class SensiboOptimizer:
                 self._controller.apply(COMFORT_HEAT_SETTINGS, valid_hour=comfort_hour)
             else:
                 self.apply_cold_comfort(self.get_current_outdoor_temp(), boost_level)
-        elif (
-            self._price_analyzer.is_next_hour_cheaper(comfort_hour)
-            and (sample_minute == 59)
-            or self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
-        ):
+        elif self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour):
             self._controller.apply(
                 COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET, valid_hour=comfort_hour
             )
