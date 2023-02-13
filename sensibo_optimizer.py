@@ -167,6 +167,14 @@ class PriceAnalyzer:
             > self._day_spot_prices[hour + 1]["value"]
         )
 
+    def is_next_hour_significantly_cheaper(self, hour):
+        if hour == 23:
+            return False
+        return self._day_spot_prices[hour]["value"] > (
+            self._day_spot_prices[hour + 1]["value"]
+            + ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP
+        )
+
     def is_hour_reasonably_priced(self, hour):
         return hour in self._reasonably_priced_hours
 
@@ -1100,9 +1108,10 @@ class SensiboOptimizer:
             ) and self._price_analyzer.is_hour_reasonably_priced(comfort_hour):
                 boost_level = COMFORT_PLUS_TEMP_DELTA
 
-        if last_period_in_hour and self._price_analyzer.is_next_hour_cheaper(
-            comfort_hour
-        ):
+        if (
+            last_period_in_hour
+            and self._price_analyzer.is_next_hour_cheaper(comfort_hour)
+        ) or self._price_analyzer.is_next_hour_significantly_cheaper(comfort_hour):
             boost_level += REDUCED_TEMP_OFFSET
         return boost_level
 
