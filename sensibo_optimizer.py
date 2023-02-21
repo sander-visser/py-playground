@@ -574,7 +574,9 @@ class SensiboController:
         self, settings, temp_offset=NORMAL_TEMP_OFFSET, force=False, valid_hour=None
     ):
         adjusted_settings = copy.deepcopy(settings)
-        adjusted_settings["targetTemperature"] += temp_offset
+        adjusted_settings["targetTemperature"] = int(
+            adjusted_settings["targetTemperature"] + temp_offset
+        )
         if self._verbose:
             print(f"Applying: {adjusted_settings}")
         if (
