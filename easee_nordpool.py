@@ -63,6 +63,7 @@ class EaseeCostAnalyzer:
         }
         self.region = region
         self.verbose = verbose
+        self.spot_prices = elspot.Prices(NORDPOOL_PRICE_CODE)
 
     def get_chargers(self):
         chargers = []
@@ -92,19 +93,16 @@ class EaseeCostAnalyzer:
             sys.exit(1)
         return hourly_energy.json()
 
-    def print_cost_report(
-        self, charger_id, fees_and_tax_excl_vat, pwr_fee_excl_vat, date_range
-    ):
-        hourly_energy_json = self.get_hourly_energy_json(
-            charger_id, date_range[0], date_range[1]
-        )
+    def print_cost_report(self, charger_id, cost_settings, date_range):
         total_kwh = 0.0
         peak_kwh_per_hour = 0.0
+        peak_contribution = None
         total_cost = 0.0
         looked_up_date = None
-        spot_prices = elspot.Prices(NORDPOOL_PRICE_CODE)
         day_spot_prices = None
-        for hour_data in hourly_energy_json:
+        for hour_data in self.get_hourly_energy_json(
+            charger_id, date_range[0], date_range[1]
+        ):
             if hour_data["consumption"] != 0.0:
                 if peak_kwh_per_hour < hour_data["consumption"]:
                     peak_kwh_per_hour = hour_data["consumption"]
@@ -114,15 +112,21 @@ class EaseeCostAnalyzer:
                         py36compat_date[0 : py36compat_date.rindex(":")]
                         + py36compat_date[py36compat_date.rindex(":") + 1 :]
                     )
-                curr_date = datetime.datetime.strptime(
+                curr_zulu_date = datetime.datetime.strptime(
                     py36compat_date, "%Y-%m-%dT%H:%M:%S%z"
-                ).astimezone(
+                )
+                if (
+                    cost_settings.pwr_fee_peak_hour is not None
+                    and py36compat_date == cost_settings.pwr_fee_peak_hour
+                ):
+                    peak_contribution = hour_data["consumption"]
+                curr_date = curr_zulu_date.astimezone(
                     datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
                 )
                 total_kwh += hour_data["consumption"]
                 if looked_up_date is None or curr_date.date() != looked_up_date:
                     looked_up_date = curr_date.date()
-                    day_spot_prices = spot_prices.hourly(
+                    day_spot_prices = self.spot_prices.hourly(
                         end_date=looked_up_date, areas=[self.region]
                     )["areas"][self.region]["values"]
                     # print(f"Prices for {looked_up_date}: {day_spot_prices}")
@@ -140,13 +144,18 @@ class EaseeCostAnalyzer:
 
         print(f"\nTotal consumption: {total_kwh:.3f} kWh")
         print(f"Peak kWh/h {peak_kwh_per_hour:.03f}")
+        if peak_contribution is not None:
+            print(f"Contribution to peak hour {peak_contribution:.03f} kWh/h")
+        else:
+            print("No peak hour info provided. Considering 100% contributuion.")
+            peak_contribution = peak_kwh_per_hour
         print(
             f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
         )
-        if fees_and_tax_excl_vat is not None:
+        if cost_settings.fees_and_tax_excl_vat is not None:
             total_cost = (
-                (fees_and_tax_excl_vat * total_kwh + total_cost)
-                + (peak_kwh_per_hour * pwr_fee_excl_vat)
+                (cost_settings.fees_and_tax_excl_vat * total_kwh + total_cost)
+                + (peak_contribution * cost_settings.pwr_fee_excl_vat)
             ) * VAT_SCALE
             print(
                 f"Total cost incl all fees and VAT: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}"
@@ -214,6 +223,15 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
+        "-power-fee-peak-hour",
+        dest="pwr_fee_peak_hour",
+        type=str,
+        help="Zulu start time for hour that was used as peak bill hour"
+        + ". For instance 2023-01-23T01:00:00+0000",
+        default=None,
+        required=False,
+    )
+    parser.add_argument(
         "-fee",
         dest="fees_and_tax_excl_vat",
         type=float,
@@ -252,8 +270,7 @@ if __name__ == "__main__":
         print(f"Cost report for {charger[1]} ({charger[0]})")
         cost_analyzer.print_cost_report(
             charger[0],
-            args.fees_and_tax_excl_vat,
-            args.pwr_fee_excl_vat,
+            args,
             (args.from_date, args.to_date),
         )
         print("======\n")
