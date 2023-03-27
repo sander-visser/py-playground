@@ -472,13 +472,13 @@ class TemperatureProvider:
         self, now_or_some_hours_ahead, windchill_percent=0.0, fallback=True
     ):
         temperature_forecast_impact = None
+        now_or_some_hours_ahead += datetime.utcoffset(
+            datetime.now(pytz.timezone("CET"))
+        )
+        rounded_zulu_time = now_or_some_hours_ahead.replace(
+            microsecond=0, second=0, minute=0
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
         if self._last_forecast is not None:
-            now_or_some_hours_ahead += datetime.utcoffset(
-                datetime.now(pytz.timezone("CET"))
-            )
-            rounded_zulu_time = now_or_some_hours_ahead.replace(
-                microsecond=0, second=0, minute=0
-            ).strftime("%Y-%m-%dT%H:%M:%SZ")
             for forecast_point in self._last_forecast:
                 if forecast_point["validTime"] == rounded_zulu_time:
                     for param in forecast_point["parameters"]:
