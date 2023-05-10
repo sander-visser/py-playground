@@ -9,7 +9,8 @@ Script is tested with a Sensibo Sky placed 20cm above floor level
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se
+giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
+check referral.link in repo
 
 Usage (adapt constants as needed for your home=:
 Install needed pip packages (see below pip module imports)
@@ -46,6 +47,7 @@ FORECAST_URL = (
     "https://opendata-download-metfcst.smhi.se/api/"
     + "category/pmp3g/version/2/geotype/point/lon/12.12860/lat/57.71934/data.json"
 )
+VARIABLE_CLOUDINESS = 3  # https://opendata.smhi.se/apidocs/metfcst/parameters.html
 
 # Schedule info
 WORKDAY_MORNING = {
@@ -68,7 +70,7 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [5, 6, 7]
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 778.3  # incl broker fee
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 745.5  # incl 79.5 broker fee
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 300.0
@@ -88,6 +90,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
 HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 
 # Temperature and heating settings
+MIN_DOOR_OPEN_TEMP = 14.5
 COLD_OUTDOOR_TEMP = 1.0  # Increased fan speed below this temperature
 HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
 EXTREMELY_COLD_OUTDOOR_TEMP = -8.0
@@ -430,6 +433,23 @@ class TemperatureProvider:
         self._controller = controller
         self._last_forecast = None
         self._verbose = verbose
+
+    def get_now_forcast_param(self, param_name):
+        if self._last_forecast is not None:
+            curr_weather = self._last_forecast[0]["parameters"]
+            for par in curr_weather:
+                if par["name"] == param_name:
+                    return par["values"][0]
+        return None
+
+    def currently_sunny_and_not_too_cold(self):
+        curr_weather = self.get_now_forcast_param("Wsymb2")
+        return (
+            curr_weather is not None
+            and curr_weather <= VARIABLE_CLOUDINESS
+            and self.indoor_temperature > MIN_FLOOR_SENSOR_IDLE_TEMPERATURE
+            and self.outdoor_temperature >= MIN_DOOR_OPEN_TEMP
+        )
 
     def get_indoor_temperature(self):
         if (
@@ -1124,7 +1144,10 @@ class SensiboOptimizer:
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
 
-        if self.get_current_outdoor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+        if (
+            self.get_current_outdoor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+            or self._temperature_provider.currently_sunny_and_not_too_cold()
+        ):
             self._controller.apply(IDLE_SETTINGS, valid_hour=comfort_hour)
         elif last_comfort_hour:
             self.apply_comfort_rampout(current_floor_sensor_value, boost_level)

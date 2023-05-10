@@ -9,7 +9,8 @@ Power reset unit at 20:00 to get 2h extra hot water and resync schedule
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se
+giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
+check referral.link in repo
 """
 
 from time import sleep

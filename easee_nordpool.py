@@ -6,7 +6,8 @@ Cost summarizer for Easee EV charger (using nordpool spot prices)
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se
+giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
+check referral.link in repo
 
 Usage:
 Install needed pip packages (see below pip module imports)
@@ -126,9 +127,18 @@ class EaseeCostAnalyzer:
                 total_kwh += hour_data["consumption"]
                 if looked_up_date is None or curr_date.date() != looked_up_date:
                     looked_up_date = curr_date.date()
-                    day_spot_prices = self.spot_prices.hourly(
-                        end_date=looked_up_date, areas=[self.region]
-                    )["areas"][self.region]["values"]
+                    day_spot_prices = None
+                    try:
+                        day_spot_prices = self.spot_prices.hourly(
+                            end_date=looked_up_date, areas=[self.region]
+                        )["areas"][self.region]["values"]
+                    except KeyError:
+                        print("retrying Nordpool price fetching...")
+                    if day_spot_prices is None:
+                        day_spot_prices = self.spot_prices.hourly(
+                            end_date=looked_up_date, areas=[self.region]
+                       )["areas"][self.region]["values"]
+
                     # print(f"Prices for {looked_up_date}: {day_spot_prices}")
                 hour_cost = (
                     hour_data["consumption"]
