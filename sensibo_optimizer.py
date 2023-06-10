@@ -90,7 +90,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
 HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 
 # Temperature and heating settings
-MIN_DOOR_OPEN_TEMP = 14.5
+MIN_DOOR_OPEN_TEMP = 14.1
 COLD_OUTDOOR_TEMP = 1.0  # Increased fan speed below this temperature
 HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
 EXTREMELY_COLD_OUTDOOR_TEMP = -8.0
@@ -444,7 +444,7 @@ class TemperatureProvider:
 
     def currently_sunny_and_not_too_cold(self):
         curr_weather = self.get_now_forcast_param("Wsymb2")
-        return (
+        return self.outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE or (
             curr_weather is not None
             and curr_weather <= VARIABLE_CLOUDINESS
             and self.indoor_temperature > MIN_FLOOR_SENSOR_IDLE_TEMPERATURE
@@ -1064,7 +1064,8 @@ class SensiboOptimizer:
         )
 
         self.wait_for_hour(DINNER_HOUR)
-        self._controller.apply(COMFORT_EATING_HEAT_SETTINGS, valid_hour=DINNER_HOUR)
+        if not self._temperature_provider.currently_sunny_and_not_too_cold():
+            self._controller.apply(COMFORT_EATING_HEAT_SETTINGS, valid_hour=DINNER_HOUR)
 
         self.manage_comfort_hours(range(DINNER_HOUR + 1, WORKDAY_COMFORT_UNTIL_HOUR))
 
@@ -1144,10 +1145,7 @@ class SensiboOptimizer:
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
 
-        if (
-            self.get_current_outdoor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
-            or self._temperature_provider.currently_sunny_and_not_too_cold()
-        ):
+        if self._temperature_provider.currently_sunny_and_not_too_cold():
             self._controller.apply(IDLE_SETTINGS, valid_hour=comfort_hour)
         elif last_comfort_hour:
             self.apply_comfort_rampout(current_floor_sensor_value, boost_level)
@@ -1267,7 +1265,8 @@ class SensiboOptimizer:
             )
 
             self.wait_for_hour(comfort_first_range.start + 1)
-            self._controller.apply(COMFORT_EATING_HEAT_SETTINGS)
+            if not self._temperature_provider.currently_sunny_and_not_too_cold():
+                self._controller.apply(COMFORT_EATING_HEAT_SETTINGS)
 
             if optimizing_a_workday:
                 self.run_workday_8_to_22_schedule()
