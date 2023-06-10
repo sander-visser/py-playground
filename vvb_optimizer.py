@@ -98,17 +98,13 @@ def run_schedule(is_legionella_day=False):
     prev_minute = 0
     print("time is 00:00")
     for schedpoint in SUMMER_SCHEDULE if USE_SUMMER_SCHEDULE else WINTER_SCHEDULE:
+        curr_pwm = schedpoint[2]
         if is_legionella_day and schedpoint[0] == LEGIONELLA_HOUR:
-            apply_pwm(
-                PWM_70_DEGREES, schedpoint[0] - prev_hour, schedpoint[1] - prev_minute
-            )
-        else:
-            apply_pwm(
-                schedpoint[2], schedpoint[0] - prev_hour, schedpoint[1] - prev_minute
-            )
+            curr_pwm = PWM_70_DEGREES
+        apply_pwm(curr_pwm, schedpoint[0] - prev_hour, schedpoint[1] - prev_minute)
         prev_minute = schedpoint[1]
         prev_hour = schedpoint[0]
-        print(f"At {prev_hour}:{prev_minute}")
+        print(f"At {prev_hour}:{prev_minute}. pwm {curr_pwm}")
     midnight_wait_time = (
         (24 - prev_hour) + ((0 - prev_minute) / 60.0)
     ) * SECONDS_PER_HOUR
