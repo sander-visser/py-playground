@@ -28,6 +28,8 @@ PWM_PER_DEGREE = (PWM_70_DEGREES - PWM_45_DEGREES) / 25  # Whole number
 SECONDS_PER_HOUR = 3600.0  # 3600 in prod, 8.0 in test with schedule diff of 15 min
 ROTATION_SECONDS = 2
 USE_SUMMER_SCHEDULE = True
+LEGIONELLA_HOUR = 5
+LEGIONELLA_INTERVALL_DAYS = 7
 WINTER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [0, 15, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],  # First sched time 00:15 or later
     [0, 30, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],
@@ -40,7 +42,7 @@ WINTER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [3, 30, PWM_45_DEGREES + 20 * PWM_PER_DEGREE],
     [4, 0, PWM_45_DEGREES + 23 * PWM_PER_DEGREE],
     [4, 30, PWM_70_DEGREES],
-    [5, 0, PWM_70_DEGREES - 5 * PWM_PER_DEGREE],
+    [5, 0, PWM_70_DEGREES - 5 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
     [6, 0, PWM_20_DEGREES],
     [13, 0, PWM_20_DEGREES + 7 * PWM_PER_DEGREE],
     [13, 30, PWM_20_DEGREES + 13 * PWM_PER_DEGREE],
@@ -48,6 +50,7 @@ WINTER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [14, 30, PWM_20_DEGREES + 22 * PWM_PER_DEGREE],
     [15, 0, PWM_20_DEGREES],
 ]
+# During the summer energy cost is low during high noon and ~3kWh dissipation/day @60* useless
 SUMMER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [0, 15, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],  # First sched time 00:15 or later
     [0, 30, PWM_20_DEGREES + 19 * PWM_PER_DEGREE],
@@ -56,17 +59,20 @@ SUMMER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [1, 30, PWM_45_DEGREES + 4 * PWM_PER_DEGREE],
     [2, 0, PWM_45_DEGREES + 8 * PWM_PER_DEGREE],
     [2, 30, PWM_45_DEGREES + 12 * PWM_PER_DEGREE],
-    [3, 0, PWM_45_DEGREES + 16 * PWM_PER_DEGREE],
-    [3, 30, PWM_45_DEGREES + 20 * PWM_PER_DEGREE],
-    [4, 0, PWM_45_DEGREES + 22 * PWM_PER_DEGREE],
-    [4, 30, PWM_70_DEGREES - 5 * PWM_PER_DEGREE],
-    [5, 0, PWM_45_DEGREES],
+    [3, 0, PWM_45_DEGREES + 15 * PWM_PER_DEGREE],
+    [3, 30, PWM_45_DEGREES + 18 * PWM_PER_DEGREE],
+    [4, 0, PWM_45_DEGREES + 21 * PWM_PER_DEGREE],
+    [4, 30, PWM_45_DEGREES + 18 * PWM_PER_DEGREE],
+    [5, 0, PWM_45_DEGREES + 10 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
     [6, 0, PWM_20_DEGREES],
-    [13, 30, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],
+    [11, 0, PWM_20_DEGREES + 5 * PWM_PER_DEGREE],
+    [12, 0, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],
+    [13, 0, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],
+    [13, 30, PWM_20_DEGREES + 20 * PWM_PER_DEGREE],
     [14, 0, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],
     [14, 20, PWM_20_DEGREES + 20 * PWM_PER_DEGREE],
     [14, 40, PWM_45_DEGREES],
-    [15, 0, PWM_20_DEGREES],
+    [16, 0, PWM_20_DEGREES],
     [23, 0, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],
 ]
 
@@ -86,13 +92,20 @@ def apply_pwm(pwm_degrees, wait_hours, wait_minutes):
     pwm.duty_u16(0)
 
 
-def run_schedule():
+def run_schedule(is_legionella_day=False):
     """Loops the schedule."""
     prev_hour = 0
     prev_minute = 0
     print("time is 00:00")
     for schedpoint in SUMMER_SCHEDULE if USE_SUMMER_SCHEDULE else WINTER_SCHEDULE:
-        apply_pwm(schedpoint[2], schedpoint[0] - prev_hour, schedpoint[1] - prev_minute)
+        if is_legionella_day and schedpoint[0] == LEGIONELLA_HOUR:
+            apply_pwm(
+                PWM_70_DEGREES, schedpoint[0] - prev_hour, schedpoint[1] - prev_minute
+            )
+        else:
+            apply_pwm(
+                schedpoint[2], schedpoint[0] - prev_hour, schedpoint[1] - prev_minute
+            )
         prev_minute = schedpoint[1]
         prev_hour = schedpoint[0]
         print(f"At {prev_hour}:{prev_minute}")
@@ -114,5 +127,7 @@ if __name__ == "__main__":
     print("At 22:00 - waiting for midnight...")
     sleep((2 * SECONDS_PER_HOUR) - ROTATION_SECONDS)
 
+    LEGIONELLA_DAY = 0
     while True:
-        run_schedule()
+        LEGIONELLA_DAY += 1
+        run_schedule((LEGIONELLA_DAY % LEGIONELLA_INTERVALL_DAYS) == 0)
