@@ -137,7 +137,7 @@ class EaseeCostAnalyzer:
                     if day_spot_prices is None:
                         day_spot_prices = self.spot_prices.hourly(
                             end_date=looked_up_date, areas=[self.region]
-                       )["areas"][self.region]["values"]
+                        )["areas"][self.region]["values"]
 
                     # print(f"Prices for {looked_up_date}: {day_spot_prices}")
                 hour_cost = (
@@ -246,8 +246,8 @@ if __name__ == "__main__":
         dest="fees_and_tax_excl_vat",
         type=float,
         help="Cost for fees and taxes per kWh (excl VAT)."
-        + ' For instance "0.76" for transmission, energytax, certificates etc.'
-        + " (27.4 + 39.2 + 9.4 öre for Partille energi with normal tax via Tibber in Feb 2023)",
+        + ' For instance "0.7149" for transmission, energytax, certificates etc.'
+        + " (24.4 + 39.2 + 7.89 öre for Partille energi with normal tax via Tibber in Jul 2023)",
         default=None,
         required=False,
     )
