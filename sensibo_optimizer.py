@@ -581,7 +581,6 @@ class SensiboController:
         self._verbose = verbose
         self._client = client
         self._uid = uid
-        self._last_send_skipped = False
         self._skip_ahead = True
         self._current_settings = {}
 
@@ -594,23 +593,23 @@ class SensiboController:
         self, settings, temp_offset=NORMAL_TEMP_OFFSET, force=False, valid_hour=None
     ):
         adjusted_settings = copy.deepcopy(settings)
-        adjusted_settings["targetTemperature"] = int(
-            adjusted_settings["targetTemperature"] + temp_offset
-        )
+        if "targetTemperature" in adjusted_settings:
+            adjusted_settings["targetTemperature"] = int(
+                adjusted_settings["targetTemperature"] + temp_offset
+            )
         if self._verbose:
             print(f"Applying: {adjusted_settings}")
         if (
             self._skip_ahead
+            and not force
             and valid_hour is not None
             and valid_hour != datetime.now().hour
         ):
-            self._last_send_skipped = True
             if self._verbose:
                 print(f"Skipping Sensibo sending due to invalid hour {valid_hour}")
         else:
-            if force or self._last_send_skipped:
+            if force:
                 self._current_settings = {}
-                self._last_send_skipped = False
             if valid_hour is not None:
                 self._skip_ahead = False
             first_setting = True
@@ -619,10 +618,10 @@ class SensiboController:
                     setting not in self._current_settings
                     or adjusted_settings[setting] != self._current_settings[setting]
                 ):
-                    self._current_settings[setting] = adjusted_settings[setting]
                     self._client.pod_change_ac_state(
                         self._uid, None, setting, adjusted_settings[setting]
                     )
+                    self._current_settings[setting] = adjusted_settings[setting]
                     if not first_setting:
                         sleep(SECONDS_BETWEEN_COMMANDS)
                     first_setting = False
@@ -761,7 +760,6 @@ class SensiboOptimizer:
 
     def manage_over_temperature(self):
         heat_distribution_settings = {
-            "targetTemperature": 16,  # Ignored, but needed during restore
             "mode": "fan",
             "horizontalSwing": "fixedLeft",
             "swing": "fixedTop",
