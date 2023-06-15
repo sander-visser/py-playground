@@ -953,13 +953,14 @@ class SensiboOptimizer:
             )
         self.wait_for_hour(pre_boost_hour_start)
         for sample_minute in range(9, 60, 10):
+            pre_boost_setting = copy.deepcopy(HIGH_HEAT_SETTINGS)
             current_floor_sensor_value = self.get_current_floor_temp()
             if current_floor_sensor_value >= self.allowed_over_temperature():
-                self._controller.apply(
-                    COMFORT_HEAT_SETTINGS, valid_hour=pre_boost_hour_start
-                )
+                if current_heating_capacity > (MAX_FLOOR_SENSOR_OVER_TEMPERATURE / 2):
+                    pre_boost_setting = IDLE_SETTINGS
+                else:
+                    pre_boost_setting = COMFORT_HEAT_SETTINGS
             else:
-                pre_boost_setting = copy.deepcopy(HIGH_HEAT_SETTINGS)
                 pre_boost_setting["targetTemperature"] = math.ceil(
                     (pre_boost_setting["targetTemperature"] + boost_offset)
                     - current_heating_capacity
@@ -971,9 +972,7 @@ class SensiboOptimizer:
                     pre_boost_setting["targetTemperature"] = IDLE_SETTINGS[
                         "targetTemperature"
                     ]
-                self._controller.apply(
-                    pre_boost_setting, valid_hour=pre_boost_hour_start
-                )
+            self._controller.apply(pre_boost_setting, valid_hour=pre_boost_hour_start)
             self.wait_for_hour(pre_boost_hour_start, sample_minute)
 
     def get_current_heating_capacity(self, heating_hours, outside_temp=None):
