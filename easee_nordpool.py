@@ -28,8 +28,9 @@ HTTP_SUCCESS_CODE = 200
 KWH_PER_MWH = 1000
 VAT_SCALE = 1.25  # 25%
 API_TIMEOUT = 10.0  # seconds
-CHARGER_ID_URL = "https://api.easee.cloud/api/chargers"
-REFRESH_TOKEN_URL = "https://api.easee.cloud/api/accounts/refresh_token"
+EASEE_API_BASE = "https://api.easee.com/api"
+CHARGER_ID_URL = f"{EASEE_API_BASE}/chargers"
+REFRESH_TOKEN_URL = f"{EASEE_API_BASE}/api/accounts/refresh_token"
 
 
 def refresh_api_token(prev_api_access_token, api_refresh_token):
@@ -83,7 +84,7 @@ class EaseeCostAnalyzer:
 
     def get_hourly_energy_json(self, charger_id, from_date, to_date):
         hourly_energy_url = (
-            f"https://api.easee.cloud/api/chargers/lifetime-energy/{charger_id}/hourly?"
+            f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/hourly?"
             + f"from={from_date}&to={to_date}"
         )
         hourly_energy = requests.get(
@@ -157,11 +158,14 @@ class EaseeCostAnalyzer:
         if peak_contribution is not None:
             print(f"Contribution to peak hour {peak_contribution:.03f} kWh/h")
         else:
-            print("No peak hour info provided. Considering 100% contributuion.")
+            print(
+                "No peak hour supplied / not charging at provided hour. Using 100% contributuion."
+            )
             peak_contribution = peak_kwh_per_hour
         print(
             f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
         )
+        print(f"Average cost {(total_cost/total_kwh ):.3f} (without VAT and fees)")
         if cost_settings.fees_and_tax_excl_vat is not None:
             total_cost = (
                 (cost_settings.fees_and_tax_excl_vat * total_kwh + total_cost)
@@ -179,7 +183,7 @@ if __name__ == "__main__":
 
     LOGIN_HELP = (
         "curl --request POST"
-        + "     --url https://api.easee.cloud/api/accounts/login"
+        + f"     --url {EASEE_API_BASE}/accounts/login"
         + "     --header 'accept: application/json'"
         + "     --header 'content-type: application/*+json'"
         + "     --data '"
@@ -246,8 +250,8 @@ if __name__ == "__main__":
         dest="fees_and_tax_excl_vat",
         type=float,
         help="Cost for fees and taxes per kWh (excl VAT)."
-        + ' For instance "0.7149" for transmission, energytax, certificates etc.'
-        + " (24.4 + 39.2 + 7.89 öre for Partille energi with normal tax via Tibber in Jul 2023)",
+        + ' For instance "0.7209" for transmission, energytax, certificates etc.'
+        + " (24.4 + 39.2 + 8.49 öre for Partille Energi with normal tax via Tibber in July 2023)",
         default=None,
         required=False,
     )
