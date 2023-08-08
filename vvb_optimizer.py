@@ -42,7 +42,7 @@ WINTER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [3, 30, PWM_45_DEGREES + 20 * PWM_PER_DEGREE],
     [4, 0, PWM_45_DEGREES + 23 * PWM_PER_DEGREE],
     [4, 30, PWM_70_DEGREES],
-    [5, 0, PWM_70_DEGREES - 5 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
+    [LEGIONELLA_HOUR, 0, PWM_70_DEGREES - 5 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
     [6, 0, PWM_20_DEGREES],
     [13, 0, PWM_20_DEGREES + 7 * PWM_PER_DEGREE],
     [13, 30, PWM_20_DEGREES + 13 * PWM_PER_DEGREE],
@@ -52,18 +52,18 @@ WINTER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
 ]
 # During the summer energy cost is low during high noon and ~3kWh dissipation/day @60* useless
 SUMMER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
-    [0, 15, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],  # First sched time 00:15 or later
-    [0, 30, PWM_20_DEGREES + 19 * PWM_PER_DEGREE],
-    [0, 45, PWM_20_DEGREES + 23 * PWM_PER_DEGREE],
-    [1, 0, PWM_45_DEGREES],
-    [1, 30, PWM_45_DEGREES + 4 * PWM_PER_DEGREE],
-    [2, 0, PWM_45_DEGREES + 8 * PWM_PER_DEGREE],
-    [2, 30, PWM_45_DEGREES + 12 * PWM_PER_DEGREE],
-    [3, 0, PWM_45_DEGREES + 15 * PWM_PER_DEGREE],
-    [3, 30, PWM_45_DEGREES + 18 * PWM_PER_DEGREE],
-    [4, 0, PWM_45_DEGREES + 21 * PWM_PER_DEGREE],
-    [4, 30, PWM_45_DEGREES + 18 * PWM_PER_DEGREE],
-    [5, 0, PWM_45_DEGREES + 10 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
+    [0, 15, PWM_20_DEGREES + 8 * PWM_PER_DEGREE],  # First sched time 00:15 or later
+    [0, 30, PWM_20_DEGREES + 12 * PWM_PER_DEGREE],
+    [0, 45, PWM_20_DEGREES + 16 * PWM_PER_DEGREE],
+    [1, 0, PWM_20_DEGREES + 21 * PWM_PER_DEGREE],
+    [1, 30, PWM_45_DEGREES],
+    [2, 0, PWM_45_DEGREES + 3 * PWM_PER_DEGREE],
+    [2, 30, PWM_45_DEGREES + 6 * PWM_PER_DEGREE],
+    [3, 0, PWM_45_DEGREES + 9 * PWM_PER_DEGREE],
+    [3, 30, PWM_45_DEGREES + 12 * PWM_PER_DEGREE],
+    [4, 0, PWM_45_DEGREES + 15 * PWM_PER_DEGREE],
+    [4, 30, PWM_45_DEGREES + 12 * PWM_PER_DEGREE],
+    [LEGIONELLA_HOUR, 0, PWM_45_DEGREES + 10 * PWM_PER_DEGREE],  # required LEGIONELLA_HOUR match
     [6, 0, PWM_20_DEGREES],
     [11, 0, PWM_20_DEGREES + 5 * PWM_PER_DEGREE],
     [12, 0, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],
@@ -72,8 +72,9 @@ SUMMER_SCHEDULE = [  # Hour, Minute, Desired PWM setting at the provided time
     [14, 0, PWM_20_DEGREES + 15 * PWM_PER_DEGREE],
     [14, 20, PWM_20_DEGREES + 20 * PWM_PER_DEGREE],
     [14, 40, PWM_45_DEGREES],
+    [15, 30, PWM_45_DEGREES + 5 * PWM_PER_DEGREE],
     [16, 0, PWM_20_DEGREES],
-    [23, 0, PWM_20_DEGREES + 10 * PWM_PER_DEGREE],
+    [23, 0, PWM_20_DEGREES + 4 * PWM_PER_DEGREE],
 ]
 
 
