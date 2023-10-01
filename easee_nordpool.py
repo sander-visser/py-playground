@@ -250,8 +250,8 @@ if __name__ == "__main__":
         dest="fees_and_tax_excl_vat",
         type=float,
         help="Cost for fees and taxes per kWh (excl VAT)."
-        + ' For instance "0.7209" for transmission, energytax, certificates etc.'
-        + " (24.4 + 39.2 + 8.49 öre for Partille Energi with normal tax via Tibber in July 2023)",
+        + ' For instance "0.7342" for transmission, energytax, certificates etc.'
+        + " (24.4 + 39.2 + 9.82 öre for Partille Energi with normal tax via Tibber in Okt 2023)",
         default=None,
         required=False,
     )
