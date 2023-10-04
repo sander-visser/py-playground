@@ -74,8 +74,10 @@ class EaseeCostAnalyzer:
         )
         if chargers_req.status_code != 200:
             print(
-                f"Error getting chargers {chargers_req.status_code}: {chargers_req.text}"
+                f"Error getting chargers. Error: {chargers_req.status_code}; {chargers_req.text}"
             )
+            if chargers_req.status_code == 401:
+                print("Check API key is not expired...")
             sys.exit(1)
         chargers_json = chargers_req.json()
         for charger_data in chargers_json:
@@ -94,6 +96,41 @@ class EaseeCostAnalyzer:
             print(f"Error: {hourly_energy.text}")
             sys.exit(1)
         return hourly_energy.json()
+
+    def get_day_spot_prices(self, looked_up_date):
+        day_spot_prices = None
+        try:
+            day_spot_prices = self.spot_prices.hourly(
+                end_date=looked_up_date, areas=[self.region]
+            )["areas"][self.region]["values"]
+        except KeyError:
+            print("retrying Nordpool price fetching...")
+        if day_spot_prices is None:
+            day_spot_prices = self.spot_prices.hourly(
+                end_date=looked_up_date, areas=[self.region]
+            )["areas"][self.region]["values"]
+
+        # print(f"Prices for {looked_up_date}: {day_spot_prices}")
+        return day_spot_prices
+
+    @staticmethod
+    def print_fees_report(cost_settings, total_kwh, peak_contribution, nordpool_cost):
+        total_fee = 0.0
+        if cost_settings.fees_and_tax_excl_vat is not None:
+            for fee in cost_settings.fees_and_tax_excl_vat.split(","):
+                this_fee = float(fee)
+                total_fee += this_fee
+                print(
+                    f"Fee w/o VAT {(total_kwh * this_fee):.03f} {NORDPOOL_PRICE_CODE}"
+                    + f" @ {this_fee} {NORDPOOL_PRICE_CODE} / kWh"
+                )
+        total_cost = (
+            (total_fee * total_kwh + nordpool_cost)
+            + (peak_contribution * cost_settings.pwr_fee_excl_vat)
+        ) * VAT_SCALE
+        print(
+            f"Total cost incl all fees and VAT: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}"
+        )
 
     def print_cost_report(self, charger_id, cost_settings, date_range):
         total_kwh = 0.0
@@ -126,32 +163,22 @@ class EaseeCostAnalyzer:
                     datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
                 )
                 total_kwh += hour_data["consumption"]
-                if looked_up_date is None or curr_date.date() != looked_up_date:
-                    looked_up_date = curr_date.date()
-                    day_spot_prices = None
-                    try:
-                        day_spot_prices = self.spot_prices.hourly(
-                            end_date=looked_up_date, areas=[self.region]
-                        )["areas"][self.region]["values"]
-                    except KeyError:
-                        print("retrying Nordpool price fetching...")
-                    if day_spot_prices is None:
-                        day_spot_prices = self.spot_prices.hourly(
-                            end_date=looked_up_date, areas=[self.region]
-                        )["areas"][self.region]["values"]
-
-                    # print(f"Prices for {looked_up_date}: {day_spot_prices}")
-                hour_cost = (
-                    hour_data["consumption"]
-                    * day_spot_prices[curr_date.hour]["value"]
-                    / KWH_PER_MWH
-                )
-                if self.verbose:
+                hour_cost = None
+                if args.region is not None:
+                    if looked_up_date is None or curr_date.date() != looked_up_date:
+                        looked_up_date = curr_date.date()
+                        day_spot_prices = self.get_day_spot_prices(looked_up_date)
+                    hour_cost = (
+                        hour_data["consumption"]
+                        * day_spot_prices[curr_date.hour]["value"]
+                        / KWH_PER_MWH
+                    )
+                    total_cost += hour_cost
+                if hour_cost is not None and self.verbose:
                     print(
                         f"{hour_data['consumption']:.3f} kWh used at hour starting on {curr_date}."
                         + f" Cost was {hour_cost:.3f} {NORDPOOL_PRICE_CODE}"
                     )
-                total_cost += hour_cost
 
         print(f"\nTotal consumption: {total_kwh:.3f} kWh")
         print(f"Peak kWh/h {peak_kwh_per_hour:.03f}")
@@ -162,18 +189,20 @@ class EaseeCostAnalyzer:
                 "No peak hour supplied / not charging at provided hour. Using 100% contributuion."
             )
             peak_contribution = peak_kwh_per_hour
-        print(
-            f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
-        )
-        print(f"Average cost {(total_cost/total_kwh ):.3f} (without VAT and fees)")
-        if cost_settings.fees_and_tax_excl_vat is not None:
-            total_cost = (
-                (cost_settings.fees_and_tax_excl_vat * total_kwh + total_cost)
-                + (peak_contribution * cost_settings.pwr_fee_excl_vat)
-            ) * VAT_SCALE
+        if cost_settings.pwr_fee_excl_vat > 0.0:
             print(
-                f"Total cost incl all fees and VAT: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}"
+                    f"Total powerfee is {(peak_contribution*cost_settings.pwr_fee_excl_vat):.03f} "
+                + f"{NORDPOOL_PRICE_CODE}"
             )
+        if self.region is not None:
+            print(
+                f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
+            )
+            print(
+                f"Average cost in {self.region} {(total_cost/total_kwh ):.3f}"
+                + f" {NORDPOOL_PRICE_CODE} / kWh (without VAT and fees)"
+            )
+        self.print_fees_report(cost_settings, total_kwh, peak_contribution, total_cost)
 
 
 if __name__ == "__main__":
@@ -224,7 +253,7 @@ if __name__ == "__main__":
         dest="region",
         type=str,
         help="Nordpool region code",
-        default="SE3",
+        default=None,
         required=False,
     )
     parser.add_argument(
@@ -233,7 +262,7 @@ if __name__ == "__main__":
         type=float,
         help="Cost for peak power use (per kWh/h excl VAT) in the analyzed period"
         + ". For instance 23.6 SEK/peak kW in Partille",
-        default=None,
+        default=0.0,
         required=False,
     )
     parser.add_argument(
@@ -246,12 +275,12 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "-fee",
+        "-fees",
         dest="fees_and_tax_excl_vat",
-        type=float,
-        help="Cost for fees and taxes per kWh (excl VAT)."
-        + ' For instance "0.7342" for transmission, energytax, certificates etc.'
-        + " (24.4 + 39.2 + 9.82 öre for Partille Energi with normal tax via Tibber in Okt 2023)",
+        type=str,
+        help="Cost for fees and taxes per kWh (excl VAT). Comma separated"
+        + ' For instance "0.244,0.392,0.0982" for transmission, energytax, certificates etc.'
+        + " (Example isExample is for Partille Energi with normal tax via Tibber in Okt 2023)",
         default=None,
         required=False,
     )
@@ -275,7 +304,7 @@ if __name__ == "__main__":
     cost_analyzer = EaseeCostAnalyzer(api_token, args.region, args.verbose)
 
     print(
-        f"\nGenerating Nordpool cost report in {args.region}"
+        f"\nGenerating Nordpool cost report in Nordpool region: {args.region}"
         + f" for period {args.from_date} - {args.to_date}"
     )
 
