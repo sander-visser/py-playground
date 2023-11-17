@@ -1,15 +1,19 @@
 """
 Hot water scheduler to move electricity usage to hours that are usually cheap
 Runs on a Raspberry Pi PICO with a SG90 servo connected to PWM GP0
-Designed to run without WiFi. Upload to device using Thonny.
+Power takeout for servo possible from VBUS pin
+Designed for schedule use.
 Servo connected to theromostat of electric water heater.
+Upload to device using Thonny (as main.py).
 
 Power reset unit at 20:00 to get 2h extra hot water and resync schedule
+
+Repo also contans a connected optimizer (that utilizes WiFi)
 
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
+giving us both ~400 SEK to shop gadgets with. Contact: github[a]visser.se or
 check referral.link in repo
 """
 
