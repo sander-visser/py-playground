@@ -48,7 +48,7 @@ UTC_OFFSET = 1  # 2 for manual CET summer time
 COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
-MAX_HOURS_NEEDED_TO_HEAT = 4
+MAX_HOURS_NEEDED_TO_HEAT = 4  # Minimum 4
 DEGREES_PER_HOUR = 8
 LAST_MORNING_HEATING_HOUR = 6
 DAILY_COMFORT_LAST_HOUR = 20
@@ -213,11 +213,12 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
         )  # This is the cheapest hour before significantly higher
     return False
 
-
 def get_cheap_score_until(now_hour, until_hour, today_cost):
     """
     Give the cheapest MAX_HOURS_NEEDED_TO_HEAT a decreasing score
-    that can be used to calculate heating curve
+    that can be used to calculate heating curve.
+    Scoring takes ramping to cheapest into account, as well as
+    moving completion hour if needed
     """
     now_price = today_cost[now_hour]
     cheapest_hour = 0
@@ -229,7 +230,18 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
         if today_cost[scan_hour] < cheapest_price:
             cheapest_price = today_cost[scan_hour]
             cheapest_hour = scan_hour
-    if now_hour < cheapest_hour:
+    if cheapest_hour < (MAX_HOURS_NEEDED_TO_HEAT - 1):
+        # Secure sufficient rampup time
+        cheapest_hour = MAX_HOURS_NEEDED_TO_HEAT - 1
+
+    if cheapest_hour < 23:
+        default_cost = sum(today_cost[(cheapest_hour - 2) : cheapest_hour])
+        moved_cost = sum(today_cost[(cheapest_hour - 1) : (cheapest_hour + 1)])
+        if moved_cost < default_cost:
+            print(f"Delaying heatup saves {default_cost - moved_cost} EUR")
+            cheapest_hour += 1
+    if now_hour <= cheapest_hour:
+        # Secure rampup before cheapest_hour(_completion_hour)
         score = max(score, MAX_HOURS_NEEDED_TO_HEAT - (cheapest_hour - now_hour))
     print(f"Score given: {score}")
     return max(score, 0)
@@ -260,7 +272,7 @@ def get_wanted_temp(
 ):
     wanted_temp = 20
 
-    if today_cost:
+    if today_cost is not None:
         print(f"Current hour cost is {today_cost[local_hour]} EUR / kWh")
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
             wanted_temp += 5  # Slightly raise hot water takeout capacity
@@ -350,7 +362,7 @@ def run_hotwater_optimization(thermostat):
             thermostat.set_thermosat(wanted_temp)
             prev_wanted_temp = wanted_temp
         curr_min = time.localtime()[4]
-        if curr_min < 50:
+        if curr_min < 50 and OVERRIDE_TEST_HOUR is None:
             time.sleep((50 - curr_min) * SEC_PER_MIN)  # Sleep slightly before next hour
         if local_hour < 23:
             next_hour_wanted_temp = get_wanted_temp(
