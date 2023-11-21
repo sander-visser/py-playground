@@ -43,8 +43,9 @@ PR2_COUNTRY = "SE"
 WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"
 NORDPOOL_REGION = "SE3"
-OVERRIDE_TEST_HOUR = None  # Test script behaviour at different times today
-UTC_OFFSET = 1  # 2 for manual CET summer time
+MAX_NETWORK_ATTEMPTS = 10
+OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Test script behaviour at different times
+UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
@@ -57,7 +58,7 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
 SEC_PER_MIN = 60
-EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
+EXTRA_HOT_DURATION_S = 0 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 HIGH_PRICE_THRESHOLD = 0.30  # In EUR
 HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
 # TEMPERATURE_URLshould return a number "x.y"
@@ -83,6 +84,37 @@ class SimpleTemperatureProvider:
             except ValueError:
                 print(f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}")
         return self.outdoor_temperature
+
+
+class TimeProvider:
+    def __init__(self):
+        self.current_utc_time = OVERRIDE_UTC_UNIX_TIMESTAMP
+
+    def hourly_timekeeping(self):
+        if OVERRIDE_UTC_UNIX_TIMESTAMP is not None:
+            self.current_utc_time += 3600
+        else:
+            self.sync_utc_time()  # Sync time once per hour
+
+    def get_utc_unix_timestamp(self):
+        return time.time() if self.current_utc_time is None else self.current_utc_time
+
+    @staticmethod
+    def sync_utc_time():
+        # if needed, overwrite default time server
+        # ntptime.host = "1.europe.pool.ntp.org"
+
+        max_wait = MAX_NETWORK_ATTEMPTS
+        while max_wait > 0:
+            try:
+                print(f"Local time before NTP sync：{time.localtime()}")
+                ntptime.settime()
+                print(f"UTC   time after  NTP sync：{time.localtime()}")
+                break
+            except Exception as excep:
+                print("Error syncing time")
+                print(excep)
+                time.sleep(1)
 
 
 class Thermostat:
@@ -137,7 +169,7 @@ def setup_wifi():
     wlan.connect(WLAN_SSID, WLAN_PASS)
 
     # Wait for connect or fail
-    max_wait = 10
+    max_wait = MAX_NETWORK_ATTEMPTS
     while max_wait > 0:
         if wlan.status() < 0 or wlan.status() >= 3:
             break
@@ -157,40 +189,25 @@ def setup_wifi():
     print(f"rssi = {wlan.status('rssi')}")
 
 
-def sync_utc_time():
-    # if needed, overwrite default time server
-    # ntptime.host = "1.europe.pool.ntp.org"
-
-    max_wait = 10
-    while max_wait > 0:
-        try:
-            print(f"Local time before NTP sync：{time.localtime()}")
-            ntptime.settime()
-            print(f"UTC   time after  NTP sync：{time.localtime()}")
-            break
-        except Exception as excep:
-            print("Error syncing time")
-            print(excep)
-            time.sleep(1)
-
-
 def get_cost(end_date):
     if not isinstance(end_date, date):
         raise RuntimeError("Error not a date")
     hourly_api_url = HOURLY_API_URL + (
         f"{end_date.year}/{end_date.month}-{end_date.day}_{NORDPOOL_REGION}.json"
     )
+    gc.collect()
     result = urequests.get(hourly_api_url, timeout=10.0)
     if result.status_code != 200:
         return None
 
-    gc.collect()
     the_json_result = result.json()
     gc.collect()
 
     cost_array = []
     for row in the_json_result:
         cost_array.append(row["EUR_per_kWh"])
+    if len(cost_array) == 23:
+        cost_array.append(0)  # DST hack - off by one in adjust days
     return cost_array
 
 
@@ -204,12 +221,9 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
             max_price = today_cost[local_hour]
         if min_price > today_cost[local_hour]:
             min_price = today_cost[local_hour]
-    local_hour = 0
     if tomorrow_cost is not None:
-        while local_hour < 23:
-            local_hour += 1
-            if max_price < tomorrow_cost[local_hour]:
-                max_price = tomorrow_cost[local_hour]
+        for tomorrow_hour_price in tomorrow_cost:
+            max_price = max(max_price, tomorrow_hour_price)
     if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or (
         max_price > (min_price * COP_FACTOR) and max_price > HIGH_PRICE_THRESHOLD
     ):
@@ -275,7 +289,7 @@ def is_the_cheapest_hour_during_daytime(today_cost):
 
 def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
     wanted_temp = 20
-    print(f"Current hour cost is {today_cost[local_hour]} EUR / kWh")
+    print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
     if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_HOUR:
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
             wanted_temp += 5  # Slightly raise hot water takeout capacity
@@ -332,10 +346,29 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     return wanted_temp
 
 
+def get_local_date_and_hour(utc_unix_timestamp):
+    local_unix_timestamp = utc_unix_timestamp + UTC_OFFSET_IN_S
+    now = time.gmtime(local_unix_timestamp)
+    year = now[0]
+    dst_start = time.mktime(
+        (year, 3, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
+    )
+    dst_end = time.mktime(
+        (year, 10, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
+    )
+    if dst_start < local_unix_timestamp < dst_end:
+        now = time.gmtime(local_unix_timestamp + 3600)
+    adjusted_day = date(now[0], now[1], now[2])
+
+    return (adjusted_day, now[3])
+
+
 def run_hotwater_optimization(thermostat):
     setup_wifi()
-    sync_utc_time()
-    today = date.today()
+    time_provider = TimeProvider()
+    time_provider.sync_utc_time()
+
+    today = None
     today_cost = None
     tomorrow_cost = None
     days_since_legionella = 0
@@ -343,8 +376,11 @@ def run_hotwater_optimization(thermostat):
     temperature_provider = SimpleTemperatureProvider()
 
     while True:
-        if today_cost is None or date.today() != today:
-            today = date.today()
+        new_today, local_hour = get_local_date_and_hour(
+            time_provider.get_utc_unix_timestamp()
+        )
+        if today_cost is None or new_today != today:
+            today = new_today
             if pending_legionella_reset:
                 days_since_legionella = 0
                 pending_legionella_reset = False
@@ -353,15 +389,6 @@ def run_hotwater_optimization(thermostat):
             tomorrow_cost = None
         if tomorrow_cost is None:
             tomorrow_cost = get_cost(today + timedelta(days=1))
-        local_hour = time.localtime()[3] + UTC_OFFSET
-        if OVERRIDE_TEST_HOUR is not None:
-            print("Using override hour !!!")
-            local_hour = OVERRIDE_TEST_HOUR
-        if local_hour >= 24:
-            local_hour -= 24
-            today_cost = tomorrow_cost
-            tomorrow_cost = None
-            today += timedelta(days=1)
 
         print(
             f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00"
@@ -384,7 +411,7 @@ def run_hotwater_optimization(thermostat):
 
         thermostat.set_thermosat(wanted_temp)
         curr_min = time.localtime()[4]
-        if curr_min < 50 and OVERRIDE_TEST_HOUR is None:
+        if curr_min < 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             time.sleep((50 - curr_min) * SEC_PER_MIN)  # Sleep slightly before next hour
         if local_hour < 23 and today_cost is not None:
             next_hour_wanted_temp = get_wanted_temp(
@@ -395,18 +422,19 @@ def run_hotwater_optimization(thermostat):
                 outside_temp,
             )
             if (
-                next_hour_wanted_temp > wanted_temp
-                or today_cost[local_hour + 1] < today_cost[local_hour]
+                next_hour_wanted_temp >= wanted_temp
+                and today_cost[local_hour + 1] < today_cost[local_hour]
             ):
                 thermostat.nudge_down()
             if (
-                next_hour_wanted_temp < wanted_temp
-                or today_cost[local_hour + 1] > today_cost[local_hour]
+                next_hour_wanted_temp <= wanted_temp
+                and today_cost[local_hour + 1] > today_cost[local_hour]
             ):
                 thermostat.nudge_up()
-        time.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
 
-        sync_utc_time()  # Sync time once per hour
+        time_provider.hourly_timekeeping()
+        if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+            time.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
 
 
 if __name__ == "__main__":
@@ -418,5 +446,7 @@ if __name__ == "__main__":
         while True:
             try:
                 run_hotwater_optimization(THERMOSTAT)
-            except:
+            except Exception as EXCEPT:
+                print("Delaying due to exception...")
+                print(EXCEPT)
                 time.sleep(300)
