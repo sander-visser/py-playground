@@ -58,7 +58,7 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
 SEC_PER_MIN = 60
-EXTRA_HOT_DURATION_S = 0 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
+EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 HIGH_PRICE_THRESHOLD = 0.30  # In EUR
 HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
 # TEMPERATURE_URLshould return a number "x.y"
