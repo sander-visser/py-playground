@@ -49,7 +49,8 @@ UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
-MAX_HOURS_NEEDED_TO_HEAT = 4  # Minimum 4
+MAX_HOURS_NEEDED_TO_HEAT = 4  # x * DEGREES_PER_HOUR should exceed (MIN_DAILY_TEMP - 20)
+NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
 DEGREES_PER_HOUR = 8
 LAST_MORNING_HEATING_HOUR = 6
 DAILY_COMFORT_LAST_HOUR = 21
@@ -237,30 +238,41 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     """
     Give the cheapest MAX_HOURS_NEEDED_TO_HEAT a decreasing score
     that can be used to calculate heating curve.
-    Scoring takes ramping to cheapest into account, as well as
-    moving completion hour if needed
+    Scoring considders ramping vs aggressive heating to cheapest into account,
+    as well as moving completion hour if needed and
     """
     now_price = today_cost[now_hour]
     cheapest_hour = 0
     cheapest_price = today_cost[0]
     score = MAX_HOURS_NEEDED_TO_HEAT  # Assume now_hour is cheapest
+    if now_hour >= until_hour:
+        score = 0
     for scan_hour in range(0, until_hour + 1):
         if today_cost[scan_hour] < now_price:
             score -= 1
         if today_cost[scan_hour] < cheapest_price:
             cheapest_price = today_cost[scan_hour]
             cheapest_hour = scan_hour
-    if cheapest_hour < (MAX_HOURS_NEEDED_TO_HEAT - 1):
+    if cheapest_hour < NORMAL_HOURS_NEEDED_TO_HEAT:
         # Secure sufficient rampup time
-        cheapest_hour = MAX_HOURS_NEEDED_TO_HEAT - 1
+        cheapest_hour = NORMAL_HOURS_NEEDED_TO_HEAT
+        cheapest_price = today_cost[scan_hour]
+        if now_hour < cheapest_hour:
+            for scan_hour in range(now_hour, cheapest_hour):
+                if today_cost[scan_hour] < cheapest_price:
+                    cheapest_price = today_cost[scan_hour]
+                    cheapest_hour = scan_hour
 
-    if cheapest_hour < 23:
-        default_cost = sum(today_cost[(cheapest_hour - 2) : cheapest_hour])
-        moved_cost = sum(today_cost[(cheapest_hour - 1) : (cheapest_hour + 1)])
-        if moved_cost < default_cost:
-            print(f"Delaying heatup saves {default_cost - moved_cost} EUR")
-            cheapest_hour += 1
     if now_hour <= cheapest_hour:
+        if (
+            NORMAL_HOURS_NEEDED_TO_HEAT <= cheapest_hour < 23
+        ):  # Check if delaying is beneficial
+            first_heating_hour = cheapest_hour - NORMAL_HOURS_NEEDED_TO_HEAT
+            default_cost = sum(today_cost[first_heating_hour:cheapest_hour])
+            moved_cost = sum(today_cost[(first_heating_hour + 1) : (cheapest_hour + 1)])
+            if moved_cost < default_cost:
+                print(f"Delaying heatup saves {default_cost - moved_cost} EUR")
+                cheapest_hour += 1
         # Secure rampup before cheapest_hour(_completion_hour)
         score = max(score, MAX_HOURS_NEEDED_TO_HEAT - (cheapest_hour - now_hour))
     print(f"Score given: {score}")
