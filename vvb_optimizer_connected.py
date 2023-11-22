@@ -245,7 +245,7 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     cheapest_hour = 0
     cheapest_price = today_cost[0]
     score = MAX_HOURS_NEEDED_TO_HEAT  # Assume now_hour is cheapest
-    if now_hour >= until_hour:
+    if now_hour > until_hour:
         score = 0
     for scan_hour in range(0, until_hour + 1):
         if today_cost[scan_hour] < now_price:
