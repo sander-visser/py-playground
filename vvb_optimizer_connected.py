@@ -67,9 +67,9 @@ TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
 
-PWM_20_DEGREES = 1500  # Min rotation
-PWM_72_DEGREES = 8300  # Max rotation
-PWM_PER_DEGREE = (PWM_72_DEGREES - PWM_20_DEGREES) / 52
+PWM_20_DEGREES = 500  # Min rotation
+PWM_78_DEGREES = 8300  # Max rotation
+PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_20_DEGREES) / 58
 ROTATION_SECONDS = 2
 
 
@@ -89,7 +89,11 @@ class SimpleTemperatureProvider:
 
 class TimeProvider:
     def __init__(self):
-        self.current_utc_time = OVERRIDE_UTC_UNIX_TIMESTAMP
+        self.current_utc_time = (
+            time.time()
+            if OVERRIDE_UTC_UNIX_TIMESTAMP == 0
+            else OVERRIDE_UTC_UNIX_TIMESTAMP
+        )
 
     def hourly_timekeeping(self):
         if OVERRIDE_UTC_UNIX_TIMESTAMP is not None:
@@ -129,7 +133,7 @@ class Thermostat:
         pwm_degrees = PWM_20_DEGREES
         if degrees > 20:
             pwm_degrees += (degrees - 20) * PWM_PER_DEGREE
-        return min(pwm_degrees, PWM_72_DEGREES)
+        return min(pwm_degrees, PWM_78_DEGREES)
 
     def set_thermosat(self, degrees):
         if self.prev_degrees != degrees:
