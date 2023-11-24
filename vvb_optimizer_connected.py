@@ -44,23 +44,26 @@ WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"
 NORDPOOL_REGION = "SE3"
 MAX_NETWORK_ATTEMPTS = 10
-OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Test script behaviour at different times
+SEC_PER_MIN = 60
+EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
+OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Simulate script behaviour from (0==auto)
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
+HIGH_WATER_TAKEOUT_LIKELYHOOD = 0.5  # Percent chance that thermostat will heat at 20
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
 MAX_HOURS_NEEDED_TO_HEAT = 4  # x * DEGREES_PER_HOUR should exceed (MIN_DAILY_TEMP - 20)
 NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
-DEGREES_PER_HOUR = 8
+DEGREES_PER_HOUR = 10
 LAST_MORNING_HEATING_HOUR = 6
 DAILY_COMFORT_LAST_HOUR = 21
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
-SEC_PER_MIN = 60
-EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
-HIGH_PRICE_THRESHOLD = 0.30  # In EUR
+WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 4]  # 0 == Monday
+OVERHEAD_BASE_PRICE = 0.07  # In EUR for tax, purchase and transfer costs (wo VAT)
+HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
 # TEMPERATURE_URLshould return a number "x.y"
 TEMPERATURE_URL = (
@@ -150,7 +153,7 @@ class Thermostat:
             time.sleep(1)
             self.pwm.duty_u16(0)
 
-            time.sleep(5)
+            time.sleep(1)
 
             pwm_degrees = self.get_pwm_degrees(self.prev_degrees)
             self.pwm.duty_u16(int(pwm_degrees))
@@ -158,11 +161,11 @@ class Thermostat:
             self.pwm.duty_u16(0)
 
     def nudge_down(self):
-        print("Nudging down")
+        # print("Nudging down")
         self.nudge(-5)
 
     def nudge_up(self):
-        print("Nudging up")
+        # print("Nudging up")
         self.nudge(5)
 
 
@@ -210,9 +213,9 @@ def get_cost(end_date):
 
     cost_array = []
     for row in the_json_result:
-        cost_array.append(row["EUR_per_kWh"])
+        cost_array.append(row["EUR_per_kWh"] + OVERHEAD_BASE_PRICE)
     if len(cost_array) == 23:
-        cost_array.append(0)  # DST hack - off by one in adjust days
+        cost_array.append(OVERHEAD_BASE_PRICE)  # DST hack - off by one in adjust days
     return cost_array
 
 
@@ -229,12 +232,36 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
     if tomorrow_cost is not None:
         for tomorrow_hour_price in tomorrow_cost:
             max_price = max(max_price, tomorrow_hour_price)
-    if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or (
-        max_price > (min_price * COP_FACTOR) and max_price > HIGH_PRICE_THRESHOLD
-    ):
+    if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or max_price > (min_price * COP_FACTOR):
         return (
             now_price == min_price
         )  # This is the cheapest hour before significantly higher
+    return False
+
+
+def refill_heating_worth_while(now_hour, today_cost, tomorrow_cost):
+    """
+    Scan 16h ahead and check if now is the best time to buffer some comfort
+    """
+    scan_hours_remaining = 16
+    max_price_ahead = today_cost[now_hour]
+    min_price_ahead = today_cost[now_hour]
+    for scan_hour in range(now_hour, min(24, now_hour + scan_hours_remaining)):
+        scan_hours_remaining = scan_hours_remaining - 1
+        if today_cost[scan_hour] > max_price_ahead:
+            max_price_ahead = today_cost[scan_hour]
+        if today_cost[scan_hour] < min_price_ahead:
+            min_price_ahead = today_cost[scan_hour]
+
+    if tomorrow_cost is not None:
+        for scan_hour in range(0, scan_hours_remaining):
+            if tomorrow_cost[scan_hour] > max_price_ahead:
+                max_price_ahead = tomorrow_cost[scan_hour]
+            if tomorrow_cost[scan_hour] < min_price_ahead:
+                min_price_ahead = tomorrow_cost[scan_hour]
+
+    if min_price_ahead == today_cost[now_hour]:
+        return min_price_ahead <= max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
     return False
 
 
@@ -328,18 +355,16 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
             local_hour, DAILY_COMFORT_LAST_HOUR, today_cost
         )
     if local_hour <= LAST_MORNING_HEATING_HOUR:
-        if next_night_is_cheaper(today_cost):
-            wanted_temp = MIN_DAILY_TEMP - (
-                DEGREES_PER_HOUR * MAX_HOURS_NEEDED_TO_HEAT
-            )  # limit morning heating
-        if is_the_cheapest_hour_during_daytime(today_cost):
-            wanted_temp = MIN_DAILY_TEMP - (
-                DEGREES_PER_HOUR * (MAX_HOURS_NEEDED_TO_HEAT + 1)
-            )  # limit morning heating more if daytime heating is cheap
-
         wanted_temp += DEGREES_PER_HOUR * get_cheap_score_until(
             local_hour, LAST_MORNING_HEATING_HOUR, today_cost
         )
+        if is_the_cheapest_hour_during_daytime(today_cost):
+            wanted_temp = min(
+                wanted_temp, MIN_DAILY_TEMP - DEGREES_PER_HOUR
+            )  # limit morning heating much if daytime heating is cheap
+        elif next_night_is_cheaper(today_cost):
+            wanted_temp = min(MIN_DAILY_TEMP, wanted_temp)  # limit morning heating
+
     if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
         local_hour, today_cost, tomorrow_cost, outside_temp
     ):
@@ -358,6 +383,15 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
 
     if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_HOUR:
         wanted_temp += 5
+
+    if (
+        weekday in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
+        and local_hour <= LAST_MORNING_HEATING_HOUR
+    ):
+        wanted_temp += 5
+
+    if refill_heating_worth_while(local_hour, today_cost, tomorrow_cost):
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
 
     return wanted_temp
 
@@ -421,7 +455,7 @@ def run_hotwater_optimization(thermostat):
             (LAST_MORNING_HEATING_HOUR - 2) <= local_hour <= LAST_MORNING_HEATING_HOUR
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP)
-        print(f"Wanted temperature is {wanted_temp}. Outside is {outside_temp}")
+        print(f"{local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}")
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
 
