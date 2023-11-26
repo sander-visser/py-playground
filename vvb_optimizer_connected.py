@@ -1,7 +1,8 @@
 """
 Hot water scheduler to move electricity usage to hours that are usually cheap
 Runs on a Raspberry Pi PICO W(H) with a SG90 servo connected to PWM GP0
-Power takeout for servo possible from VBUS pin
+Power takeout for servo possible from VBUS pin.
+WiFi range improves with ground connection and good placement.
 Designed for WiFi use. Servo connected to theromostat of electric water heater.
 Upload to device using Thonny (as main.py).
 
@@ -43,10 +44,10 @@ PR2_COUNTRY = "SE"
 WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"
 NORDPOOL_REGION = "SE3"
-MAX_NETWORK_ATTEMPTS = 10
 SEC_PER_MIN = 60
 EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Simulate script behaviour from (0==auto)
+MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
 HIGH_WATER_TAKEOUT_LIKELYHOOD = 0.5  # Percent chance that thermostat will heat at 20
@@ -93,8 +94,9 @@ class SimpleTemperatureProvider:
 class TimeProvider:
     def __init__(self):
         self.current_utc_time = (
-            time.time()
-            if OVERRIDE_UTC_UNIX_TIMESTAMP == 0
+            time.time() + OVERRIDE_UTC_UNIX_TIMESTAMP
+            if (OVERRIDE_UTC_UNIX_TIMESTAMP is not None)
+            and (OVERRIDE_UTC_UNIX_TIMESTAMP <= 0)
             else OVERRIDE_UTC_UNIX_TIMESTAMP
         )
 
@@ -374,12 +376,9 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
 
 
 def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp):
-    wanted_temp = 20
-
-    if today_cost is not None:
-        wanted_temp = get_optimized_temp(
-            local_hour, today_cost, tomorrow_cost, outside_temp
-        )
+    wanted_temp = get_optimized_temp(
+        local_hour, today_cost, tomorrow_cost, outside_temp
+    )
 
     if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_HOUR:
         wanted_temp += 5
@@ -436,6 +435,8 @@ def run_hotwater_optimization(thermostat):
                 pending_legionella_reset = False
             days_since_legionella += 1
             today_cost = get_cost(today)
+            if today_cost is None:
+                raise RuntimeError("Optimization not possible")
             tomorrow_cost = None
         if tomorrow_cost is None:
             tomorrow_cost = get_cost(today + timedelta(days=1))
@@ -493,10 +494,17 @@ if __name__ == "__main__":
         print("Boosting...")
         THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
         time.sleep(EXTRA_HOT_DURATION_S)
+        ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
         while True:
             try:
                 run_hotwater_optimization(THERMOSTAT)
             except Exception as EXCEPT:
                 print("Delaying due to exception...")
                 print(EXCEPT)
+                WLAN = network.WLAN(network.STA_IF)
+                print(f"rssi = {WLAN.status('rssi')}")
                 time.sleep(300)
+                ATTEMTS_REMAING_BEFORE_RESET = ATTEMTS_REMAING_BEFORE_RESET - 1
+                if ATTEMTS_REMAING_BEFORE_RESET < 0:
+                    machine.reset()
+
