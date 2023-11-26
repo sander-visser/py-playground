@@ -491,9 +491,10 @@ def run_hotwater_optimization(thermostat):
 if __name__ == "__main__":
     if "Pico W" in sys.implementation._machine:
         THERMOSTAT = Thermostat()
-        print("Boosting...")
-        THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
-        time.sleep(EXTRA_HOT_DURATION_S)
+        if machine.reset_cause() == machine.PWRON_RESET:
+            print("Boosting...")
+            THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
+            time.sleep(EXTRA_HOT_DURATION_S)
         ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
         while True:
             try:
