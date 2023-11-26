@@ -51,14 +51,13 @@ VARIABLE_CLOUDINESS = 3  # https://opendata.smhi.se/apidocs/metfcst/parameters.h
 
 # Schedule info
 WORKDAY_MORNING = {
-    "comfort_by_hour": 6,
+    "comfort_by_hour": 6,  # Breakfast comfort 1h later
     "comfort_until_hour": 7,
     "comfort_until_minute": 30,
 }
 DAYOFF_MORNING = {
-    "comfort_by_hour": 8,
+    "comfort_by_hour": 7,  # Breakfast comfort 1h later
 }
-WORKDAY_MORNING_COMFORT_UNTIL_HOUR = 8
 EARLIEST_AFTERNOON_PREHEAT_HOUR = 11  # Must be a pause since morning hour
 BEGIN_AFTERNOON_HEATING_BY_HOUR = 14
 WORKDAY_AFTERNOON_COMFORT_BY_HOUR = 16
@@ -93,7 +92,7 @@ HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 MIN_DOOR_OPEN_TEMP = 14.1
 COLD_OUTDOOR_TEMP = 1.0  # Increased fan speed below this temperature
 HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
-EXTREMELY_COLD_OUTDOOR_TEMP = -8.0
+EXTREMELY_COLD_OUTDOOR_TEMP = -7.5
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
 MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 2.5  # Triggers heat distribution when above
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
@@ -442,7 +441,7 @@ class TemperatureProvider:
                     return par["values"][0]
         return None
 
-    def currently_sunny_and_not_too_cold(self):
+    def outside_pleasantly_warm(self):
         curr_weather = self.get_now_forcast_param("Wsymb2")
         return self.outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE or (
             curr_weather is not None
@@ -928,7 +927,7 @@ class SensiboOptimizer:
                         )
                     else:
                         comfort_offset_temperature = (
-                            0
+                            -COMFORT_TEMPERATURE_HYSTERESIS
                             if (
                                 idle_ends_in_comfort
                                 or (cheapest_hour_during_idle == pause_hour)
@@ -1060,9 +1059,7 @@ class SensiboOptimizer:
             idle_after_comfort=False,
         )
 
-        self.wait_for_hour(DINNER_HOUR)
-        if not self._temperature_provider.currently_sunny_and_not_too_cold():
-            self._controller.apply(COMFORT_EATING_HEAT_SETTINGS, valid_hour=DINNER_HOUR)
+        self.manage_eating_comfort(DINNER_HOUR)
 
         self.manage_comfort_hours(range(DINNER_HOUR + 1, WORKDAY_COMFORT_UNTIL_HOUR))
 
@@ -1142,7 +1139,7 @@ class SensiboOptimizer:
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
 
-        if self._temperature_provider.currently_sunny_and_not_too_cold():
+        if self._temperature_provider.outside_pleasantly_warm():
             self._controller.apply(IDLE_SETTINGS, valid_hour=comfort_hour)
         elif last_comfort_hour:
             self.apply_comfort_rampout(current_floor_sensor_value, boost_level)
@@ -1227,7 +1224,7 @@ class SensiboOptimizer:
             comfort_first_range = (
                 range(
                     WORKDAY_MORNING["comfort_by_hour"],
-                    WORKDAY_MORNING_COMFORT_UNTIL_HOUR,
+                    WORKDAY_MORNING["comfort_until_hour"],
                 )
                 if optimizing_a_workday
                 else range(
@@ -1261,9 +1258,7 @@ class SensiboOptimizer:
                 [comfort_first_range.start], idle_after_comfort=False
             )
 
-            self.wait_for_hour(comfort_first_range.start + 1)
-            if not self._temperature_provider.currently_sunny_and_not_too_cold():
-                self._controller.apply(COMFORT_EATING_HEAT_SETTINGS)
+            self.manage_eating_comfort(comfort_first_range.start + 1)
 
             if optimizing_a_workday:
                 self.run_workday_8_to_22_schedule()
@@ -1299,6 +1294,25 @@ class SensiboOptimizer:
                 self._prev_midnight.date() + timedelta(days=1)
             )
             self._prev_midnight += timedelta(days=1)
+
+    def manage_eating_comfort(self, eating_comfort_start_hour):
+        self.wait_for_hour(eating_comfort_start_hour)
+        cold_temp_offset = NORMAL_TEMP_OFFSET
+        if self.get_current_outdoor_temp() < EXTREMELY_COLD_OUTDOOR_TEMP:
+            cold_temp_offset = EXTRA_TEMP_OFFSET
+        elif self.get_current_floor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+            cold_temp_offset = REDUCED_TEMP_OFFSET
+
+        if not self._temperature_provider.outside_pleasantly_warm():
+            self._controller.apply(
+                COMFORT_EATING_HEAT_SETTINGS,
+                cold_temp_offset,
+                valid_hour=eating_comfort_start_hour,
+            )
+        else:
+            self.manage_comfort_hours(
+                [eating_comfort_start_hour], idle_after_comfort=False
+            )
 
 
 if __name__ == "__main__":
