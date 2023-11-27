@@ -1,7 +1,8 @@
 """
 Hot water scheduler to move electricity usage to hours that are usually cheap
 Runs on a Raspberry Pi PICO W(H) with a SG90 servo connected to PWM GP0
-Power takeout for servo possible from VBUS pin.
+Power takeout for servo possible from VBUS pin if USB powered.
+If USB only powered connect VBUS and VSYS for cleaner power (better WiFi)
 WiFi range improves with ground connection and good placement.
 Designed for WiFi use. Servo connected to theromostat of electric water heater.
 Upload to device using Thonny (as main.py).
@@ -44,20 +45,22 @@ PR2_COUNTRY = "SE"
 WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"
 NORDPOOL_REGION = "SE3"
+NTP_HOST = "se.pool.ntp.org"
 SEC_PER_MIN = 60
 EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Simulate script behaviour from (0==auto)
 MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
-COP_FACTOR = 3  # Utilize leakage unless heatpump will be cheaper
+COP_FACTOR = 2.7  # Utilize leakage unless heatpump will be cheaper
 HIGH_WATER_TAKEOUT_LIKELYHOOD = 0.5  # Percent chance that thermostat will heat at 20
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
-MAX_HOURS_NEEDED_TO_HEAT = 4  # x * DEGREES_PER_HOUR should exceed (MIN_DAILY_TEMP - 20)
+MAX_HOURS_NEEDED_TO_HEAT = 4  # Should exceed (MIN_DAILY_TEMP - 20) / DEGREES_PER_H
 NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
-DEGREES_PER_HOUR = 10
-LAST_MORNING_HEATING_HOUR = 6
-DAILY_COMFORT_LAST_HOUR = 21
+DEGREES_PER_H = 10
+LAST_MORNING_HEATING_H = 6
+DAILY_COMFORT_LAST_H = 21
+MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
@@ -93,6 +96,7 @@ class SimpleTemperatureProvider:
 
 class TimeProvider:
     def __init__(self):
+        ntptime.host = NTP_HOST
         self.current_utc_time = (
             time.time() + OVERRIDE_UTC_UNIX_TIMESTAMP
             if (OVERRIDE_UTC_UNIX_TIMESTAMP is not None)
@@ -111,9 +115,6 @@ class TimeProvider:
 
     @staticmethod
     def sync_utc_time():
-        # if needed, overwrite default time server
-        # ntptime.host = "1.europe.pool.ntp.org"
-
         max_wait = MAX_NETWORK_ATTEMPTS
         while max_wait > 0:
             try:
@@ -122,9 +123,9 @@ class TimeProvider:
                 print(f"UTC   time after  NTP sync：{time.localtime()}")
                 break
             except Exception as excep:
-                print("Error syncing time")
-                print(excep)
+                print(f"Time sync error: {excep}")
                 time.sleep(1)
+                max_wait -= 1
 
 
 class Thermostat:
@@ -152,14 +153,16 @@ class Thermostat:
         if self.prev_degrees is not None:
             pwm_degrees = self.get_pwm_degrees(self.prev_degrees + nudge_degrees)
             self.pwm.duty_u16(int(pwm_degrees))
-            time.sleep(1)
-            self.pwm.duty_u16(0)
 
             time.sleep(1)
 
             pwm_degrees = self.get_pwm_degrees(self.prev_degrees)
             self.pwm.duty_u16(int(pwm_degrees))
-            time.sleep(1)
+            time.sleep(
+                (2 * ROTATION_SECONDS)
+                if (self.prev_degrees == MIN_NUDGABLE_TEMP)
+                else 1
+            )
             self.pwm.duty_u16(0)
 
     def nudge_down(self):
@@ -178,7 +181,6 @@ def setup_wifi():
     wlan.active(True)
     wlan.connect(WLAN_SSID, WLAN_PASS)
 
-    # Wait for connect or fail
     max_wait = MAX_NETWORK_ATTEMPTS
     while max_wait > 0:
         if wlan.status() < 0 or wlan.status() >= 3:
@@ -187,16 +189,12 @@ def setup_wifi():
         print("waiting for connection...")
         time.sleep(1)
 
-    # Handle connection error
-    if wlan.status() != 3:
+    if wlan.status() != 3:  # Handle connection error
         for wlans in wlan.scan():
             print(f"Seeing SSID {wlans[0]} with rssi {wlans[3]}")
         raise RuntimeError("network connection failed")
 
-    print("connected")
-    status = wlan.ifconfig()
-    print(f"ip = {status[0]}")
-    print(f"rssi = {wlan.status('rssi')}")
+    print(f"Connected with rssi {wlan.status('rssi')} and IP {wlan.ifconfig()[0]}")
 
 
 def get_cost(end_date):
@@ -222,9 +220,9 @@ def get_cost(end_date):
 
 
 def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_temp):
-    max_price = today_cost[local_hour]
-    min_price = today_cost[local_hour]
     now_price = today_cost[local_hour]
+    max_price = now_price
+    min_price = now_price
     while local_hour < 23:
         local_hour += 1
         if max_price < today_cost[local_hour]:
@@ -235,9 +233,8 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
         for tomorrow_hour_price in tomorrow_cost:
             max_price = max(max_price, tomorrow_hour_price)
     if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or max_price > (min_price * COP_FACTOR):
-        return (
-            now_price == min_price
-        )  # This is the cheapest hour before significantly higher
+        print(f"Extra heating due to COP? {now_price} == {min_price}")
+        return now_price == min_price
     return False
 
 
@@ -247,9 +244,9 @@ def refill_heating_worth_while(now_hour, today_cost, tomorrow_cost):
     """
     scan_hours_remaining = 16
     max_price_ahead = today_cost[now_hour]
-    min_price_ahead = today_cost[now_hour]
+    min_price_ahead = max_price_ahead
     for scan_hour in range(now_hour, min(24, now_hour + scan_hours_remaining)):
-        scan_hours_remaining = scan_hours_remaining - 1
+        scan_hours_remaining -= 1
         if today_cost[scan_hour] > max_price_ahead:
             max_price_ahead = today_cost[scan_hour]
         if today_cost[scan_hour] < min_price_ahead:
@@ -263,7 +260,7 @@ def refill_heating_worth_while(now_hour, today_cost, tomorrow_cost):
                 min_price_ahead = tomorrow_cost[scan_hour]
 
     if min_price_ahead == today_cost[now_hour]:
-        return min_price_ahead <= max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
+        return min_price_ahead <= (max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD)
     return False
 
 
@@ -289,7 +286,7 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     if cheapest_hour < NORMAL_HOURS_NEEDED_TO_HEAT:
         # Secure sufficient rampup time
         cheapest_hour = NORMAL_HOURS_NEEDED_TO_HEAT
-        cheapest_price = today_cost[scan_hour]
+        cheapest_price = today_cost[cheapest_hour]
         if now_hour < cheapest_hour:
             for scan_hour in range(now_hour, cheapest_hour):
                 if today_cost[scan_hour] < cheapest_price:
@@ -312,30 +309,28 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     return max(score, 0)
 
 
-def next_night_is_cheaper(today_cost):
+def cheap_later_test(today_cost, scan_to, test_hour):
     min_price = today_cost[0]
-    for i in range(1, 24):
+    for i in range(1, scan_to):
         if today_cost[i] <= min_price:
             min_price = today_cost[i]
-            if i >= DAILY_COMFORT_LAST_HOUR:
-                return True  # Found price to be cheaper next night
+            if i > test_hour:
+                return True  # Found price to be cheaper later
     return False
+
+
+def next_night_is_cheaper(today_cost):
+    return cheap_later_test(today_cost, 24, DAILY_COMFORT_LAST_H)
 
 
 def is_the_cheapest_hour_during_daytime(today_cost):
-    min_price = today_cost[0]
-    for i in range(1, DAILY_COMFORT_LAST_HOUR):
-        if today_cost[i] <= min_price:
-            min_price = today_cost[i]
-            if i > LAST_MORNING_HEATING_HOUR:
-                return True  # Found price to be cheaper during daytime
-    return False
+    return cheap_later_test(today_cost, DAILY_COMFORT_LAST_H, LAST_MORNING_HEATING_H)
 
 
 def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
-    wanted_temp = 20
+    wanted_temp = MIN_NUDGABLE_TEMP if local_hour <= DAILY_COMFORT_LAST_H else 20
     print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
-    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_HOUR:
+    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
             wanted_temp += 5  # Slightly raise hot water takeout capacity
         if local_hour < 23 and today_cost[local_hour] < today_cost[local_hour + 1]:
@@ -351,18 +346,18 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
         if local_hour == 23 and (
             today_cost[23] < tomorrow_cost[0] or today_cost[23] < tomorrow_cost[1]
         ):
-            wanted_temp += DEGREES_PER_HOUR  # Start pre-heating before midnight
+            wanted_temp += DEGREES_PER_H  # Start pre-heating before midnight
     if is_the_cheapest_hour_during_daytime(today_cost):
-        wanted_temp += DEGREES_PER_HOUR * get_cheap_score_until(
-            local_hour, DAILY_COMFORT_LAST_HOUR, today_cost
+        wanted_temp += DEGREES_PER_H * get_cheap_score_until(
+            local_hour, DAILY_COMFORT_LAST_H, today_cost
         )
-    if local_hour <= LAST_MORNING_HEATING_HOUR:
-        wanted_temp += DEGREES_PER_HOUR * get_cheap_score_until(
-            local_hour, LAST_MORNING_HEATING_HOUR, today_cost
+    if local_hour <= LAST_MORNING_HEATING_H:
+        wanted_temp += DEGREES_PER_H * get_cheap_score_until(
+            local_hour, LAST_MORNING_HEATING_H, today_cost
         )
         if is_the_cheapest_hour_during_daytime(today_cost):
             wanted_temp = min(
-                wanted_temp, MIN_DAILY_TEMP - DEGREES_PER_HOUR
+                wanted_temp, MIN_DAILY_TEMP - DEGREES_PER_H
             )  # limit morning heating much if daytime heating is cheap
         elif next_night_is_cheaper(today_cost):
             wanted_temp = min(MIN_DAILY_TEMP, wanted_temp)  # limit morning heating
@@ -370,7 +365,7 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
     if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
         local_hour, today_cost, tomorrow_cost, outside_temp
     ):
-        wanted_temp += DEGREES_PER_HOUR  # Extra boost since heat leakage is valuable
+        wanted_temp += DEGREES_PER_H  # Extra boost since heat leakage is valuable
 
     return wanted_temp
 
@@ -380,16 +375,19 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
         local_hour, today_cost, tomorrow_cost, outside_temp
     )
 
-    if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_HOUR:
+    if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_H:
         wanted_temp += 5
 
     if (
         weekday in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
-        and local_hour <= LAST_MORNING_HEATING_HOUR
+        and local_hour <= LAST_MORNING_HEATING_H
     ):
         wanted_temp += 5
 
-    if refill_heating_worth_while(local_hour, today_cost, tomorrow_cost):
+    if (
+        refill_heating_worth_while(local_hour, today_cost, tomorrow_cost)
+        or MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= LAST_MORNING_HEATING_H
+    ):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
 
     return wanted_temp
@@ -453,7 +451,7 @@ def run_hotwater_optimization(thermostat):
             outside_temp,
         )
         if days_since_legionella > LEGIONELLA_INTERVAL and (
-            (LAST_MORNING_HEATING_HOUR - 2) <= local_hour <= LAST_MORNING_HEATING_HOUR
+            (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP)
         print(f"{local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}")
@@ -496,7 +494,7 @@ if __name__ == "__main__":
             THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
             time.sleep(EXTRA_HOT_DURATION_S)
         ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
-        while True:
+        while ATTEMTS_REMAING_BEFORE_RESET > 0:
             try:
                 run_hotwater_optimization(THERMOSTAT)
             except Exception as EXCEPT:
@@ -505,7 +503,5 @@ if __name__ == "__main__":
                 WLAN = network.WLAN(network.STA_IF)
                 print(f"rssi = {WLAN.status('rssi')}")
                 time.sleep(300)
-                ATTEMTS_REMAING_BEFORE_RESET = ATTEMTS_REMAING_BEFORE_RESET - 1
-                if ATTEMTS_REMAING_BEFORE_RESET < 0:
-                    machine.reset()
-
+                ATTEMTS_REMAING_BEFORE_RESET -= 1
+        machine.reset()
