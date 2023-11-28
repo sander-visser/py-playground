@@ -993,8 +993,6 @@ class SensiboOptimizer:
         )
         if self.verbose:
             print(f"Can boost {heating_capacity:.2f} degrees in {heating_hours} hours")
-        if heating_capacity <= 0.0:
-            return 0.0
         return heating_capacity
 
     def apply_rampup_to_comfort(
@@ -1010,7 +1008,7 @@ class SensiboOptimizer:
             else copy.deepcopy(HIGH_HEAT_SETTINGS)
         )
         pause_setting["targetTemperature"] = math.ceil(
-            COMFORT_HEAT_SETTINGS["targetTemperature"]
+            pause_setting["targetTemperature"]
             - (
                 self.get_current_heating_capacity(hours_remaining_til_comfort)
                 + comfort_offset_temperature
