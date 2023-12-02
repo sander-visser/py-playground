@@ -1130,6 +1130,16 @@ class SensiboOptimizer:
             boost_level += REDUCED_TEMP_OFFSET
         return boost_level
 
+    def is_temporary_comfort_reduction_wanted_and_allowed(
+        self, comfort_hour, floor_temp
+    ):
+        if floor_temp >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
+            return (
+                self.get_current_outdoor_temp() > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
+                and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
+            )
+        return False
+
     def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
         current_floor_sensor_value = self.get_current_floor_temp()
         boost_level = self.get_temperature_offset(comfort_hour, sample_minute == 59)
@@ -1144,9 +1154,9 @@ class SensiboOptimizer:
         elif current_floor_sensor_value >= self.allowed_over_temperature():
             self.manage_over_temperature()
         elif self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
-            if (
-                self.get_current_outdoor_temp() > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
-            ) and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour):
+            if self.is_temporary_comfort_reduction_wanted_and_allowed(
+                comfort_hour, current_floor_sensor_value
+            ):
                 self._controller.apply(COMFORT_HEAT_SETTINGS, valid_hour=comfort_hour)
             else:
                 self.apply_cold_comfort(self.get_current_outdoor_temp(), boost_level)
@@ -1202,6 +1212,7 @@ class SensiboOptimizer:
         self._price_analyzer.prepare_day(self._prev_midnight.date())
         if at_home_until_end_of is not None:
             at_home_until_end_of = datetime.strptime(at_home_until_end_of, "%Y-%m-%d")
+        self._controller.apply(IDLE_SETTINGS, force=True)
         while True:
             optimizing_a_schoolday = (
                 self._prev_midnight.date().isoweekday() in SCHOOL_DAYS
@@ -1243,7 +1254,6 @@ class SensiboOptimizer:
             )
             cheap_morning_hour = self._price_analyzer.cheap_morning_hour()
 
-            self._controller.apply(IDLE_SETTINGS, force=True)
             self.wait_for_hour(0)
 
             self.run_boost_rampup_to_comfort(
