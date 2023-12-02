@@ -52,14 +52,19 @@ OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Simulate script behaviour from (0==auto)
 MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 2.7  # Utilize leakage unless heatpump will be cheaper
-HIGH_WATER_TAKEOUT_LIKELYHOOD = 0.5  # Percent chance that thermostat will heat at 20
+HIGH_WATER_TAKEOUT_LIKELYHOOD = (
+    0.5  # Percent chance that thermostat will heat at MIN_TEMP
+)
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
-MAX_HOURS_NEEDED_TO_HEAT = 4  # Should exceed (MIN_DAILY_TEMP - 20) / DEGREES_PER_H
+MAX_HOURS_NEEDED_TO_HEAT = (
+    4  # Should exceed (MIN_DAILY_TEMP - MIN_TEMP) / DEGREES_PER_H
+)
 NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
 DEGREES_PER_H = 10
 LAST_MORNING_HEATING_H = 6
 DAILY_COMFORT_LAST_H = 21
+MIN_TEMP = 25
 MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
@@ -74,9 +79,9 @@ TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
 
-PWM_20_DEGREES = 500  # Min rotation
+PWM_25_DEGREES = 1172  # Min rotation (@MIN_TEMP)
 PWM_78_DEGREES = 8300  # Max rotation
-PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_20_DEGREES) / 58
+PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_25_DEGREES) / 53
 ROTATION_SECONDS = 2
 
 
@@ -136,9 +141,9 @@ class Thermostat:
 
     @staticmethod
     def get_pwm_degrees(degrees):
-        pwm_degrees = PWM_20_DEGREES
-        if degrees > 20:
-            pwm_degrees += (degrees - 20) * PWM_PER_DEGREE
+        pwm_degrees = PWM_25_DEGREES
+        if degrees > MIN_TEMP:
+            pwm_degrees += (degrees - MIN_TEMP) * PWM_PER_DEGREE
         return min(pwm_degrees, PWM_78_DEGREES)
 
     def set_thermosat(self, degrees):
@@ -200,8 +205,14 @@ def setup_wifi():
 def get_cost(end_date):
     if not isinstance(end_date, date):
         raise RuntimeError("Error not a date")
+    two_digit_month = f"{end_date.month}"
+    if len(two_digit_month) == 1:
+        two_digit_month = f"0{two_digit_month}"
+    two_digit_day = f"{end_date.day}"
+    if len(two_digit_day) == 1:
+        two_digit_day = f"0{two_digit_day}"
     hourly_api_url = HOURLY_API_URL + (
-        f"{end_date.year}/{end_date.month}-{end_date.day}_{NORDPOOL_REGION}.json"
+        f"{end_date.year}/{two_digit_month}-{two_digit_day}_{NORDPOOL_REGION}.json"
     )
     gc.collect()
     result = urequests.get(hourly_api_url, timeout=10.0)
@@ -328,7 +339,7 @@ def is_the_cheapest_hour_during_daytime(today_cost):
 
 
 def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
-    wanted_temp = MIN_NUDGABLE_TEMP if local_hour <= DAILY_COMFORT_LAST_H else 20
+    wanted_temp = MIN_NUDGABLE_TEMP if local_hour <= DAILY_COMFORT_LAST_H else MIN_TEMP
     print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
     if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
