@@ -69,8 +69,8 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [6, 7]
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 733.6  # incl 97.6 broker and 244 transfer fee
-ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 736.4  # incl 97.6 broker and 244 transfer fee
+ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0  # excl transfer and tax
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 330.0
 ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 5500.0
@@ -83,6 +83,7 @@ HEATPUMP_COP_AT_PLUS7 = 3.0
 HEATPUMP_COP_AT_PLUS2 = 2.8
 HEATPUMP_COP_AT_MINUS7 = 2.3
 HEATPUMP_COP_AT_MINUS15 = 2.1
+HEATPUMP_CAPACITY_AGE_FACTOR = 0.9  # Percent of heating watts remaining
 HEATPUMP_HEATING_WATTS_AT_PLUS7 = 6600.0
 HEATPUMP_HEATING_WATTS_AT_PLUS2 = 5600.0
 HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
@@ -91,8 +92,8 @@ HEATPUMP_HEATING_WATTS_AT_MINUS15 = 4300.0
 # Temperature and heating settings
 MIN_DOOR_OPEN_TEMP = 14.1
 COLD_OUTDOOR_TEMP = 1.0  # Increased fan speed below this temperature
-HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.5  # Pure electric heaters should be off above
-EXTREMELY_COLD_OUTDOOR_TEMP = -7.5
+HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP = -4.1  # Pure electric heaters should be off above
+EXTREMELY_COLD_OUTDOOR_TEMP = -7.1
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
 MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 2.5  # Triggers heat distribution when above
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
@@ -716,7 +717,7 @@ class HeatpumpModel:
             )
         if outside_temp <= -15.0:
             current_heating_watts = HEATPUMP_HEATING_WATTS_AT_MINUS15
-        return current_heating_watts
+        return current_heating_watts * HEATPUMP_CAPACITY_AGE_FACTOR
 
 
 class SensiboOptimizer:
