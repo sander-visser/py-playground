@@ -322,6 +322,16 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     return max(score, 0)
 
 
+def get_cheap_score_relative_tomorrow(this_hour_cost, tomorrow_morning_cost):
+    score = 0
+    for cheap_tomorrow_cost in sorted(tomorrow_morning_cost)[
+        0:MAX_HOURS_NEEDED_TO_HEAT
+    ]:
+        if this_hour_cost < cheap_tomorrow_cost:
+            score += 1
+    return score
+
+
 def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
     min_price = today_cost[scan_from]
     for i in range(scan_from + 1, scan_to):
@@ -360,10 +370,10 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
                     - local_hour  # Better trigger further low temp heating now compared to later
                 )
     if tomorrow_cost is not None:
-        if local_hour == 23 and (
-            today_cost[23] < tomorrow_cost[0] or today_cost[23] < tomorrow_cost[1]
-        ):
-            wanted_temp += DEGREES_PER_H  # Start pre-heating before midnight
+        if local_hour > DAILY_COMFORT_LAST_H:
+            wanted_temp += DEGREES_PER_H * get_cheap_score_relative_tomorrow(
+                today_cost[local_hour], tomorrow_cost[0:LAST_MORNING_HEATING_H]
+            )
     if is_the_cheapest_hour_during_daytime(today_cost):
         wanted_temp += DEGREES_PER_H * get_cheap_score_until(
             local_hour, DAILY_COMFORT_LAST_H, today_cost
@@ -406,6 +416,9 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
         or MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= LAST_MORNING_HEATING_H
     ):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
+
+    if today_cost[local_hour] >= sorted(today_cost)[21]:
+        wanted_temp = MIN_NUDGABLE_TEMP  # Min temp if 3 most expenside hours in day
 
     return wanted_temp
 
