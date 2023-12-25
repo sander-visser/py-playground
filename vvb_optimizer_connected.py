@@ -61,6 +61,7 @@ MAX_HOURS_NEEDED_TO_HEAT = (
     4  # Should exceed (MIN_DAILY_TEMP - MIN_TEMP) / DEGREES_PER_H
 )
 NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
+NUM_MOST_EXPENSIVE_HOURS = 3  # Avoid heating
 DEGREES_PER_H = 9.4  # Nibe 300-CU ER56-CU 275L with 3kW
 DEGREES_LOST_PER_H = 0.75
 LAST_MORNING_HEATING_H = 6
@@ -417,8 +418,8 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     ):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
 
-    if today_cost[local_hour] >= sorted(today_cost)[21]:
-        wanted_temp = MIN_NUDGABLE_TEMP  # Min temp if 3 most expenside hours in day
+    if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
+        wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
     return wanted_temp
 
