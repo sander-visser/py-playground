@@ -92,12 +92,18 @@ class SimpleTemperatureProvider:
         self.outdoor_temperature = 0
 
     def get_outdoor_temp(self):
-        outdoor_temperature_req = urequests.get(TEMPERATURE_URL, timeout=10.0)
-        if outdoor_temperature_req.status_code == 200:
-            try:
-                self.outdoor_temperature = float(outdoor_temperature_req.text)
-            except ValueError:
-                print(f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}")
+        try:
+            outdoor_temperature_req = urequests.get(TEMPERATURE_URL, timeout=10.0)
+            if outdoor_temperature_req.status_code == 200:
+                try:
+                    self.outdoor_temperature = float(outdoor_temperature_req.text)
+                except ValueError:
+                    print(f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}")
+        except OSError as ureq_err:
+            if ureq_err.args[0] == 110:  # ETIMEDOUT
+                print("Ignoring temperature read timeout")
+            else:
+                raise ureq_err
         return self.outdoor_temperature
 
 
