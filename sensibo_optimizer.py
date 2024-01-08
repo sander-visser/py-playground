@@ -750,6 +750,17 @@ class SensiboOptimizer:
     def get_current_outdoor_temp(self):
         return self._temperature_provider.get_outdoor_temperature()
 
+    def get_min_outdoor_temp_next_3h(self):
+        return min(
+            self._temperature_provider.get_outdoor_temperature(),
+            self._temperature_provider.get_forecasted_temperature(
+                datetime.now() + timedelta(hours=1)
+            ),
+            self._temperature_provider.get_forecasted_temperature(
+                datetime.now() + timedelta(hours=2)
+            ),
+        )
+
     def allowed_over_temperature(self):
         target_temp = max(
             MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE,
@@ -787,7 +798,7 @@ class SensiboOptimizer:
             future_temperature = self._temperature_provider.get_forecasted_temperature(
                 datetime.now().replace(hour=preboost_start_hour), fallback=False
             )
-            boost_capacity += self.get_current_heating_capacity(1, future_temperature)
+            boost_capacity += self.get_heating_capacity(1, future_temperature)
             preboost_start_hour -= 1
             if preboost_start_hour <= idle_hour_start:
                 preboost_start_hour = idle_hour_start
@@ -878,7 +889,7 @@ class SensiboOptimizer:
             self.manage_pre_boost(
                 pre_boost_hour,
                 pre_boost_offset,
-                self.get_current_heating_capacity(
+                self.get_heating_capacity(
                     comfort_hour_start - pre_boost_hour, future_temperature
                 ),
             )
@@ -975,11 +986,16 @@ class SensiboOptimizer:
             self._controller.apply(pre_boost_setting, valid_hour=pre_boost_hour_start)
             self.wait_for_hour(pre_boost_hour_start, sample_minute)
 
-    def get_current_heating_capacity(self, heating_hours, outside_temp=None):
+    def get_heating_capacity(self, heating_hours, outside_temp=None):
         if outside_temp is None:
-            outside_temp = self._temperature_provider.get_forecasted_temperature(
+            now_outside_temp = self.get_min_outdoor_temp_next_3h()
+            mid_outside_temp = self._temperature_provider.get_forecasted_temperature(
                 datetime.now() + timedelta(hours=heating_hours / 2)
             )
+            late_outside_temp = self._temperature_provider.get_forecasted_temperature(
+                datetime.now() + timedelta(hours=heating_hours)
+            )
+            outside_temp = min(now_outside_temp, mid_outside_temp, late_outside_temp)
         delta_temp = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE - outside_temp
         if delta_temp <= 0:
             return 100.0
@@ -1011,7 +1027,7 @@ class SensiboOptimizer:
         pause_setting["targetTemperature"] = math.ceil(
             pause_setting["targetTemperature"]
             - (
-                self.get_current_heating_capacity(hours_remaining_til_comfort)
+                self.get_heating_capacity(hours_remaining_til_comfort)
                 + comfort_offset_temperature
             )
         )
@@ -1086,11 +1102,11 @@ class SensiboOptimizer:
                     valid_hour=comfort_hour,
                 )
 
-    def apply_cold_comfort(self, current_outdoor_temperature, boost_level):
+    def apply_cold_comfort(self, min_outdoor_temp_next_3h, boost_level):
         cold_temp_offset = NORMAL_TEMP_OFFSET
-        if current_outdoor_temperature < EXTREMELY_COLD_OUTDOOR_TEMP:
+        if min_outdoor_temp_next_3h < EXTREMELY_COLD_OUTDOOR_TEMP:
             cold_temp_offset = EXTRA_TEMP_OFFSET
-        elif current_outdoor_temperature > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP:
+        elif min_outdoor_temp_next_3h > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP:
             cold_temp_offset = REDUCED_TEMP_OFFSET + boost_level
         self._controller.apply(HIGH_HEAT_SETTINGS, temp_offset=cold_temp_offset)
 
@@ -1136,7 +1152,7 @@ class SensiboOptimizer:
     ):
         if floor_temp >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
             return (
-                self.get_current_outdoor_temp() > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
+                self.get_min_outdoor_temp_next_3h() > HEATPUMP_LIMIT_COLD_OUTDOOR_TEMP
                 and self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour)
             )
         return False
@@ -1150,17 +1166,19 @@ class SensiboOptimizer:
 
         if self._temperature_provider.outside_pleasantly_warm():
             self._controller.apply(IDLE_SETTINGS, valid_hour=comfort_hour)
-        elif last_comfort_hour:
-            self.apply_comfort_rampout(current_floor_sensor_value, boost_level)
         elif current_floor_sensor_value >= self.allowed_over_temperature():
             self.manage_over_temperature()
-        elif self.get_current_outdoor_temp() < COLD_OUTDOOR_TEMP:
+        elif self.get_min_outdoor_temp_next_3h() < COLD_OUTDOOR_TEMP:
             if self.is_temporary_comfort_reduction_wanted_and_allowed(
                 comfort_hour, current_floor_sensor_value
             ):
                 self._controller.apply(COMFORT_HEAT_SETTINGS, valid_hour=comfort_hour)
             else:
-                self.apply_cold_comfort(self.get_current_outdoor_temp(), boost_level)
+                self.apply_cold_comfort(
+                    self.get_min_outdoor_temp_next_3h(), boost_level
+                )
+        elif last_comfort_hour:
+            self.apply_comfort_rampout(current_floor_sensor_value, boost_level)
         elif self._price_analyzer.is_hour_with_reduced_comfort(comfort_hour):
             self._controller.apply(
                 COMFORT_HEAT_SETTINGS, REDUCED_TEMP_OFFSET, valid_hour=comfort_hour
@@ -1290,7 +1308,7 @@ class SensiboOptimizer:
                 self.manage_pre_boost(
                     23,
                     NORMAL_TEMP_OFFSET,
-                    self.get_current_heating_capacity(comfort_first_range[0] + 1),
+                    self.get_heating_capacity(comfort_first_range[0] + 1),
                 )
             self.monitor_idle_period(
                 23,
