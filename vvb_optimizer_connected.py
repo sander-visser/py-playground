@@ -98,7 +98,9 @@ class SimpleTemperatureProvider:
                 try:
                     self.outdoor_temperature = float(outdoor_temperature_req.text)
                 except ValueError:
-                    print(f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}")
+                    print(
+                        f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}"
+                    )
         except OSError as ureq_err:
             if ureq_err.args[0] == 110:  # ETIMEDOUT
                 print("Ignoring temperature read timeout")
@@ -291,39 +293,34 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     moving completion hour if needed and heating for total of MAX_HOURS_NEEDED_TO_HEAT
     """
     now_price = today_cost[now_hour]
-    cheapest_hour = 0
-    cheapest_price = today_cost[0]
+    cheapest_hour = NORMAL_HOURS_NEEDED_TO_HEAT  # Secure sufficient rampup time
+    cheapest_price_sum = sum(today_cost[0:NORMAL_HOURS_NEEDED_TO_HEAT])
     score = MAX_HOURS_NEEDED_TO_HEAT  # Assume now_hour is cheapest
     if now_hour > until_hour:
         score = 0
+    delay_msg = None
     for scan_hour in range(0, until_hour + 1):
         if today_cost[scan_hour] < now_price:
             score -= 1
-        if today_cost[scan_hour] < cheapest_price:
-            cheapest_price = today_cost[scan_hour]
-            cheapest_hour = scan_hour
-    if cheapest_hour < NORMAL_HOURS_NEEDED_TO_HEAT:
-        # Secure sufficient rampup time
-        cheapest_hour = NORMAL_HOURS_NEEDED_TO_HEAT
-        cheapest_price = today_cost[cheapest_hour]
-        if now_hour < cheapest_hour:
-            for scan_hour in range(now_hour, cheapest_hour):
-                if today_cost[scan_hour] < cheapest_price:
-                    cheapest_price = today_cost[scan_hour]
-                    cheapest_hour = scan_hour
+        if scan_hour > NORMAL_HOURS_NEEDED_TO_HEAT:
+            scan_price_sum = sum(
+                today_cost[(scan_hour - NORMAL_HOURS_NEEDED_TO_HEAT) : scan_hour]
+            )
+            delay_saving = cheapest_price_sum - scan_price_sum
+            if delay_saving >= 0:
+                delay_msg = (
+                    f"Delaying heatup to {scan_hour}:00 saves {delay_saving} EUR"
+                )
+                cheapest_price_sum = scan_price_sum
+                cheapest_hour = scan_hour
 
-    if (
-        NORMAL_HOURS_NEEDED_TO_HEAT <= cheapest_hour < 23
-    ):  # Check if delaying is beneficial
-        first_heating_hour = cheapest_hour - NORMAL_HOURS_NEEDED_TO_HEAT
-        default_cost = sum(today_cost[first_heating_hour:cheapest_hour])
-        moved_cost = sum(today_cost[(first_heating_hour + 1) : (cheapest_hour + 1)])
-        if moved_cost < default_cost:
-            print(f"Delaying heatup saves {default_cost - moved_cost} EUR")
-            if now_hour < cheapest_hour:
-                cheapest_hour += 1
+    if now_price < today_cost[cheapest_hour]:
+        score = MAX_HOURS_NEEDED_TO_HEAT  # If delayed still heat aggressive now
+
     if now_hour <= cheapest_hour:
-        # Secure rampup before cheapest_hour(_completion_hour)
+        if delay_msg is not None:
+            print(delay_msg)
+        # Secure rampup before boost end
         score = max(score, MAX_HOURS_NEEDED_TO_HEAT - (cheapest_hour - now_hour))
     print(f"Score given: {score}")
     return max(score, 0)
@@ -355,6 +352,14 @@ def is_now_chepeast_remaining_during_comfort(today_cost, local_hour):
     )
 
 
+def hours_to_next_lower_price(today_cost, scan_from):
+    min_price = today_cost[scan_from]
+    for i in range(scan_from + 1, DAILY_COMFORT_LAST_H):
+        if today_cost[i] <= min_price:
+            return i - scan_from
+    return 0
+
+
 def next_night_is_cheaper(today_cost):
     return cheap_later_test(today_cost, 0, 24, DAILY_COMFORT_LAST_H)
 
@@ -370,12 +375,14 @@ def get_optimized_temp(local_hour, today_cost, tomorrow_cost, outside_temp):
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
             wanted_temp += 5  # Slightly raise hot water takeout capacity
         if local_hour < 23 and today_cost[local_hour] < today_cost[local_hour + 1]:
-            wanted_temp += 2  # Better trigger low temp heating now rather than later
             if is_now_chepeast_remaining_during_comfort(today_cost, local_hour):
                 wanted_temp += DEGREES_LOST_PER_H * (
                     DAILY_COMFORT_LAST_H
                     - local_hour  # Better trigger further low temp heating now compared to later
                 )
+            else:
+                # Compensate for later heat leaks
+                wanted_temp += hours_to_next_lower_price(today_cost, local_hour)
     if tomorrow_cost is not None:
         if local_hour > DAILY_COMFORT_LAST_H:
             wanted_temp += DEGREES_PER_H * get_cheap_score_relative_tomorrow(
