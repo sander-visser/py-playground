@@ -53,7 +53,7 @@ MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 2.5  # Utilize leakage unless heatpump will be cheaper
 HIGH_WATER_TAKEOUT_LIKELYHOOD = (
-    0.5  # Percent chance that thermostat will heat at MIN_TEMP
+    0.5  # Percent chance that thermostat will heat at MIN_TEMP setting during max price
 )
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
@@ -279,9 +279,12 @@ def refill_heating_worth_while(now_hour, today_cost, tomorrow_cost):
                 max_price_ahead = tomorrow_cost[scan_hour]
             if tomorrow_cost[scan_hour] < min_price_ahead:
                 min_price_ahead = tomorrow_cost[scan_hour]
+        scan_hours_remaining = 0
 
     if min_price_ahead == today_cost[now_hour]:
-        return min_price_ahead <= (max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD)
+        return scan_hours_remaining == 0 or min_price_ahead <= (
+            max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
+        )
     return False
 
 
