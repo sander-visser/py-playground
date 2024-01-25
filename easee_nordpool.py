@@ -137,51 +137,118 @@ class EaseeCostAnalyzer:
         peak_kwh_per_hour = 0.0
         peak_contribution = None
         total_cost = 0.0
+        one_kw_diff_price = 0.0
         looked_up_date = None
         day_spot_prices = None
+        charged_last_hour = False
+        hour_cost_before_charge_start = None
+        hour_cost_first_charge_hour = None
+        session_duration_hours = 0.0
+        slower_cost = 0.0
+        faster_savings = 0.0
         for hour_data in self.get_hourly_energy_json(
             charger_id, date_range[0], date_range[1]
         ):
-            if hour_data["consumption"] != 0.0:
+            py36compat_date = hour_data["date"]
+            if py36compat_date.rindex(":") > py36compat_date.rindex("+"):
+                py36compat_date = (
+                    py36compat_date[0 : py36compat_date.rindex(":")]
+                    + py36compat_date[py36compat_date.rindex(":") + 1 :]
+                )
+            curr_zulu_date = datetime.datetime.strptime(
+                py36compat_date, "%Y-%m-%dT%H:%M:%S%z"
+            )
+            curr_date = curr_zulu_date.astimezone(
+                datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
+            )
+            if hour_data["consumption"] == 0.0:
+                if charged_last_hour and session_duration_hours > 2.0:
+                    # somewhat inexact if ending during last hour of the day
+                    hour_after_charge = curr_date.hour if curr_date.hour != 0 else 23
+                    hour_of_last_charge = (
+                        curr_date.hour - 1 if curr_date.hour != 0 else 23
+                    )
+                    hour_cost_after_charge_end = (
+                        day_spot_prices[hour_after_charge]["value"] / KWH_PER_MWH
+                    )
+                    cost_of_last_charge_hour = (
+                        day_spot_prices[hour_of_last_charge]["value"] / KWH_PER_MWH
+                    )
+                    prolonged_hour_cost = hour_cost_before_charge_start
+                    if hour_cost_after_charge_end < hour_cost_before_charge_start:
+                        prolonged_hour_cost = hour_cost_after_charge_end
+                    slower_contribution = (
+                        prolonged_hour_cost * session_duration_hours
+                    ) - one_kw_diff_price
+                    if slower_contribution > 0.0:
+                        slower_cost += slower_contribution
+                    most_expensive_charge_hour_cost = cost_of_last_charge_hour
+                    if hour_cost_first_charge_hour > cost_of_last_charge_hour:
+                        most_expensive_charge_hour_cost = hour_cost_first_charge_hour
+                    faster_contribution = (
+                        most_expensive_charge_hour_cost
+                        + (
+                            (most_expensive_charge_hour_cost)
+                            * (session_duration_hours - 1)
+                        )
+                    ) - one_kw_diff_price
+                    if faster_contribution > 0.0:
+                        faster_savings += faster_contribution
+                    if self.verbose:
+                        print(
+                            f"Summing up charge session that lasted {session_duration_hours} hours"
+                        )
+                        print(
+                            f"Price impact from changing charging speed with 1kW is {one_kw_diff_price:.3f}"
+                        )
+                        print(
+                            f"Slower charging is done during hour with cost {prolonged_hour_cost:.3f}"
+                        )
+                        print(
+                            f"Faster charging avoids charging during hour with cost {most_expensive_charge_hour_cost:.3f}"
+                        )
+                        print(
+                            f"Faster contribution {faster_contribution:.3f}. Slower contribution {slower_contribution:.3f}"
+                        )
+                charged_last_hour = False
+            else:
                 if peak_kwh_per_hour < hour_data["consumption"]:
                     peak_kwh_per_hour = hour_data["consumption"]
-                py36compat_date = hour_data["date"]
-                if py36compat_date.rindex(":") > py36compat_date.rindex("+"):
-                    py36compat_date = (
-                        py36compat_date[0 : py36compat_date.rindex(":")]
-                        + py36compat_date[py36compat_date.rindex(":") + 1 :]
-                    )
-                curr_zulu_date = datetime.datetime.strptime(
-                    py36compat_date, "%Y-%m-%dT%H:%M:%S%z"
-                )
                 if (
                     cost_settings.pwr_fee_peak_hour is not None
                     and py36compat_date == cost_settings.pwr_fee_peak_hour
                 ):
                     peak_contribution = hour_data["consumption"]
-                curr_date = curr_zulu_date.astimezone(
-                    datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
-                )
+
                 total_kwh += hour_data["consumption"]
                 hour_cost = None
                 if args.region is not None:
                     if looked_up_date is None or curr_date.date() != looked_up_date:
                         looked_up_date = curr_date.date()
                         day_spot_prices = self.get_day_spot_prices(looked_up_date)
-                    hour_cost = (
-                        hour_data["consumption"]
-                        * day_spot_prices[curr_date.hour]["value"]
-                        / KWH_PER_MWH
+                    curr_hour_price = (
+                        day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
                     )
+                    if not charged_last_hour and hour_data["consumption"] > 1.0:
+                        charged_last_hour = True
+                        session_duration_hours = 0.0
+                        one_kw_diff_price = 0.0
+                        hour_cost_before_charge_start = (
+                            day_spot_prices[max(0, curr_date.hour - 1)]["value"]
+                            / KWH_PER_MWH
+                        )
+                        hour_cost_first_charge_hour = curr_hour_price
+                    session_duration_hours += 1
+                    one_kw_diff_price += curr_hour_price
+                    hour_cost = hour_data["consumption"] * curr_hour_price
                     total_cost += hour_cost
                 if hour_cost is not None and self.verbose:
                     print(
                         f"{hour_data['consumption']:.3f} kWh used at hour starting on {curr_date}."
-                        + f" Cost was {hour_cost:.3f} {NORDPOOL_PRICE_CODE}"
+                        + f" Cost was {hour_cost:.3f} @ {curr_hour_price:.3f} {NORDPOOL_PRICE_CODE}"
                     )
 
-        print(f"\nTotal consumption: {total_kwh:.3f} kWh")
-        print(f"Peak kWh/h {peak_kwh_per_hour:.03f}")
+        print(f"\nPeak kWh/h {peak_kwh_per_hour:.03f}")
         if peak_contribution is not None:
             print(f"Contribution to peak hour {peak_contribution:.03f} kWh/h")
         else:
@@ -191,16 +258,26 @@ class EaseeCostAnalyzer:
             peak_contribution = peak_kwh_per_hour
         if cost_settings.pwr_fee_excl_vat > 0.0:
             print(
-                    f"Total powerfee is {(peak_contribution*cost_settings.pwr_fee_excl_vat):.03f} "
-                + f"{NORDPOOL_PRICE_CODE}"
+                f"Total powerfee is {(peak_contribution*cost_settings.pwr_fee_excl_vat):.03f} "
+                + f"{NORDPOOL_PRICE_CODE} (without VAT and fees)"
             )
+
+        if slower_cost != 0.0:
+            print(
+                f" - By charging 1 kW slower energy cost would rise by approx {slower_cost:.3f} {NORDPOOL_PRICE_CODE}"
+            )
+        if faster_savings != 0.0:
+            print(
+                f" - By charging 1 kW faster energy cost would drop by approx {faster_savings:.3f} {NORDPOOL_PRICE_CODE}"
+            )
+
+        print(f"\nTotal consumption: {total_kwh:.3f} kWh")
         if self.region is not None:
+            print(f"Energy cost in {self.region} (without VAT and fees)")
+            print(f" - Summarized cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}")
             print(
-                f"Total cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE} (without VAT and fees)"
-            )
-            print(
-                f"Average cost in {self.region} {(total_cost/total_kwh ):.3f}"
-                + f" {NORDPOOL_PRICE_CODE} / kWh (without VAT and fees)"
+                f" - Average cost in {self.region} {(total_cost/total_kwh ):.3f}"
+                + f" {NORDPOOL_PRICE_CODE} / kWh"
             )
         self.print_fees_report(cost_settings, total_kwh, peak_contribution, total_cost)
 
