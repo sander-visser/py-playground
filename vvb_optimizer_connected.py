@@ -437,6 +437,9 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
+    if local_hour > (LAST_MORNING_HEATING_H - NORMAL_HOURS_NEEDED_TO_HEAT):
+        wanted_temp = min(wanted_temp, MIN_DAILY_TEMP)  # Limit heating last hours
+
     return wanted_temp
 
 
