@@ -199,16 +199,13 @@ class EaseeCostAnalyzer:
                             f"Summing up charge session that lasted {session_duration_hours} hours"
                         )
                         print(
-                            f"Price impact from changing charging speed with 1kW is {one_kw_diff_price:.3f}"
+                            f"Slower charging could be done during hour with cost {prolonged_hour_cost:.3f}"
                         )
                         print(
-                            f"Slower charging is done during hour with cost {prolonged_hour_cost:.3f}"
+                            f"Faster charging would avoid charging during hour with cost {most_expensive_charge_hour_cost:.3f}"
                         )
                         print(
-                            f"Faster charging avoids charging during hour with cost {most_expensive_charge_hour_cost:.3f}"
-                        )
-                        print(
-                            f"Faster contribution {faster_contribution:.3f}. Slower contribution {slower_contribution:.3f}"
+                            f"Session rate contribution; Faster {faster_contribution:.3f}. Slower {slower_contribution:.3f}"
                         )
                 charged_last_hour = False
             else:
