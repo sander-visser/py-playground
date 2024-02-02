@@ -9,7 +9,7 @@ Script is tested with a Sensibo Sky placed 20cm above floor level
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
+giving us both ~400 SEK to shop gadgets with. Contact: github[a]visser.se or
 check referral.link in repo
 
 Usage (adapt constants as needed for your home=:
@@ -69,7 +69,7 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]
 AT_HOME_DAYS = [6, 7]
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 732.8  # incl 94.0 broker and 244 transfer fee
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 766.0  # incl 94.0 broker and 244 transfer fee
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0  # excl transfer and tax
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 330.0
@@ -1079,8 +1079,11 @@ class SensiboOptimizer:
         self.manage_comfort_hours(range(DINNER_HOUR + 1, WORKDAY_COMFORT_UNTIL_HOUR))
 
     def apply_comfort_boost(self, comfort_hour, boost_distance):
-        if boost_distance > COMFORT_TEMPERATURE_HYSTERESIS:
-            if self._price_analyzer.is_hour_preheat_favorable(comfort_hour):
+        if boost_distance > 0.15:
+            if (
+                boost_distance > COMFORT_TEMPERATURE_HYSTERESIS
+                or self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+            ):
                 self._controller.apply(HIGH_HEAT_SETTINGS, valid_hour=comfort_hour)
             else:
                 self._controller.apply(
