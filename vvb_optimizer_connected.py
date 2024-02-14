@@ -430,17 +430,17 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     ):
         wanted_temp += 5
 
-    if (
-        now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost)
-        or MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= LAST_MORNING_HEATING_H
-        or get_cheap_score_until(local_hour, DAILY_COMFORT_LAST_H, today_cost) > 0
-    ):
-        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
+    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= LAST_MORNING_HEATING_H:
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain heating
 
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
-    if local_hour > (LAST_MORNING_HEATING_H - NORMAL_HOURS_NEEDED_TO_HEAT):
+    if get_cheap_score_until(
+        local_hour, DAILY_COMFORT_LAST_H, today_cost
+    ) > 0 or now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost):
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
+    elif local_hour > (LAST_MORNING_HEATING_H - NORMAL_HOURS_NEEDED_TO_HEAT):
         wanted_temp = min(wanted_temp, MIN_DAILY_TEMP)  # Limit heating last hours
 
     return wanted_temp
