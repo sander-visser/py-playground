@@ -73,10 +73,11 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 4]  # 0 == Monday
-OVERHEAD_BASE_PRICE = 0.075  # In EUR for tax, purchase and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.079  # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
+ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
-# TEMPERATURE_URLshould return a number "x.y"
+# TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
@@ -281,7 +282,7 @@ def now_is_cheapest_in_forecast(now_hour, today_cost, tomorrow_cost):
                 min_price_ahead = tomorrow_cost[scan_hour]
         scan_hours_remaining = 0
 
-    if min_price_ahead == today_cost[now_hour]:
+    if min_price_ahead + ACCEPTABLE_PRICING_ERROR >= today_cost[now_hour]:
         return scan_hours_remaining == 0 or min_price_ahead <= (
             max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
         )
