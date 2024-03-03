@@ -269,7 +269,7 @@ class EaseeCostAnalyzer:
             )
 
         print(f"\nTotal consumption: {total_kwh:.3f} kWh")
-        if self.region is not None:
+        if self.region is not None and total_kwh > 0.0:
             print(f"Energy cost in {self.region} (without VAT and fees)")
             print(f" - Summarized cost: {(total_cost ):.3f} {NORDPOOL_PRICE_CODE}")
             print(
