@@ -298,8 +298,9 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     moving completion hour if needed and heating for total of MAX_HOURS_NEEDED_TO_HEAT
     """
     now_price = today_cost[now_hour]
-    cheapest_hour = NORMAL_HOURS_NEEDED_TO_HEAT - 1  # Secure sufficient rampup time
-    cheapest_price_sum = sum(today_cost[0:NORMAL_HOURS_NEEDED_TO_HEAT])
+    cheap_hours = today_cost[0:NORMAL_HOURS_NEEDED_TO_HEAT]
+    heat_end_hour = NORMAL_HOURS_NEEDED_TO_HEAT
+    cheapest_price_sum = sum(cheap_hours)
     score = MAX_HOURS_NEEDED_TO_HEAT  # Assume now_hour is cheapest
     delay_msg = None
     for scan_hour in range(0, until_hour + 1):
@@ -309,37 +310,49 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
             scan_price_sum = sum(
                 today_cost[(scan_hour - NORMAL_HOURS_NEEDED_TO_HEAT) : scan_hour]
             )
-            delay_saving = cheapest_price_sum - scan_price_sum
+            delay_saving = (
+                cheapest_price_sum + ACCEPTABLE_PRICING_ERROR - scan_price_sum
+            )
             if delay_saving >= 0:
                 delay_msg = (
                     f"Delaying heatup end to {scan_hour}:00 saves {delay_saving} EUR"
                 )
                 cheapest_price_sum = scan_price_sum
-                cheapest_hour = scan_hour - 1
+                cheap_hours = today_cost[
+                    (scan_hour - NORMAL_HOURS_NEEDED_TO_HEAT) : scan_hour
+                ]
+                heat_end_hour = scan_hour
 
-    if now_price < today_cost[cheapest_hour]:
+    if now_price <= sorted(cheap_hours)[0]:
         # If delayed (or late cheap hour) still heat aggressive now
         score = MAX_HOURS_NEEDED_TO_HEAT
 
-    if now_hour <= cheapest_hour:
+    if now_price <= sorted(cheap_hours)[NORMAL_HOURS_NEEDED_TO_HEAT - 1]:
         if delay_msg is not None:
             print(delay_msg)
+        # Secure correct score inside boost period
+        min_score = 1
+        for cheap_price_route in cheap_hours:
+            if now_price <= cheap_price_route:
+                min_score += 1
         # Secure rampup before boost end
-        score = max(score, MAX_HOURS_NEEDED_TO_HEAT - (cheapest_hour - now_hour))
+        score = max(score, min_score)
+        if (now_hour < heat_end_hour) and (
+            heat_end_hour - now_hour
+        ) < MAX_HOURS_NEEDED_TO_HEAT:
+            score = max(score, MAX_HOURS_NEEDED_TO_HEAT - (heat_end_hour - now_hour))
 
     if now_hour > until_hour:
         score = 0
 
-    print(f"Score given to {now_hour}:00 - {now_hour}:59 is {score}")
+    print(f"Score for {now_hour}:00 - {now_hour}:59 is {score} (until {until_hour}:00)")
     return max(score, 0)
 
 
-def get_cheap_score_relative_tomorrow(this_hour_cost, tomorrow_morning_cost):
+def get_cheap_score_relative_future(this_hour_cost, future_cost):
     score = 0
-    for cheap_tomorrow_cost in sorted(tomorrow_morning_cost)[
-        0:MAX_HOURS_NEEDED_TO_HEAT
-    ]:
-        if this_hour_cost < cheap_tomorrow_cost:
+    for cheap_future_cost in sorted(future_cost)[0:MAX_HOURS_NEEDED_TO_HEAT]:
+        if this_hour_cost < cheap_future_cost:
             score += 1
     return score
 
@@ -379,7 +392,7 @@ def is_the_cheapest_hour_during_daytime(today_cost):
 def add_scorebased_wanted_temperature(
     local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
 ):
-    score_based_heating = None
+    score_based_heating = 0
     max_temp_limit = None
     if local_hour <= LAST_MORNING_HEATING_H:
         score_based_heating = get_cheap_score_until(
@@ -387,32 +400,37 @@ def add_scorebased_wanted_temperature(
         )
         if is_the_cheapest_hour_during_daytime(today_cost):
             # limit morning heating much if daytime heating is cheap
-            max_temp_limit = MIN_DAILY_TEMP
+            max_temp_limit = MIN_DAILY_TEMP + (LAST_MORNING_HEATING_H - local_hour)
         elif next_night_is_cheaper(today_cost):
             max_temp_limit = MIN_DAILY_TEMP + DEGREES_PER_H
 
     if local_hour <= DAILY_COMFORT_LAST_H:
-        if is_the_cheapest_hour_during_daytime(today_cost):
-            score_based_heating = get_cheap_score_until(
-                local_hour, DAILY_COMFORT_LAST_H, today_cost
-            )
-
-    if tomorrow_cost is not None and local_hour > DAILY_COMFORT_LAST_H:
-        score_based_heating = get_cheap_score_relative_tomorrow(
-            today_cost[local_hour], tomorrow_cost[0:LAST_MORNING_HEATING_H]
+        score_based_heating = max(
+            score_based_heating,
+            get_cheap_score_until(local_hour, DAILY_COMFORT_LAST_H, today_cost),
         )
 
-    if score_based_heating is not None:
-        max_score = MAX_HOURS_NEEDED_TO_HEAT
-        if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
-            local_hour, today_cost, tomorrow_cost, outside_temp
-        ):
-            score_based_heating += 1  # Extra boost since heat leakage is valuable
-            max_score += 1
-        overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - MAX_TEMP
-        wanted_temp += score_based_heating * DEGREES_PER_H
-        if overshoot_offset > 0:
-            wanted_temp -= overshoot_offset
+    if tomorrow_cost is not None:
+        preload_score = get_cheap_score_relative_future(
+            today_cost[local_hour],
+            today_cost[local_hour:23] + tomorrow_cost[0:LAST_MORNING_HEATING_H],
+        )
+        if preload_score > 0:
+            score_based_heating = max(score_based_heating, preload_score)
+        else:
+            max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
+
+    max_score = MAX_HOURS_NEEDED_TO_HEAT
+    if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
+        local_hour, today_cost, tomorrow_cost, outside_temp
+    ):
+        score_based_heating += 1  # Extra boost since heat leakage is valuable
+        max_score += 1
+
+    overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - MAX_TEMP
+    wanted_temp += score_based_heating * DEGREES_PER_H
+    if overshoot_offset > 0:
+        wanted_temp -= overshoot_offset
 
     if max_temp_limit is not None:
         wanted_temp = min(max_temp_limit, wanted_temp)
@@ -453,12 +471,8 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
-    if get_cheap_score_until(
-        local_hour, DAILY_COMFORT_LAST_H, today_cost
-    ) > 0 or now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost):
+    if now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
-    elif local_hour > (LAST_MORNING_HEATING_H - NORMAL_HOURS_NEEDED_TO_HEAT):
-        wanted_temp = min(wanted_temp, MIN_DAILY_TEMP)  # Limit heating last hours
 
     return wanted_temp
 
@@ -481,7 +495,6 @@ def get_local_date_and_hour(utc_unix_timestamp):
 
 
 def run_hotwater_optimization(thermostat):
-    setup_wifi()
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
 
@@ -559,11 +572,24 @@ def run_hotwater_optimization(thermostat):
 if __name__ == "__main__":
     if "Pico W" in sys.implementation._machine:
         THERMOSTAT = Thermostat()
+        print("Running...")
+        THERMOSTAT.set_thermosat(MIN_NUDGABLE_TEMP)
+        ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
+        while ATTEMTS_REMAING_BEFORE_RESET > 0:
+            try:
+                setup_wifi()
+                break
+            except Exception as EXCEPT:
+                print("Delaying due to exception...")
+                print(EXCEPT)
+                sleep(30)
+                ATTEMTS_REMAING_BEFORE_RESET -= 1
+
         if machine.reset_cause() == machine.PWRON_RESET:
             print("Boosting...")
             THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
             time.sleep(EXTRA_HOT_DURATION_S)
-        ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
+
         while ATTEMTS_REMAING_BEFORE_RESET > 0:
             try:
                 run_hotwater_optimization(THERMOSTAT)
@@ -573,5 +599,6 @@ if __name__ == "__main__":
                 WLAN = network.WLAN(network.STA_IF)
                 print(f"rssi = {WLAN.status('rssi')}")
                 time.sleep(300)
+                setup_wifi()
                 ATTEMTS_REMAING_BEFORE_RESET -= 1
         machine.reset()
