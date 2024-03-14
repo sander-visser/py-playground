@@ -323,18 +323,22 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
                 ]
                 heat_end_hour = scan_hour
 
-    if now_price <= sorted(cheap_hours)[0]:
+    if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(cheap_hours)[0]:
         # If delayed (or late cheap hour) still heat aggressive now
         score = MAX_HOURS_NEEDED_TO_HEAT
 
     if now_price <= sorted(cheap_hours)[NORMAL_HOURS_NEEDED_TO_HEAT - 1]:
         if delay_msg is not None:
             print(delay_msg)
-        # Secure correct score inside boost period
+        # Secure correct score inside boost period (with late peak favored)
         min_score = 1
         for cheap_price_route in cheap_hours:
-            if now_price <= cheap_price_route:
+            if (now_price + ACCEPTABLE_PRICING_ERROR) <= cheap_price_route:
                 min_score += 1
+        if (
+            now_price <= (sorted(cheap_hours)[0] + ACCEPTABLE_PRICING_ERROR)
+        ) and heat_end_hour == (now_hour + 1):
+            min_score = MAX_HOURS_NEEDED_TO_HEAT
         # Secure rampup before boost end
         score = max(score, min_score)
         if (now_hour < heat_end_hour) and (
