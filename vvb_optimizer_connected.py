@@ -469,7 +469,7 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
         local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
     )
 
-    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= LAST_MORNING_HEATING_H:
+    if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain heating
 
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
@@ -486,7 +486,7 @@ def get_local_date_and_hour(utc_unix_timestamp):
     now = time.gmtime(local_unix_timestamp)
     year = now[0]
     dst_start = time.mktime(
-        (year, 3, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
+        (year, 3, (31 - (int(5 * year / 4 + 4)) % 7), 1, 0, 0, 0, 0, 0)
     )
     dst_end = time.mktime(
         (year, 10, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
