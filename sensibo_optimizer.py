@@ -40,6 +40,7 @@ REGION_HOLIDAYS = holidays.country_holidays("SE")
 TIME_ZONE = "CET"
 # Each url in TEMPERATURE_URLS should return a number "x.y"
 TEMPERATURE_URLS = [
+    "https://www.temperatur.nu/termo/gettemp.php?stadname=partille_furulund&what=temp",
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp",
     "https://www.temperatur.nu/termo/gettemp.php?stadname=ojersjo&what=temp",
 ]
