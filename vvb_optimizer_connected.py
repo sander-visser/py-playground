@@ -66,6 +66,7 @@ DEGREES_PER_H = 9.4  # Nibe 300-CU ER56-CU 275L with 3kW
 DEGREES_LOST_PER_H = 0.75
 LAST_MORNING_HEATING_H = 6
 DAILY_COMFORT_LAST_H = 21  # :59
+NEW_PRICE_EXPECTED_HOUR = 13
 MAX_TEMP = 78
 MIN_TEMP = 25
 MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
@@ -529,7 +530,7 @@ def run_hotwater_optimization(thermostat):
             if today_cost is None:
                 raise RuntimeError("Optimization not possible")
             tomorrow_cost = None
-        if tomorrow_cost is None:
+        if tomorrow_cost is None and local_hour >= NEW_PRICE_EXPECTED_HOUR:
             tomorrow_cost = get_cost(today + timedelta(days=1))
 
         print(
@@ -554,6 +555,9 @@ def run_hotwater_optimization(thermostat):
         thermostat.set_thermosat(wanted_temp)
         curr_min = time.localtime()[4]
         if curr_min < 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+            if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
+                time.sleep(5 * SEC_PER_MIN)  # Retry price fetching
+                continue
             time.sleep((50 - curr_min) * SEC_PER_MIN)  # Sleep slightly before next hour
         if local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             next_hour_wanted_temp = get_wanted_temp(
