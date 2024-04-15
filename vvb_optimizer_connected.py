@@ -471,12 +471,18 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
 
     if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain heating
+    if DAILY_COMFORT_LAST_H > local_hour > LAST_MORNING_HEATING_H and (
+        MAX_HOURS_NEEDED_TO_HEAT - 1
+    ) <= get_cheap_score_relative_future(
+        today_cost[local_hour], today_cost[LAST_MORNING_HEATING_H:DAILY_COMFORT_LAST_H]
+    ):
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Restore comfort once per day
 
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
     if now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost):
-        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
 
     return wanted_temp
 
