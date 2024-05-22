@@ -285,6 +285,8 @@ def now_is_cheapest_in_forecast(now_hour, today_cost, tomorrow_cost):
         scan_hours_remaining = 0
 
     if min_price_ahead + ACCEPTABLE_PRICING_ERROR >= today_cost[now_hour]:
+        if now_hour < 23 and today_cost[now_hour] > today_cost[now_hour + 1]:
+            return False  # Can wait one more hour for cheaper price
         return scan_hours_remaining == 0 or min_price_ahead <= (
             max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
         )
@@ -398,7 +400,7 @@ def add_scorebased_wanted_temperature(
     local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
 ):
     score_based_heating = 0
-    max_temp_limit = None
+    max_temp_limit = MAX_TEMP
     if local_hour <= LAST_MORNING_HEATING_H:
         score_based_heating = get_cheap_score_until(
             local_hour, LAST_MORNING_HEATING_H, today_cost
@@ -432,13 +434,12 @@ def add_scorebased_wanted_temperature(
         score_based_heating += 1  # Extra boost since heat leakage is valuable
         max_score += 1
 
-    overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - MAX_TEMP
+    overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - max_temp_limit
     wanted_temp += score_based_heating * DEGREES_PER_H
-    if overshoot_offset > 0:
+    if wanted_temp > MIN_DAILY_TEMP and overshoot_offset > 0:
         wanted_temp -= overshoot_offset
+        wanted_temp = max(MIN_DAILY_TEMP, wanted_temp)
 
-    if max_temp_limit is not None:
-        wanted_temp = min(max_temp_limit, wanted_temp)
     return wanted_temp
 
 
