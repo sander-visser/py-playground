@@ -75,9 +75,10 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 4]  # 0 == Monday
-OVERHEAD_BASE_PRICE = 0.079  # In EUR for tax, purchase and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.075  # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
+LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
 HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
 # TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
@@ -396,6 +397,25 @@ def is_the_cheapest_hour_during_daytime(today_cost):
     return cheap_later_test(today_cost, 0, DAILY_COMFORT_LAST_H, LAST_MORNING_HEATING_H)
 
 
+def is_now_significantly_cheaper(now_hour, today_cost, tomorrow_cost):
+    """
+    Scan 16h ahead and check if now is significantly cheaper than max price ahead
+    """
+    scan_hours_remaining = 16
+    max_price_ahead = today_cost[now_hour]
+    for scan_hour in range(now_hour, min(24, now_hour + scan_hours_remaining)):
+        scan_hours_remaining -= 1
+        if today_cost[scan_hour] > max_price_ahead:
+            max_price_ahead = today_cost[scan_hour]
+
+    if tomorrow_cost is not None:
+        for scan_hour in range(0, scan_hours_remaining):
+            if tomorrow_cost[scan_hour] > max_price_ahead:
+                max_price_ahead = tomorrow_cost[scan_hour]
+
+    return today_cost[now_hour] * LOW_PRICE_VARIATION_PERCENT < max_price_ahead
+
+
 def add_scorebased_wanted_temperature(
     local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
 ):
@@ -410,6 +430,7 @@ def add_scorebased_wanted_temperature(
             max_temp_limit = MIN_DAILY_TEMP + (LAST_MORNING_HEATING_H - local_hour)
         elif next_night_is_cheaper(today_cost):
             max_temp_limit = MIN_DAILY_TEMP + DEGREES_PER_H
+        
 
     if local_hour <= DAILY_COMFORT_LAST_H:
         score_based_heating = max(
@@ -426,6 +447,9 @@ def add_scorebased_wanted_temperature(
             score_based_heating = max(score_based_heating, preload_score)
         else:
             max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
+            
+    if not is_now_significantly_cheaper(local_hour, today_cost, tomorrow_cost):
+        max_temp_limit = MIN_DAILY_TEMP  # Resrict heating if only slightly cheaper
 
     max_score = MAX_HOURS_NEEDED_TO_HEAT
     if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
