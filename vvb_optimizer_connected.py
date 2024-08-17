@@ -530,6 +530,17 @@ def get_local_date_and_hour(utc_unix_timestamp):
     return (adjusted_day, now[3])
 
 
+def delay_minor_temp_increase(wanted_temp, thermostat):
+    diff_temp = wanted_temp - thermostat.prev_degrees
+    if diff_temp > 0 and diff_temp < DEGREES_PER_H:
+        temp_raise_delay = (45 * SEC_PER_MIN) - (
+            (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
+        )
+        # print(f"Delaying temp increase with {temp_raise_delay}s")
+        if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+            time.sleep(temp_raise_delay)
+
+
 def run_hotwater_optimization(thermostat):
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
@@ -576,6 +587,9 @@ def run_hotwater_optimization(thermostat):
         print(f"{local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}")
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
+            
+        if local_hour != NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
+            delay_minor_temp_increase(wanted_temp, thermostat)
 
         thermostat.set_thermosat(wanted_temp)
         curr_min = time.localtime()[4]
