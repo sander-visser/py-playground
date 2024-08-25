@@ -73,8 +73,8 @@ MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
-WEEKDAYS_WITH_EXTRA_TAKEOUT = [6]  # 6 == Sunday
-WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 4]  # 0 == Monday
+WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
+WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 OVERHEAD_BASE_PRICE = 0.075  # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
