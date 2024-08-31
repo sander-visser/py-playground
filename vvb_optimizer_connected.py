@@ -383,8 +383,9 @@ def get_cheap_score_relative_future(this_hour_cost, future_cost):
 def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
     min_price = today_cost[scan_from]
     for i in range(scan_from + 1, scan_to):
-        if today_cost[i] <= min_price:
-            min_price = today_cost[i]
+        if today_cost[i] <= (min_price + ACCEPTABLE_PRICING_ERROR):
+            if today_cost[i] < min_price: 
+                min_price = today_cost[i]
             if i > test_hour:
                 return True  # Found price to be cheaper later
     return False
