@@ -342,7 +342,9 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
                 ]
                 heat_end_hour = scan_hour
 
-    if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(cheap_hours)[0]:
+    if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(cheap_hours)[
+        NORMAL_HOURS_NEEDED_TO_HEAT - 1
+    ]:
         # If delayed (or late cheap hour) still heat aggressive now
         score = MAX_HOURS_NEEDED_TO_HEAT
 
