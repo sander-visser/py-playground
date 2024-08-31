@@ -263,33 +263,48 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
     return False
 
 
-def now_is_cheapest_in_forecast(now_hour, today_cost, tomorrow_cost):
+def now_is_cheap_in_forecast(now_hour, today_cost, tomorrow_cost):
     """
     Scan 16h ahead and check if now is the best time to buffer some comfort
     """
     scan_hours_remaining = 16
+    hours_til_cheaper = 0
     max_price_ahead = today_cost[now_hour]
+    max_price_til_next_cheap = max_price_ahead
     min_price_ahead = max_price_ahead
     for scan_hour in range(now_hour, min(24, now_hour + scan_hours_remaining)):
         scan_hours_remaining -= 1
         if today_cost[scan_hour] > max_price_ahead:
             max_price_ahead = today_cost[scan_hour]
-        if today_cost[scan_hour] < min_price_ahead:
+        if today_cost[scan_hour] <= min_price_ahead:
             min_price_ahead = today_cost[scan_hour]
+            if hours_til_cheaper == 0:
+                hours_til_cheaper = 15 - scan_hours_remaining
+                max_price_til_next_cheap = max_price_ahead
 
     if tomorrow_cost is not None:
         for scan_hour in range(0, scan_hours_remaining):
             if tomorrow_cost[scan_hour] > max_price_ahead:
                 max_price_ahead = tomorrow_cost[scan_hour]
-            if tomorrow_cost[scan_hour] < min_price_ahead:
+            if tomorrow_cost[scan_hour] <= min_price_ahead:
                 min_price_ahead = tomorrow_cost[scan_hour]
+                if hours_til_cheaper == 0:
+                    hours_til_cheaper = (24 - now_hour) + scan_hour
+                    max_price_til_next_cheap = max_price_ahead
         scan_hours_remaining = 0
 
     if min_price_ahead + ACCEPTABLE_PRICING_ERROR >= today_cost[now_hour]:
-        if now_hour < 23 and today_cost[now_hour] > today_cost[now_hour + 1]:
-            return False  # Can wait one more hour for cheaper price
-        return scan_hours_remaining == 0 or min_price_ahead <= (
-            max_price_ahead * HIGH_WATER_TAKEOUT_LIKELYHOOD
+        if scan_hours_remaining == 0 and hours_til_cheaper == 0:
+            return True  # This very cheapest time to heat
+        if 1 <= hours_til_cheaper <= 2:
+            return False  # Can wait two more hours for cheaper price
+        # Check if long time til next cheap period, or if high price spikes pending
+        return (
+            scan_hours_remaining == 0
+            and (DEGREES_LOST_PER_H * hours_til_cheaper)
+            > DEGREES_PER_H * HIGH_WATER_TAKEOUT_LIKELYHOOD
+        ) or min_price_ahead <= (
+            max_price_til_next_cheap * HIGH_WATER_TAKEOUT_LIKELYHOOD
         )
     return False
 
@@ -507,7 +522,7 @@ def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp
     if today_cost[local_hour] >= sorted(today_cost)[24 - NUM_MOST_EXPENSIVE_HOURS]:
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
-    if now_is_cheapest_in_forecast(local_hour, today_cost, tomorrow_cost):
+    if now_is_cheap_in_forecast(local_hour, today_cost, tomorrow_cost):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
 
     return wanted_temp
