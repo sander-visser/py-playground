@@ -36,8 +36,11 @@ headers = {"Content-Type": "application/x-www-form-urlencoded"}
 response = requests.post(
     OAUTH_ENDPOINT, data=request_body, verify=HTTPS_VERIFY, timeout=API_TIMEOUT
 )
+if (response.status_code != 200)
+{
+    print(response.text)
+}
 api_access_token = response.json()["access_token"]
-
 
 api_header = {
     "accept": "application/json, text/plain, */*",
@@ -46,10 +49,8 @@ api_header = {
 response = requests.get(
     USER_ENDPOINT, headers=api_header, verify=HTTPS_VERIFY, timeout=API_TIMEOUT
 )
-# print(response.text)
 
 default_panel = response.json()["DefaultPanelId"]
-
 
 response = requests.get(
     PANEL_STATUS_ENDPOINT + default_panel,
@@ -58,4 +59,15 @@ response = requests.get(
     timeout=API_TIMEOUT,
 )
 
-print(f"Status: {response.json()['Status']} since {response.json()['StatusTime']}")
+status_code = response.json()["Status"]
+STATUS_TEXT = (
+    "disarmed"
+    if status_code == 1
+    else (
+        "fully armed"
+        if status_code == 3
+        else "partially armed" if status_code == 2 else f"code: {status_code}"
+    )
+)
+
+print(f"Status: {STATUS_TEXT} since {response.json()['StatusTime']}")
