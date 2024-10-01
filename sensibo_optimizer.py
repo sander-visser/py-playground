@@ -9,8 +9,8 @@ Script is tested with a Sensibo Sky placed 20cm above floor level
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both ~400 SEK to shop gadgets with. Contact: github[a]visser.se or
-check referral.link in repo
+giving us both ~500 SEK to shop gadgets with. Contact: github[a]visser.se or
+check referral.link in repo, or use referral code 2ar4ax0f.
 
 Usage (adapt constants as needed for your home=:
 Install needed pip packages (see below pip module imports)
@@ -66,25 +66,25 @@ DINNER_HOUR = 17  # Min 1h after WORKDAY_AFTERNOON_COMFORT_BY_HOUR
 WORKDAY_COMFORT_UNTIL_HOUR = 22
 WEEKEND_COMFORT_UNTIL_HOUR = 23
 SECONDS_BETWEEN_COMMANDS = 1.5
-SCHOOL_DAYS = [1, 2, 3, 4, 5]
-AT_HOME_DAYS = [6, 7]
+SCHOOL_DAYS = [1, 2, 3, 4, 5]  # 1=monday
+AT_HOME_DAYS = [6, 7]  # 7=sunday
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 753.0  # incl 81.0 broker and 244 transfer fee
-ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 750.0  # excl transfer and tax
-RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 600.0
-ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 330.0
-ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 5500.0
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 748.0  # incl 76.0 broker and 244 transfer fee
+ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 777.7  # excl transfer and tax
+RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 654.3
+ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 350.0
+ABSOLUTE_SEK_PER_MWH_BEYOND_WHICH_TO_REDUCE_COMFORT = 5000.0
 
 # Heat pump data (for MSZ-FD35VA)
 HEATPUMP_COP_HALF_LOAD_BOOST_AT_PLUS7 = 1.6  # from SP testing of MSZ-FD25VA
 HEATPUMP_COP_HALF_LOAD_BOOST_AT_PLUS2 = 1.1  # from SP testing of MSZ-FD25VA
-HEATPUMP_COP_AT_PLUS15 = 3.6  # Guestimate
+HEATPUMP_COP_AT_PLUS15 = 3.6  # Guesstimate
 HEATPUMP_COP_AT_PLUS7 = 3.0
 HEATPUMP_COP_AT_PLUS2 = 2.8
 HEATPUMP_COP_AT_MINUS7 = 2.3
 HEATPUMP_COP_AT_MINUS15 = 2.1
-HEATPUMP_CAPACITY_AGE_FACTOR = 0.9  # Percent of heating watts remaining
+HEATPUMP_CAPACITY_AGE_FACTOR = 0.89  # Percent of heating watts remaining
 HEATPUMP_HEATING_WATTS_AT_PLUS7 = 6600.0
 HEATPUMP_HEATING_WATTS_AT_PLUS2 = 5600.0
 HEATPUMP_HEATING_WATTS_AT_MINUS7 = 5200.0
@@ -98,7 +98,7 @@ EXTREMELY_COLD_OUTDOOR_TEMP = -7.1
 MAX_HOURS_OF_REDUCED_COMFORT_PER_DAY = 3  # Will avoid two in a row
 MAX_FLOOR_SENSOR_OVER_TEMPERATURE = 2.5  # Triggers heat distribution when above
 MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE = 20.0
-MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.0
+MIN_FLOOR_SENSOR_IDLE_TEMPERATURE = 17.5
 COMFORT_PLUS_TEMP_DELTA = int(2)
 EXTRA_TEMP_OFFSET = int(1)
 NORMAL_TEMP_OFFSET = int(0)
