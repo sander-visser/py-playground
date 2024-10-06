@@ -251,10 +251,8 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
     min_price = now_price
     while local_hour < 23:
         local_hour += 1
-        if max_price < today_cost[local_hour]:
-            max_price = today_cost[local_hour]
-        if min_price > today_cost[local_hour]:
-            min_price = today_cost[local_hour]
+        max_price = max(max_price, today_cost[local_hour])
+        min_price = min(min_price, today_cost[local_hour])
     if tomorrow_cost is not None:
         for tomorrow_hour_price in tomorrow_cost:
             max_price = max(max_price, tomorrow_hour_price)
@@ -386,9 +384,9 @@ def get_cheap_score_relative_future(this_hour_cost, future_cost):
 def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
     min_price = today_cost[scan_from]
     for i in range(scan_from + 1, scan_to):
+        # Check if only slightly more expensive later
         if today_cost[i] <= (min_price + ACCEPTABLE_PRICING_ERROR):
-            if today_cost[i] < min_price: 
-                min_price = today_cost[i]
+            min_price = min(min_price, today_cost[i])
             if i > test_hour:
                 return True  # Found price to be cheaper later
     return False
@@ -449,7 +447,6 @@ def add_scorebased_wanted_temperature(
             max_temp_limit = MIN_DAILY_TEMP + (LAST_MORNING_HEATING_H - local_hour)
         elif next_night_is_cheaper(today_cost):
             max_temp_limit = MIN_DAILY_TEMP + DEGREES_PER_H
-        
 
     if local_hour <= DAILY_COMFORT_LAST_H:
         score_based_heating = max(
@@ -466,7 +463,7 @@ def add_scorebased_wanted_temperature(
             score_based_heating = max(score_based_heating, preload_score)
         else:
             max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
-            
+
     if not is_now_significantly_cheaper(local_hour, today_cost, tomorrow_cost):
         max_temp_limit = MIN_DAILY_TEMP  # Resrict heating if only slightly cheaper
 
@@ -510,13 +507,20 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
     return wanted_temp_boost
 
 
-def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_status):
+def get_wanted_temp(
+    local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_status
+):
     print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
 
     wanted_temp = MIN_TEMP
-    
+
     if alarm_status is None or not alarm_status.is_fully_armed():
         wanted_temp += get_wanted_temp_boost(local_hour, weekday, today_cost)
+    elif MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
+        if is_now_cheapest_remaining_during_comfort(today_cost, local_hour):
+            wanted_temp += (
+                1 + (DAILY_COMFORT_LAST_H - local_hour)
+            ) * DEGREES_LOST_PER_H
 
     wanted_temp = add_scorebased_wanted_temperature(
         local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
@@ -559,7 +563,7 @@ def get_local_date_and_hour(utc_unix_timestamp):
 
 def delay_minor_temp_increase(wanted_temp, thermostat):
     diff_temp = wanted_temp - thermostat.prev_degrees
-    if diff_temp > 0 and diff_temp < DEGREES_PER_H:
+    if 0 < diff_temp < DEGREES_PER_H:
         temp_raise_delay = (45 * SEC_PER_MIN) - (
             (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
         )
@@ -606,7 +610,7 @@ def run_hotwater_optimization(thermostat, alarm_status):
             today_cost,
             tomorrow_cost,
             outside_temp,
-            alarm_status
+            alarm_status,
         )
         if days_since_legionella > LEGIONELLA_INTERVAL and (
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
@@ -615,7 +619,7 @@ def run_hotwater_optimization(thermostat, alarm_status):
         print(f"{local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}")
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
-            
+
         if local_hour != NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
             delay_minor_temp_increase(wanted_temp, thermostat)
 
@@ -633,7 +637,7 @@ def run_hotwater_optimization(thermostat, alarm_status):
                 today_cost,
                 tomorrow_cost,
                 outside_temp,
-                alarm_status
+                alarm_status,
             )
             if (
                 next_hour_wanted_temp >= wanted_temp
@@ -649,6 +653,7 @@ def run_hotwater_optimization(thermostat, alarm_status):
         time_provider.hourly_timekeeping()
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             time.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
+
 
 if __name__ == "__main__":
     if "Pico W" in sys.implementation._machine:
@@ -666,13 +671,13 @@ if __name__ == "__main__":
                 sleep(30)
                 ATTEMTS_REMAING_BEFORE_RESET -= 1
 
-        alarm_status = None
+        ALARM_STATUS = None
         try:
             import usector_alarm_status
         except ImportError:
             pass
         else:
-            alarm_status = usector_alarm_status.AlarmStatusProvider()
+            ALARM_STATUS = usector_alarm_status.AlarmStatusProvider()
 
         if machine.reset_cause() == machine.PWRON_RESET:
             print("Boosting...")
@@ -681,7 +686,7 @@ if __name__ == "__main__":
 
         while ATTEMTS_REMAING_BEFORE_RESET > 0:
             try:
-                run_hotwater_optimization(THERMOSTAT, alarm_status)
+                run_hotwater_optimization(THERMOSTAT, ALARM_STATUS)
             except Exception as EXCEPT:
                 print("Delaying due to exception...")
                 print(EXCEPT)
