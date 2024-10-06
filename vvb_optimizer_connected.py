@@ -14,7 +14,7 @@ Repo also contans a schedule based optimizer (that does not utilize WiFi)
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both ~400 SEK to shop gadgets with. Contact: github[a]visser.se or
+giving us both ~500 SEK to shop gadgets with. Contact: github[a]visser.se or
 check referral.link in repo
 """
 
@@ -26,7 +26,7 @@ check referral.link in repo
 # wlan.active(True)
 # wlan.connect(WLAN_SSID, WLAN_PASS)
 # import mip
-# mip.install("urequests")
+# mip.install("requests")
 # mip.install("datetime")
 
 import sys
@@ -37,7 +37,7 @@ from machine import Pin, PWM
 import rp2
 import network
 import ntptime
-import urequests
+import requests
 
 
 # https://www.raspberrypi.com/documentation/pico-sdk/networking.html#CYW43_COUNTRY_
@@ -97,7 +97,7 @@ class SimpleTemperatureProvider:
 
     def get_outdoor_temp(self):
         try:
-            outdoor_temperature_req = urequests.get(TEMPERATURE_URL, timeout=10.0)
+            outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
             if outdoor_temperature_req.status_code == 200:
                 try:
                     self.outdoor_temperature = float(outdoor_temperature_req.text)
@@ -105,11 +105,11 @@ class SimpleTemperatureProvider:
                     print(
                         f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}"
                     )
-        except OSError as ureq_err:
-            if ureq_err.args[0] == 110:  # ETIMEDOUT
+        except OSError as req_err:
+            if req_err.args[0] == 110:  # ETIMEDOUT
                 print("Ignoring temperature read timeout")
             else:
-                raise ureq_err
+                raise req_err
         return self.outdoor_temperature
 
 
@@ -229,7 +229,7 @@ def get_cost(end_date):
         f"{end_date.year}/{two_digit_month}-{two_digit_day}_{NORDPOOL_REGION}.json"
     )
     gc.collect()
-    result = urequests.get(hourly_api_url, timeout=10.0)
+    result = requests.get(hourly_api_url, timeout=10.0)
     if result.status_code != 200:
         return None
 
@@ -485,29 +485,37 @@ def add_scorebased_wanted_temperature(
     return wanted_temp
 
 
-def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp):
-    print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
-
-    wanted_temp = MIN_NUDGABLE_TEMP if local_hour <= DAILY_COMFORT_LAST_H else MIN_TEMP
-
+def get_wanted_temp_boost(local_hour, weekday, today_cost):
+    wanted_temp_boost = 0
     if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_H:
-        wanted_temp += 5
+        wanted_temp_boost += 5
 
     if (
         weekday in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
         and local_hour <= LAST_MORNING_HEATING_H
     ):
-        wanted_temp += 5
+        wanted_temp_boost += 5
 
     if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
-            wanted_temp += 5  # Slightly raise hot water takeout capacity
+            wanted_temp_boost += 5  # Slightly raise hot water takeout capacity
         if local_hour < 23 and today_cost[local_hour] < today_cost[local_hour + 1]:
             hours_to_bridge = hours_to_next_lower_price(today_cost, local_hour)
             if is_now_cheapest_remaining_during_comfort(today_cost, local_hour):
                 hours_to_bridge = 1 + (DAILY_COMFORT_LAST_H - local_hour)
             # Better heat now rather than later
-            wanted_temp += DEGREES_LOST_PER_H * hours_to_bridge
+            wanted_temp_boost += DEGREES_LOST_PER_H * hours_to_bridge
+
+    return wanted_temp_boost
+
+
+def get_wanted_temp(local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_status):
+    print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
+
+    wanted_temp = MIN_TEMP
+    
+    if alarm_status is None or not alarm_status.is_fully_armed():
+        wanted_temp += get_wanted_temp_boost(local_hour, weekday, today_cost)
 
     wanted_temp = add_scorebased_wanted_temperature(
         local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
@@ -559,7 +567,7 @@ def delay_minor_temp_increase(wanted_temp, thermostat):
             time.sleep(temp_raise_delay)
 
 
-def run_hotwater_optimization(thermostat):
+def run_hotwater_optimization(thermostat, alarm_status):
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
 
@@ -597,6 +605,7 @@ def run_hotwater_optimization(thermostat):
             today_cost,
             tomorrow_cost,
             outside_temp,
+            alarm_status
         )
         if days_since_legionella > LEGIONELLA_INTERVAL and (
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
@@ -623,6 +632,7 @@ def run_hotwater_optimization(thermostat):
                 today_cost,
                 tomorrow_cost,
                 outside_temp,
+                alarm_status
             )
             if (
                 next_hour_wanted_temp >= wanted_temp
@@ -638,7 +648,6 @@ def run_hotwater_optimization(thermostat):
         time_provider.hourly_timekeeping()
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             time.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
-
 
 if __name__ == "__main__":
     if "Pico W" in sys.implementation._machine:
@@ -656,6 +665,14 @@ if __name__ == "__main__":
                 sleep(30)
                 ATTEMTS_REMAING_BEFORE_RESET -= 1
 
+        alarm_status = None
+        try:
+            import usector_alarm_status
+        except ImportError:
+            pass
+        else:
+            alarm_status = usector_alarm_status.AlarmStatusProvider()
+
         if machine.reset_cause() == machine.PWRON_RESET:
             print("Boosting...")
             THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
@@ -663,7 +680,7 @@ if __name__ == "__main__":
 
         while ATTEMTS_REMAING_BEFORE_RESET > 0:
             try:
-                run_hotwater_optimization(THERMOSTAT)
+                run_hotwater_optimization(THERMOSTAT, alarm_status)
             except Exception as EXCEPT:
                 print("Delaying due to exception...")
                 print(EXCEPT)
