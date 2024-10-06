@@ -18,7 +18,8 @@ giving us both ~500 SEK to shop gadgets with. Contact: github[a]visser.se or
 check referral.link in repo
 """
 
-# Install micropyton (hold BOOTSEL while connecting USB to get drive mounted)
+# Install micropyton (hold BOOTSEL while connecting USB to get drive mounted),
+# or execute "machine.bootloader()" to upgrade existing MicroPython board.
 # Copy https://micropython.org/download/RPI_PICO_W/RPI_PICO_W-latest.uf2
 # then (when WiFi connected, and before copying this script as main.py)
 # import network
