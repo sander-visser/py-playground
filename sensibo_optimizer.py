@@ -1396,6 +1396,6 @@ if __name__ == "__main__":
                 print("403: check the API key")
                 sys.exit(1)
             print(f"Resetting optimizer due to error 6 {e.response.status_code}")
-        except requests.exceptions.RequestException:
-            print("Resetting optimizer due to error 4")
+        except requests.exceptions.RequestException as e:
+            print(f"Resetting optimizer due to error 4: {e}")
         sleep(300)
