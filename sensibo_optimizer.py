@@ -16,6 +16,12 @@ Usage (adapt constants as needed for your home=:
 Install needed pip packages (see below pip module imports)
 Run this script on a internet connected machine configured with relevant timezone
  - Tip: Use environment variable TZ='Europe/Stockholm'
+
+python3.10 or later needed. On ubuntu 22.04 install it via:
+# add-apt-repository ppa:deadsnakes/ppa
+# apt install python3.10 python3.10-dev python3.10-distutils python3.10-venv
+# python3.10 -m venv env
+# env/bin/pip install -U pip
 """
 
 # pylint: disable=C0115,C0116  # Ignore docstring
@@ -32,7 +38,7 @@ import pause
 import holidays
 from nordpool import elspot
 import pytz
-import sensibo_client  # https://github.com/Sensibo/sensibo-python-sdk with py3 print fix
+import sensibo_client  # https://github.com/sander-visser/sensibo-python-sdk
 
 # Location info
 REGION = "SE3"
