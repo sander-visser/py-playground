@@ -66,6 +66,7 @@ NUM_MOST_EXPENSIVE_HOURS = 3  # Avoid heating
 DEGREES_PER_H = 9.4  # Nibe 300-CU ER56-CU 275L with 3kW
 DEGREES_LOST_PER_H = 0.75
 LAST_MORNING_HEATING_H = 6
+FIRST_EVENING_HIGH_TAKEOUT_H = 20  # : 00 - by which time re-heating should have ran
 DAILY_COMFORT_LAST_H = 21  # :59
 NEW_PRICE_EXPECTED_HOUR = 13
 MAX_TEMP = 78
@@ -527,7 +528,10 @@ def get_wanted_temp(
     )
 
     if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
-        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain heating
+        if not cheap_later_test(
+            today_cost, local_hour, FIRST_EVENING_HIGH_TAKEOUT_H, local_hour
+        ):
+            wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain morning heating
     if DAILY_COMFORT_LAST_H > local_hour > LAST_MORNING_HEATING_H and (
         MAX_HOURS_NEEDED_TO_HEAT - 1
     ) <= get_cheap_score_relative_future(
