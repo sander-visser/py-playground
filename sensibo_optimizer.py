@@ -343,9 +343,9 @@ class PriceAnalyzer:
                     or price_period_start_hour == second_comfort_range.stop
                 )
             ):  # Store as comfort hour
-                comfort_hours[
-                    hour_price["value"] + 0.000001 * len(comfort_hours)
-                ] = price_period_start_hour
+                comfort_hours[hour_price["value"] + 0.000001 * len(comfort_hours)] = (
+                    price_period_start_hour
+                )
 
             self.process_preheat_favourable_hour(
                 previous_hour_price, hour_price["value"], price_period_start_hour - 1
@@ -584,12 +584,13 @@ class TemperatureProvider:
 
 
 class SensiboController:
-    def __init__(self, client, uid, verbose):
+    def __init__(self, client, uid, verbose, max_temp):
         self._verbose = verbose
         self._client = client
         self._uid = uid
         self._skip_ahead = True
         self._current_settings = {}
+        self._max_temp = max_temp
 
     def last_requested_setting(self, setting):
         if setting in self._current_settings:
@@ -604,6 +605,11 @@ class SensiboController:
             adjusted_settings["targetTemperature"] = int(
                 adjusted_settings["targetTemperature"] + temp_offset
             )
+            if (
+                self._max_temp is not None
+                and adjusted_settings["targetTemperature"] > self._max_temp
+            ):
+                adjusted_settings["targetTemperature"] = self._max_temp
         if self._verbose:
             print(f"Applying: {adjusted_settings}")
         if (
@@ -728,13 +734,14 @@ class HeatpumpModel:
 
 
 class SensiboOptimizer:
-    def __init__(self, verbose, heatpump_model):
+    def __init__(self, verbose, heatpump_model, max_temp):
         self.verbose = verbose
         self._controller = None
         self._temperature_provider = None
         self._price_analyzer = None
         self._step_1_overtemperature_distribution_active = False
         self._heatpump_model = heatpump_model
+        self._max_temp = max_temp
         program_start_time = datetime.today()
         self._prev_midnight = datetime(
             program_start_time.year,
@@ -1055,9 +1062,9 @@ class SensiboOptimizer:
                 pause_setting["targetTemperature"]
                 > MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
             ):
-                pause_setting[
-                    "targetTemperature"
-                ] = MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+                pause_setting["targetTemperature"] = (
+                    MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE
+                )
 
         if pause_setting["targetTemperature"] <= IDLE_SETTINGS["targetTemperature"]:
             self._controller.apply(IDLE_SETTINGS, valid_hour=current_hour)
@@ -1225,7 +1232,7 @@ class SensiboOptimizer:
             sys.exit(0)
 
         uid = devices[device_name]
-        self._controller = SensiboController(client, uid, self.verbose)
+        self._controller = SensiboController(client, uid, self.verbose, self._max_temp)
         self._temperature_provider = TemperatureProvider(self._controller, self.verbose)
         self._price_analyzer = PriceAnalyzer(
             self._temperature_provider, self._heatpump_model
@@ -1265,12 +1272,14 @@ class SensiboOptimizer:
                     WORKDAY_MORNING["comfort_until_hour"],
                 )
                 if optimizing_a_workday
-                else range(
-                    WORKDAY_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
-                )
-                if optimizing_a_schoolday
-                else range(
-                    DAYOFF_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
+                else (
+                    range(
+                        WORKDAY_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
+                    )
+                    if optimizing_a_schoolday
+                    else range(
+                        DAYOFF_MORNING["comfort_by_hour"], WEEKEND_COMFORT_UNTIL_HOUR
+                    )
                 )
             )
             comfort_second_range = (
@@ -1363,6 +1372,9 @@ if __name__ == "__main__":
         "-d", "--device", type=str, default=None, required=False, dest="deviceName"
     )
     parser.add_argument(
+        "-m", "--max-temp", type=int, default=None, required=False, dest="maxTemp"
+    )
+    parser.add_argument(
         "-e",
         "--extra-at-home-override-until-end-of",
         type=str,
@@ -1381,7 +1393,7 @@ if __name__ == "__main__":
         action="store_true",
     )
     args = parser.parse_args()
-    optimizer = SensiboOptimizer(args.verbose, HeatpumpModel())
+    optimizer = SensiboOptimizer(args.verbose, HeatpumpModel(), args.maxTemp)
 
     while True:
         try:
