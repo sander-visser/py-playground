@@ -486,7 +486,7 @@ def add_scorebased_wanted_temperature(
 
 def get_wanted_temp_boost(local_hour, weekday, today_cost):
     wanted_temp_boost = 0
-    if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour <= DAILY_COMFORT_LAST_H:
+    if weekday in WEEKDAYS_WITH_EXTRA_TAKEOUT and local_hour < DAILY_COMFORT_LAST_H:
         wanted_temp_boost += 5
 
     if (
@@ -495,7 +495,7 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
     ):
         wanted_temp_boost += 5
 
-    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
+    if MAX_HOURS_NEEDED_TO_HEAT <= local_hour < DAILY_COMFORT_LAST_H:
         if today_cost[local_hour] < HIGH_PRICE_THRESHOLD:
             wanted_temp_boost += 5  # Slightly raise hot water takeout capacity
         if local_hour < 23 and today_cost[local_hour] < today_cost[local_hour + 1]:
@@ -517,7 +517,7 @@ def get_wanted_temp(
 
     if alarm_status is None or not alarm_status.is_fully_armed():
         wanted_temp += get_wanted_temp_boost(local_hour, weekday, today_cost)
-    elif MAX_HOURS_NEEDED_TO_HEAT <= local_hour <= DAILY_COMFORT_LAST_H:
+    elif MAX_HOURS_NEEDED_TO_HEAT <= local_hour < DAILY_COMFORT_LAST_H:
         if is_now_cheapest_remaining_during_comfort(today_cost, local_hour):
             wanted_temp += (
                 1 + (DAILY_COMFORT_LAST_H - local_hour)
