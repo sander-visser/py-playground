@@ -10,7 +10,7 @@ import datetime
 import sys
 import pytz
 import requests
-import tibber
+import tibber  # pip install pyTibber
 
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
 EASEE_API_ACCESS_TOKEN = ""
