@@ -38,7 +38,10 @@ def get_hourly_energy_json(api_header, charger_id, from_date, to_date):
 
 async def start():
     tibber_connection = tibber.Tibber(
-        TIBBER_API_ACCESS_TOKEN, user_agent="tibber_easee_peak_power", ssl=False, time_zone=datetime.timezone.utc
+        TIBBER_API_ACCESS_TOKEN,
+        user_agent="tibber_easee_peak_power",
+        ssl=False,
+        time_zone=datetime.timezone.utc,
     )
     await tibber_connection.update_info()
     print(f"Scanning home of {tibber_connection.name}")
@@ -64,7 +67,7 @@ async def start():
     utc_to = str(local_dt_to.astimezone(pytz.utc))
     zulu_to = utc_to.replace("+00:00", "Z")
 
-    print(f"Scanning peak power from {zulu_from} to {zulu_to}")
+    print(f"Scanning peak power from {zulu_from} ({local_dt_from}) to {zulu_to}")
 
     charger_consumption = get_hourly_energy_json(
         api_header,
@@ -72,28 +75,42 @@ async def start():
         zulu_from,
         zulu_to,
     )
-    power_map = dict()
+    power_hour_samples = []
+    power_hour_sum = []
+    for hour in range(24):
+        power_hour_samples.append(0)
+        power_hour_sum.append(0)
+    power_map = {}
     for power_sample in home.hourly_consumption_data:
-        curr_time = str(
+        curr_time = datetime.datetime.fromisoformat(power_sample["from"])
+        curr_time_utc_str = str(
             datetime.datetime.fromisoformat(power_sample["from"]).astimezone(pytz.utc)
         ).replace(" ", "T")
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
-        # print(f"Analyzing {curr_time} with power {curr_power}")
+        # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         for easee_power_sample in charger_consumption:
-            if easee_power_sample["date"] == curr_time:
+            if easee_power_sample["date"] == curr_time_utc_str:
                 curr_power -= easee_power_sample["consumption"]
                 # if easee_power_sample['consumption'] > 0:
                 #    print(f"power excl easee: {curr_power}")
                 break
-        while curr_power in power_map:
-            curr_power -= 0.000001
-        power_map[curr_power] = curr_time
+
+        power_map.setdefault(curr_power, []).append(curr_time)
+        power_hour_samples[curr_time.hour] += 1
+        power_hour_sum[curr_time.hour] += curr_power
 
     for peak_pwr in sorted(power_map, reverse=True)[0:10]:
+        time_str = ""
+        for date in power_map[peak_pwr]:
+            time_str.join(f" {date}")
+        print(f"Found power peak {peak_pwr:.3f} kWh/h to have occured at{time_str}")
+
+    print("Average power excl Easee EV charging")
+    for hour in range(24):
         print(
-            f"Found power peak {peak_pwr:.3f} kWh/h to have occured at {power_map[peak_pwr]}"
+            f"{hour:2}-{(hour+1):2}: {(power_hour_sum[hour]/power_hour_samples[hour]):.3f} kW"
         )
 
     await tibber_connection.close_connection()
