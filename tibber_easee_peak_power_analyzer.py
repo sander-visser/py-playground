@@ -75,6 +75,8 @@ async def start():
         zulu_from,
         zulu_to,
     )
+    power_peak_incl_ev = {}
+    power_peak_incl_ev_time = {}
     power_hour_samples = []
     power_hour_sum = []
     for hour in range(24):
@@ -89,6 +91,12 @@ async def start():
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
+        if (
+            curr_time.month not in power_peak_incl_ev
+            or curr_power > power_peak_incl_ev[curr_time.month]
+        ):
+            power_peak_incl_ev[curr_time.month] = curr_power
+            power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         for easee_power_sample in charger_consumption:
             if easee_power_sample["date"] == curr_time_utc_str:
@@ -100,6 +108,11 @@ async def start():
         power_map.setdefault(curr_power, []).append(f" {curr_time}")
         power_hour_samples[curr_time.hour] += 1
         power_hour_sum[curr_time.hour] += curr_power
+
+    for peak_month, peak_month_pwr in power_peak_incl_ev.items():
+        print(
+            f"Peak power incl EV: {peak_month_pwr:3f} at {power_peak_incl_ev_time[peak_month]}"
+        )
 
     for peak_pwr in sorted(power_map, reverse=True)[0:10]:
         time_str = "".join(power_map[peak_pwr])
