@@ -67,7 +67,7 @@ async def start():
     utc_to = str(local_dt_to.astimezone(pytz.utc))
     zulu_to = utc_to.replace("+00:00", "Z")
 
-    print(f"Scanning peak power from {zulu_from} ({local_dt_from}) to {zulu_to}")
+    print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
 
     charger_consumption = get_hourly_energy_json(
         api_header,
@@ -97,14 +97,12 @@ async def start():
                 #    print(f"power excl easee: {curr_power}")
                 break
 
-        power_map.setdefault(curr_power, []).append(curr_time)
+        power_map.setdefault(curr_power, []).append(f" {curr_time}")
         power_hour_samples[curr_time.hour] += 1
         power_hour_sum[curr_time.hour] += curr_power
 
     for peak_pwr in sorted(power_map, reverse=True)[0:10]:
-        time_str = ""
-        for date in power_map[peak_pwr]:
-            time_str.join(f" {date}")
+        time_str = "".join(power_map[peak_pwr])
         print(f"Found power peak {peak_pwr:.3f} kWh/h to have occured at{time_str}")
 
     print("Average power excl Easee EV charging")
