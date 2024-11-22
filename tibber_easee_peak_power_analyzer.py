@@ -19,8 +19,8 @@ EASEE_CHARGER_ID = "EHVZ2792"
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
-# token from https://developer.tibber.com/explorer
-TIBBER_API_ACCESS_TOKEN = ""
+# Get personal token from https://developer.tibber.com/settings/access-token
+TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 
 
 def get_hourly_energy_json(api_header, charger_id, from_date, to_date):
