@@ -12,18 +12,23 @@ import sys
 import pytz
 import requests
 import tibber  # pip install pyTibber
+from nordpool import elspot  # pip install nordpool
 
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
+# Note: Easee access token expires after a few hours
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
+NORDPOOL_PRICE_CODE = "SEK"
+NORDPOOL_REGION = "SE3"
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
+HTTP_UNAUTHORIZED_CODE = 401
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 
 
-def get_hourly_energy_json(api_header, charger_id, from_date, to_date):
+def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
     hourly_energy_url = (
         f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/hourly?"
         + f"from={from_date}&to={to_date}"
@@ -32,7 +37,10 @@ def get_hourly_energy_json(api_header, charger_id, from_date, to_date):
         hourly_energy_url, headers=api_header, timeout=API_TIMEOUT
     )
     if hourly_energy.status_code != HTTP_SUCCESS_CODE:
-        print(f"Error: {hourly_energy.text}")
+        if hourly_energy.status_code == HTTP_UNAUTHORIZED_CODE:
+            print("Error: Easee access token expired...")
+        else:
+            print(f"{hourly_energy.status_code} Error: {hourly_energy.text}")
         sys.exit(1)
     return hourly_energy.json()
 
@@ -68,7 +76,7 @@ async def start():
     charger_consumption = (
         None
         if EASEE_API_ACCESS_TOKEN is None
-        else get_hourly_energy_json(
+        else get_easee_hourly_energy_json(
             {
                 "accept": "application/json",
                 "Authorization": "Bearer " + EASEE_API_ACCESS_TOKEN,
@@ -78,15 +86,25 @@ async def start():
             zulu_to,
         )
     )
+    spot_price = elspot.Prices(NORDPOOL_PRICE_CODE)
+    day_prices = None
+    day_prices_date = None
     power_peak_incl_ev = {}
     power_peak_incl_ev_time = {}
     power_hour_samples = {}
     power_map = {}
+    ev_cost = 0.0
+    ev_energy = 0.0
+    other_cost = 0.0
+    other_energy = 0.0
     for power_sample in home.hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
-        curr_time_utc_str = str(
-            datetime.datetime.fromisoformat(power_sample["from"]).astimezone(pytz.utc)
-        ).replace(" ", "T")
+        if curr_time.date() != day_prices_date:
+            day_prices_date = curr_time.date()
+            day_prices = spot_price.hourly(
+                end_date=day_prices_date, areas=[NORDPOOL_REGION]
+            )["areas"][NORDPOOL_REGION]["values"]
+        curr_time_utc_str = str(curr_time.astimezone(pytz.utc)).replace(" ", "T")
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
@@ -97,10 +115,18 @@ async def start():
             power_peak_incl_ev[curr_time.month] = curr_power
             power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
+        curr_hour_price = None
+        for hour_price in day_prices:
+            if hour_price["start"] == curr_time.astimezone(pytz.utc):
+                curr_hour_price = hour_price["value"]
+                break
+
         if charger_consumption is not None:
             for easee_power_sample in charger_consumption:
                 if easee_power_sample["date"] == curr_time_utc_str:
                     curr_power -= easee_power_sample["consumption"]
+                    ev_energy += easee_power_sample["consumption"]
+                    ev_cost += curr_hour_price * easee_power_sample["consumption"]
                     # if easee_power_sample['consumption'] > 0:
                     #    print(f"power excl easee: {curr_power}")
                     break
@@ -108,14 +134,23 @@ async def start():
         power_map.setdefault(curr_power, []).append(f" {curr_time}")
         power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
 
+        other_cost += curr_power * curr_hour_price
+        other_energy += curr_power
+
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
-            f"Peak power incl EV: {peak_month_pwr:3f} at {power_peak_incl_ev_time[peak_month]}"
+            f"Month peak power incl EV: {peak_month_pwr:3f} at {power_peak_incl_ev_time[peak_month]}"
         )
 
+    print(
+        f"Energy used {other_energy:.3f} kWh at total cost of {(other_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+    )
     if charger_consumption is None:
         print("Top ten peak power hours:")
     else:
+        print(
+            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {(ev_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+        )
         print("Top ten peak power hours with EV charging excluded:")
 
     for peak_pwr in sorted(power_map, reverse=True)[0:10]:
