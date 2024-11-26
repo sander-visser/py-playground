@@ -20,8 +20,8 @@ EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
 # Note: Earliest allowed by nortpool API is datetime.date.fromisoformat("2024-09-25")
-NORDPOOL_REGION = "SE3"  # Set to None to skip pricing calc
-START_DATE = None  # None for one month back. datetime.date.fromisoformat("2024-11-01")
+NORDPOOL_REGION = "SE3"  # Set to None to skip pricing calculation
+START_DATE = None  # datetime.date.fromisoformat("2024-11-01") # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -31,7 +31,6 @@ TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo 
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
-    print(f"getting until {to_date}")
     hourly_energy_url = (
         f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/hourly?"
         + f"from={from_date}&to={to_date}"
