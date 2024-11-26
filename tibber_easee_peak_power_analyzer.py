@@ -19,7 +19,9 @@ from nordpool import elspot  # pip install nordpool
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-NORDPOOL_REGION = "SE3"
+# Note: Earliest allowed by nortpool API is datetime.date.fromisoformat("2024-09-25")
+NORDPOOL_REGION = "SE3"  # Set to None to skip pricing calc
+START_DATE = None  # None for one month back. datetime.date.fromisoformat("2024-11-01")
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -29,6 +31,7 @@ TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo 
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
+    print(f"getting until {to_date}")
     hourly_energy_url = (
         f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/hourly?"
         + f"from={from_date}&to={to_date}"
@@ -56,20 +59,24 @@ async def start():
     print(f"Scanning home of {tibber_connection.name}")
 
     home = tibber_connection.get_homes()[0]
-    await home.fetch_consumption_data()
+    hourly_consumption_data = None
+    if START_DATE is not None:
+        hours_in_month = 31 * 24
+        hourly_consumption_data = await home.get_historic_data_date(
+            START_DATE, hours_in_month
+        )
+    else:
+        await home.fetch_consumption_data()
+        hourly_consumption_data = home.hourly_consumption_data
 
-    local_dt_from = datetime.datetime.fromisoformat(
-        home.hourly_consumption_data[0]["from"]
-    )
+    local_dt_from = datetime.datetime.fromisoformat(hourly_consumption_data[0]["from"])
 
-    local_dt_to = datetime.datetime.fromisoformat(
-        home.hourly_consumption_data[-1]["from"]
-    )
+    local_dt_to = datetime.datetime.fromisoformat(hourly_consumption_data[-1]["from"])
 
     utc_from = str(local_dt_from.astimezone(pytz.utc))
     zulu_from = utc_from.replace("+00:00", "Z")
-    utc_to = str(local_dt_to.astimezone(pytz.utc))
-    zulu_to = utc_to.replace("+00:00", "Z")
+    utc_to_incl = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=1))
+    zulu_to_incl = utc_to_incl.replace("+00:00", "Z")
 
     print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
 
@@ -83,11 +90,11 @@ async def start():
             },
             EASEE_CHARGER_ID,
             zulu_from,
-            zulu_to,
+            zulu_to_incl,
         )
     )
     spot_price = elspot.Prices(NORDPOOL_PRICE_CODE)
-    day_prices = None
+    day_prices = []
     day_prices_date = None
     power_peak_incl_ev = {}
     power_peak_incl_ev_time = {}
@@ -97,9 +104,9 @@ async def start():
     ev_energy = 0.0
     other_cost = 0.0
     other_energy = 0.0
-    for power_sample in home.hourly_consumption_data:
+    for power_sample in hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
-        if curr_time.date() != day_prices_date:
+        if NORDPOOL_REGION is not None and curr_time.date() != day_prices_date:
             day_prices_date = curr_time.date()
             day_prices = spot_price.hourly(
                 end_date=day_prices_date, areas=[NORDPOOL_REGION]
@@ -115,7 +122,7 @@ async def start():
             power_peak_incl_ev[curr_time.month] = curr_power
             power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
-        curr_hour_price = None
+        curr_hour_price = 0.0
         for hour_price in day_prices:
             if hour_price["start"] == curr_time.astimezone(pytz.utc):
                 curr_hour_price = hour_price["value"]
