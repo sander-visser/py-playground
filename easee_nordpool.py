@@ -149,14 +149,8 @@ class EaseeCostAnalyzer:
         for hour_data in self.get_hourly_energy_json(
             charger_id, date_range[0], date_range[1]
         ):
-            py36compat_date = hour_data["date"]
-            if py36compat_date.rindex(":") > py36compat_date.rindex("+"):
-                py36compat_date = (
-                    py36compat_date[0 : py36compat_date.rindex(":")]
-                    + py36compat_date[py36compat_date.rindex(":") + 1 :]
-                )
             curr_zulu_date = datetime.datetime.strptime(
-                py36compat_date, "%Y-%m-%dT%H:%M:%S%z"
+                hour_data["date"], "%Y-%m-%dT%H:%M:%S%z"
             )
             curr_date = curr_zulu_date.astimezone(
                 datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
@@ -213,7 +207,7 @@ class EaseeCostAnalyzer:
                     peak_kwh_per_hour = hour_data["consumption"]
                 if (
                     cost_settings.pwr_fee_peak_hour is not None
-                    and py36compat_date == cost_settings.pwr_fee_peak_hour
+                    and curr_date == cost_settings.pwr_fee_peak_hour
                 ):
                     peak_contribution = hour_data["consumption"]
 
