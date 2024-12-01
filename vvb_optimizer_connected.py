@@ -30,9 +30,12 @@ check referral.link in repo
 # mip.install("requests")
 # mip.install("datetime")
 
+
+import asyncio
 import sys
 import time
 import gc
+import io
 from datetime import date, timedelta
 from machine import Pin, PWM
 import rp2
@@ -49,7 +52,7 @@ NORDPOOL_REGION = "SE3"
 NTP_HOST = "se.pool.ntp.org"
 SEC_PER_MIN = 60
 EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
-OVERRIDE_UTC_UNIX_TIMESTAMP = None  # Simulate script behaviour from (0==auto)
+OVERRIDE_UTC_UNIX_TIMESTAMP = None  # -3600 to Simulate script behaviour from 1h ago
 MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 2.5  # Utilize leakage unless heatpump will be cheaper
@@ -92,6 +95,20 @@ PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
 PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_25_DEGREES) / 53
 ROTATION_SECONDS = 2
 
+last_log = []
+
+
+def log_print(*args, **kwargs):
+    global last_log
+
+    log_str = io.StringIO()
+    print("".join(map(str, args)), file=log_str, **kwargs)
+    last_log.append(log_str.getvalue())
+    if len(last_log) > 125:
+        last_log.pop(0)
+    print(f"   {log_str.getvalue().rstrip()}")
+    gc.collect()
+
 
 class SimpleTemperatureProvider:
     def __init__(self):
@@ -104,12 +121,12 @@ class SimpleTemperatureProvider:
                 try:
                     self.outdoor_temperature = float(outdoor_temperature_req.text)
                 except ValueError:
-                    print(
+                    log_print(
                         f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}"
                     )
         except OSError as req_err:
             if req_err.args[0] == 110:  # ETIMEDOUT
-                print("Ignoring temperature read timeout")
+                log_print("Ignoring temperature read timeout")
             else:
                 raise req_err
         return self.outdoor_temperature
@@ -118,6 +135,7 @@ class SimpleTemperatureProvider:
 class TimeProvider:
     def __init__(self):
         ntptime.host = NTP_HOST
+        self.last_sync_time = time.time()
         self.current_utc_time = (
             time.time() + OVERRIDE_UTC_UNIX_TIMESTAMP
             if (OVERRIDE_UTC_UNIX_TIMESTAMP is not None)
@@ -129,7 +147,9 @@ class TimeProvider:
         if OVERRIDE_UTC_UNIX_TIMESTAMP is not None:
             self.current_utc_time += 3600
         else:
-            self.sync_utc_time()  # Sync time once per hour
+            if (time.time() - self.last_sync_time) > (12 * 3600):
+                self.sync_utc_time()  # Attempt sync time twice per day
+                self.last_sync_time = time.time()
 
     def get_utc_unix_timestamp(self):
         return time.time() if self.current_utc_time is None else self.current_utc_time
@@ -139,12 +159,12 @@ class TimeProvider:
         max_wait = MAX_NETWORK_ATTEMPTS
         while max_wait > 0:
             try:
-                print(f"Local time before NTP sync：{time.localtime()}")
+                log_print(f"Local time before NTP sync：{time.localtime()}")
                 ntptime.settime()
-                print(f"UTC   time after  NTP sync：{time.localtime()}")
+                log_print(f"UTC   time after  NTP sync：{time.localtime()}")
                 break
             except Exception as excep:
-                print(f"Time sync error: {excep}")
+                log_print(f"Time sync error: {excep}")
                 time.sleep(1)
                 max_wait -= 1
 
@@ -187,11 +207,11 @@ class Thermostat:
             self.pwm.duty_u16(0)
 
     def nudge_down(self):
-        # print("Nudging down")
+        # log_print("Nudging down")
         self.nudge(-5)
 
     def nudge_up(self):
-        # print("Nudging up")
+        # log_print("Nudging up")
         self.nudge(5)
 
 
@@ -207,18 +227,18 @@ def setup_wifi():
         if wlan.status() < 0 or wlan.status() >= 3:
             break
         max_wait -= 1
-        print("waiting for connection...")
+        log_print("waiting for connection...")
         time.sleep(1)
 
     if wlan.status() != 3:  # Handle connection error
         for wlans in wlan.scan():
-            print(f"Seeing SSID {wlans[0]} with rssi {wlans[3]}")
+            log_print(f"Seeing SSID {wlans[0]} with rssi {wlans[3]}")
         raise RuntimeError("network connection failed")
 
-    print(f"Connected with rssi {wlan.status('rssi')} and IP {wlan.ifconfig()[0]}")
+    log_print(f"Connected with rssi {wlan.status('rssi')} and IP {wlan.ifconfig()[0]}")
 
 
-def get_cost(end_date):
+async def get_cost(end_date):
     if not isinstance(end_date, date):
         raise RuntimeError("Error not a date")
     two_digit_month = f"{end_date.month}"
@@ -258,7 +278,7 @@ def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_
         for tomorrow_hour_price in tomorrow_cost:
             max_price = max(max_price, tomorrow_hour_price)
     if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or max_price > (min_price * COP_FACTOR):
-        print(f"Extra heating due to COP? now: {now_price}. min: {min_price}")
+        log_print(f"Extra heating due to COP? now: {now_price}. min: {min_price}")
         return now_price <= (min_price + ACCEPTABLE_PRICING_ERROR)
     return False
 
@@ -350,7 +370,7 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
 
     if now_price <= sorted(cheap_hours)[NORMAL_HOURS_NEEDED_TO_HEAT - 1]:
         if delay_msg is not None:
-            print(delay_msg)
+            log_print(delay_msg)
         # Secure correct score inside boost period (with late peak favored)
         min_score = 1
         for cheap_price_route in cheap_hours:
@@ -370,7 +390,9 @@ def get_cheap_score_until(now_hour, until_hour, today_cost):
     if now_hour > until_hour:
         score = 0
 
-    print(f"Score for {now_hour}:00 - {now_hour}:59 is {score} (until {until_hour}:00)")
+    log_print(
+        f"Score for {now_hour}:00 - {now_hour}:59 is {score} (until {until_hour}:00)"
+    )
     return max(score, 0)
 
 
@@ -511,7 +533,7 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
 def get_wanted_temp(
     local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_status
 ):
-    print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
+    log_print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
 
     wanted_temp = MIN_TEMP
 
@@ -565,18 +587,18 @@ def get_local_date_and_hour(utc_unix_timestamp):
     return (adjusted_day, now[3])
 
 
-def delay_minor_temp_increase(wanted_temp, thermostat):
+async def delay_minor_temp_increase(wanted_temp, thermostat):
     diff_temp = wanted_temp - thermostat.prev_degrees
     if 0 < diff_temp < DEGREES_PER_H:
         temp_raise_delay = (45 * SEC_PER_MIN) - (
             (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
         )
-        # print(f"Delaying temp increase with {temp_raise_delay}s")
+        log_print(f"Delaying temp increase with {temp_raise_delay}s")
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            time.sleep(temp_raise_delay)
+            await asyncio.sleep(temp_raise_delay)
 
 
-def run_hotwater_optimization(thermostat, alarm_status):
+async def run_hotwater_optimization(thermostat, alarm_status):
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
 
@@ -588,6 +610,7 @@ def run_hotwater_optimization(thermostat, alarm_status):
     temperature_provider = SimpleTemperatureProvider()
 
     while True:
+        await asyncio.sleep(0.1)
         new_today, local_hour = get_local_date_and_hour(
             time_provider.get_utc_unix_timestamp()
         )
@@ -597,14 +620,14 @@ def run_hotwater_optimization(thermostat, alarm_status):
                 days_since_legionella = 0
                 pending_legionella_reset = False
             days_since_legionella += 1
-            today_cost = get_cost(today)
+            today_cost = await get_cost(today)
             if today_cost is None:
                 raise RuntimeError("Optimization not possible")
             tomorrow_cost = None
         if tomorrow_cost is None and local_hour >= NEW_PRICE_EXPECTED_HOUR:
-            tomorrow_cost = get_cost(today + timedelta(days=1))
+            tomorrow_cost = await get_cost(today + timedelta(days=1))
 
-        print(
+        log_print(
             f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00"
         )
         outside_temp = temperature_provider.get_outdoor_temp()
@@ -620,20 +643,24 @@ def run_hotwater_optimization(thermostat, alarm_status):
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP)
-        print(f"{local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}")
+        log_print(
+            f"-- {local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}"
+        )
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
 
         if local_hour != NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
-            delay_minor_temp_increase(wanted_temp, thermostat)
+            await delay_minor_temp_increase(wanted_temp, thermostat)
 
         thermostat.set_thermosat(wanted_temp)
         curr_min = time.localtime()[4]
         if curr_min < 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
-                time.sleep(5 * SEC_PER_MIN)  # Retry price fetching
+                await asyncio.sleep(5 * SEC_PER_MIN)  # Retry price fetching
                 continue
-            time.sleep((50 - curr_min) * SEC_PER_MIN)  # Sleep slightly before next hour
+            await asyncio.sleep(
+                (50 - curr_min) * SEC_PER_MIN
+            )  # Sleep slightly before next hour
         if local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             next_hour_wanted_temp = get_wanted_temp(
                 local_hour + 1,
@@ -656,47 +683,95 @@ def run_hotwater_optimization(thermostat, alarm_status):
 
         time_provider.hourly_timekeeping()
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            time.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
+            await asyncio.sleep(12 * SEC_PER_MIN)  # Sleep slightly into next hour
 
 
-if __name__ == "__main__":
+async def handle_client(reader, writer):
+    global last_log
+
+    log_print("Client connected")
+    request_line = await reader.readline()
+
+    # Skip HTTP request headers
+    while await reader.readline() != b"\r\n":
+        pass
+
+    request = str(request_line, "utf-8").split()[1]
+    log_print("Request:", request)
+
+    writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
+    log_cpy = last_log.copy()
+    for log_row in log_cpy:
+        writer.write(log_row)
+        writer.write("<br>")
+    await writer.drain()
+    await writer.wait_closed()
+    log_print("Client Disconnected")
+
+
+async def main():
     if "Pico W" in sys.implementation._machine:
-        THERMOSTAT = Thermostat()
-        print("Running...")
-        THERMOSTAT.set_thermosat(MIN_NUDGABLE_TEMP)
-        ATTEMTS_REMAING_BEFORE_RESET = MAX_NETWORK_ATTEMPTS
-        while ATTEMTS_REMAING_BEFORE_RESET > 0:
+        thermostat = Thermostat()
+        thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
+        attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
+        while attemts_remaing_before_reset > 0:
             try:
+                log_print("Setting up wifi")
                 setup_wifi()
                 break
-            except Exception as EXCEPT:
-                print("Delaying due to exception...")
-                print(EXCEPT)
-                sleep(30)
-                ATTEMTS_REMAING_BEFORE_RESET -= 1
+            except Exception as setup_e:
+                log_print("Delaying due to exception...")
+                log_print(setup_e)
+                time.sleep(30)
+                attemts_remaing_before_reset -= 1
 
-        ALARM_STATUS = None
+        alarm_status = None
         try:
             import usector_alarm_status
         except ImportError:
             pass
         else:
-            ALARM_STATUS = usector_alarm_status.AlarmStatusProvider()
+            alarm_status = usector_alarm_status.AlarmStatusProvider()
 
         if machine.reset_cause() == machine.PWRON_RESET:
-            print("Boosting...")
-            THERMOSTAT.set_thermosat(MIN_LEGIONELLA_TEMP)
+            log_print("Boosting...")
+            thermostat.set_thermosat(MIN_LEGIONELLA_TEMP)
             time.sleep(EXTRA_HOT_DURATION_S)
 
-        while ATTEMTS_REMAING_BEFORE_RESET > 0:
+        server = asyncio.start_server(handle_client, "0.0.0.0", 80)
+        tasks = [server, run_hotwater_optimization(thermostat, alarm_status)]
+
+        while attemts_remaing_before_reset > 0:
             try:
-                run_hotwater_optimization(THERMOSTAT, ALARM_STATUS)
-            except Exception as EXCEPT:
-                print("Delaying due to exception...")
-                print(EXCEPT)
-                WLAN = network.WLAN(network.STA_IF)
-                print(f"rssi = {WLAN.status('rssi')}")
-                time.sleep(300)
+                await asyncio.gather(*tasks, return_exceptions=False)
+                log_print("Unexpected success termination...")
+                await asyncio.sleep(60)
+                machine.reset()
+            except Exception as e:
+                log_print(
+                    f"Delaying due to exception... {attemts_remaing_before_reset}"
+                )
+                log_print(e)
+                wlan = network.WLAN(network.STA_IF)
+                log_print(f"rssi = {wlan.status('rssi')}")
+                tasks.pop(1)
+                tasks.append(run_hotwater_optimization(thermostat, alarm_status))
+                log_print("Starting fresh optimization")
+                await asyncio.sleep(30)
                 setup_wifi()
-                ATTEMTS_REMAING_BEFORE_RESET -= 1
+                attemts_remaing_before_reset -= 1
         machine.reset()
+
+
+if __name__ == "__main__":
+    # Create an Event Loop
+    ev_loop = asyncio.get_event_loop()
+    # Create a task to run the main function
+    ev_loop.create_task(main())
+
+    try:
+        ev_loop.run_forever()
+    except Exception as e:
+        log_print("Error occured: ", e)
+    except KeyboardInterrupt:
+        log_print("Program Interrupted by the user")
