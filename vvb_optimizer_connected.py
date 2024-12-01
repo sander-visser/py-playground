@@ -95,8 +95,6 @@ PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
 PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_25_DEGREES) / 53
 ROTATION_SECONDS = 2
 
-last_log = []
-
 
 def log_print(*args, **kwargs):
     global last_log
@@ -598,7 +596,7 @@ async def delay_minor_temp_increase(wanted_temp, thermostat):
             await asyncio.sleep(temp_raise_delay)
 
 
-async def run_hotwater_optimization(thermostat, alarm_status):
+async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
 
@@ -608,6 +606,11 @@ async def run_hotwater_optimization(thermostat, alarm_status):
     days_since_legionella = 0
     pending_legionella_reset = False
     temperature_provider = SimpleTemperatureProvider()
+    
+    if boost_req:
+        log_print("Boosting...")
+        thermostat.set_thermosat(MIN_LEGIONELLA_TEMP)
+        await asyncio.sleep(EXTRA_HOT_DURATION_S)
 
     while True:
         await asyncio.sleep(0.1)
@@ -698,6 +701,14 @@ async def handle_client(reader, writer):
 
     request = str(request_line, "utf-8").split()[1]
     log_print("Request:", request)
+    
+    try:
+        override_temp = float(request[1:])
+        log_print(f"Overriding thermostat until next schedule point {override_temp}")
+        shared_thermostat.set_thermosat(override_temp)
+    except ValueError:
+        log_print("Failed to parse target temp req as float")
+        
 
     writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
     log_cpy = last_log.copy()
@@ -711,7 +722,7 @@ async def handle_client(reader, writer):
 
 async def main():
     if "Pico W" in sys.implementation._machine:
-        thermostat = Thermostat()
+        thermostat = shared_thermostat
         thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
         attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
         while attemts_remaing_before_reset > 0:
@@ -733,20 +744,17 @@ async def main():
         else:
             alarm_status = usector_alarm_status.AlarmStatusProvider()
 
-        if machine.reset_cause() == machine.PWRON_RESET:
-            log_print("Boosting...")
-            thermostat.set_thermosat(MIN_LEGIONELLA_TEMP)
-            time.sleep(EXTRA_HOT_DURATION_S)
-
         server = asyncio.start_server(handle_client, "0.0.0.0", 80)
-        tasks = [server, run_hotwater_optimization(thermostat, alarm_status)]
+        tasks = [server]
+        boost_req = machine.reset_cause() == machine.PWRON_RESET
 
         while attemts_remaing_before_reset > 0:
+            tasks.append(run_hotwater_optimization(thermostat, alarm_status, boost_req))
+            boost_req = False
             try:
                 await asyncio.gather(*tasks, return_exceptions=False)
                 log_print("Unexpected success termination...")
-                await asyncio.sleep(60)
-                machine.reset()
+                break
             except Exception as e:
                 log_print(
                     f"Delaying due to exception... {attemts_remaing_before_reset}"
@@ -755,12 +763,17 @@ async def main():
                 wlan = network.WLAN(network.STA_IF)
                 log_print(f"rssi = {wlan.status('rssi')}")
                 tasks.pop(1)
-                tasks.append(run_hotwater_optimization(thermostat, alarm_status))
                 log_print("Starting fresh optimization")
                 await asyncio.sleep(30)
                 setup_wifi()
                 attemts_remaing_before_reset -= 1
+        log_print("Resetting to recover")
+        await asyncio.sleep(10)            
         machine.reset()
+
+# Globals
+last_log = []
+shared_thermostat = Thermostat()
 
 
 if __name__ == "__main__":
