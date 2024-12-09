@@ -494,6 +494,7 @@ def add_scorebased_wanted_temperature(
     ):
         score_based_heating += 1  # Extra boost since heat leakage is valuable
         max_score += 1
+        max_temp_limit = MAX_TEMP
 
     overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - max_temp_limit
     wanted_temp += score_based_heating * DEGREES_PER_H
