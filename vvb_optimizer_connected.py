@@ -66,6 +66,7 @@ MAX_HOURS_NEEDED_TO_HEAT = (
 )
 NORMAL_HOURS_NEEDED_TO_HEAT = MAX_HOURS_NEEDED_TO_HEAT - 1
 NUM_MOST_EXPENSIVE_HOURS = 3  # Avoid heating
+AMBIENT_TEMP = 20
 DEGREES_PER_H = 9.4  # Nibe 300-CU ER56-CU 275L with 3kW
 HEATER_KW = 3
 HEAT_LOSS_PER_DAY_KWH = 2.8  # Leakage when not at home
@@ -407,12 +408,30 @@ def get_cheap_score_relative_future(this_hour_cost, future_cost):
 
 
 def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
-    min_price = today_cost[scan_from]
+    extra_kwh_loss_per_hour_to_pre_heat = (
+        (DEGREES_PER_H + MIN_DAILY_TEMP - AMBIENT_TEMP)
+        / (MIN_DAILY_TEMP - AMBIENT_TEMP)
+        - 1
+    ) * (HEAT_LOSS_PER_DAY_KWH / 24)
+    min_compensated_price = today_cost[scan_from] * (
+        1 + (test_hour - scan_from) * extra_kwh_loss_per_hour_to_pre_heat
+    )
+
     for i in range(scan_from + 1, scan_to):
-        # Check if only slightly more expensive later
-        if today_cost[i] <= (min_price + ACCEPTABLE_PRICING_ERROR):
-            min_price = min(min_price, today_cost[i])
-            if i > test_hour:
+        if i <= test_hour:
+            compensated_price = today_cost[i] * (
+                1 + (test_hour - i) * extra_kwh_loss_per_hour_to_pre_heat
+            )
+            if compensated_price <= min_compensated_price:
+                min_compensated_price = compensated_price
+        else:
+            compensated_price = today_cost[i] * (
+                1 - (i - test_hour) * extra_kwh_loss_per_hour_to_pre_heat
+            )
+            if compensated_price <= min_compensated_price:
+                log_print(
+                    f"Analyzed {scan_from}-{scan_to}: Delaying beyond {test_hour} worth while (delay til {i})"
+                )
                 return True  # Found price to be cheaper later
     return False
 
@@ -536,8 +555,6 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
 def get_wanted_temp(
     local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_status
 ):
-    log_print(f"{local_hour}:00 the hour cost is {today_cost[local_hour]} EUR / kWh")
-
     wanted_temp = MIN_TEMP
 
     if alarm_status is None or not alarm_status.is_fully_armed():
@@ -636,7 +653,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             tomorrow_cost = await get_cost(today + timedelta(days=1))
 
         log_print(
-            f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00"
+            f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @ {today_cost[local_hour]} EUR / kWh"
         )
         outside_temp = temperature_provider.get_outdoor_temp()
         wanted_temp = get_wanted_temp(
@@ -773,7 +790,7 @@ async def main():
                 setup_wifi()
                 attemts_remaing_before_reset -= 1
         log_print("Resetting to recover")
-        await asyncio.sleep(10)            
+        await asyncio.sleep(10)
         machine.reset()
 
 # Globals
