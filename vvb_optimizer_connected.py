@@ -692,7 +692,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 today.weekday(),
                 today_cost,
                 tomorrow_cost,
-                outside_temp,
+                temperature_provider.get_outdoor_temp(),
                 alarm_status,
             )
             if (
