@@ -408,31 +408,31 @@ def get_cheap_score_relative_future(this_hour_cost, future_cost):
 
 
 def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
-    extra_kwh_loss_per_hour_to_pre_heat = (
+    extra_kwh_loss_per_hour_of_pre_heat = (
         (DEGREES_PER_H + MIN_DAILY_TEMP - AMBIENT_TEMP)
         / (MIN_DAILY_TEMP - AMBIENT_TEMP)
         - 1
     ) * (HEAT_LOSS_PER_DAY_KWH / 24)
-    min_compensated_price = today_cost[scan_from] * (
-        1 + (test_hour - scan_from) * extra_kwh_loss_per_hour_to_pre_heat
+    min_compensated_cost = today_cost[scan_from] * (
+        HEATER_KW + (test_hour - scan_from) * extra_kwh_loss_per_hour_of_pre_heat
     )
 
     for i in range(scan_from + 1, scan_to):
         if i <= test_hour:
-            compensated_price = today_cost[i] * (
-                1 + (test_hour - i) * extra_kwh_loss_per_hour_to_pre_heat
+            compensated_cost = today_cost[i] * (
+                HEATER_KW + (test_hour - i) * extra_kwh_loss_per_hour_of_pre_heat
             )
-            if compensated_price <= min_compensated_price:
-                min_compensated_price = compensated_price
+            if compensated_cost <= min_compensated_cost:
+                min_compensated_cost = compensated_cost
         else:
-            compensated_price = today_cost[i] * (
-                1 - (i - test_hour) * extra_kwh_loss_per_hour_to_pre_heat
-            )
-            if compensated_price <= min_compensated_price:
+            compensated_cost = today_cost[i] * (
+                HEATER_KW - (i - test_hour) * extra_kwh_loss_per_hour_of_pre_heat
+            )  # Less energy is used when load is heated later than test_hour
+            if compensated_cost <= min_compensated_cost:
                 log_print(
                     f"Analyzed {scan_from}-{scan_to}: Delaying beyond {test_hour} worth while (delay til {i})"
                 )
-                return True  # Found price to be cheaper later
+                return True  # Found cost to be cheaper if heating later
     return False
 
 
