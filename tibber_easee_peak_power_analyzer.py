@@ -28,6 +28,8 @@ HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
+WEEKDAY_FIRST_HIGH_H = 6
+WEEKDAY_LAST_HIGH_H = 22
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
@@ -98,7 +100,8 @@ async def start():
     power_peak_incl_ev = {}
     power_peak_incl_ev_time = {}
     power_hour_samples = {}
-    power_map = {}
+    power_map_low = {}
+    power_map_high = {}
     ev_cost = 0.0
     ev_energy = 0.0
     other_cost = 0.0
@@ -137,7 +140,13 @@ async def start():
                     #    print(f"power excl easee: {curr_power}")
                     break
 
-        power_map.setdefault(curr_power, []).append(f" {curr_time}")
+        if (
+            curr_time.weekday() < 5
+            and WEEKDAY_FIRST_HIGH_H <= curr_time.hour <= WEEKDAY_LAST_HIGH_H
+        ):
+            power_map_high.setdefault(curr_power, []).append(curr_time)
+        else:
+            power_map_low.setdefault(curr_power, []).append(curr_time)
         power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
 
         other_cost += curr_power * curr_hour_price
@@ -152,16 +161,28 @@ async def start():
         f"Energy used {other_energy:.3f} kWh at total cost of {(other_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
     )
     if charger_consumption is None:
-        print("Top ten peak power hours:")
+        print("Top peak power hours:")
     else:
         print(
             f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {(ev_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
         )
         print("Top ten peak power hours with EV charging excluded:")
 
-    for peak_pwr in sorted(power_map, reverse=True)[0:10]:
-        time_str = "".join(power_map[peak_pwr])
-        print(f"Peak of {peak_pwr:.3f} kWh/h has occured at{time_str}")
+    print(
+        f"High cost peaks - weekdays {WEEKDAY_FIRST_HIGH_H}:00 - {WEEKDAY_LAST_HIGH_H}:59"
+    )
+    for peak_pwr in sorted(power_map_high, reverse=True)[0:10]:
+        time_str = f"{power_map_high[peak_pwr][0]}"
+        for times in power_map_high[peak_pwr][1:]:
+            time_str += "".join(f", {times}")
+        print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
+
+    print("Low cost peaks:")
+    for peak_pwr in sorted(power_map_low, reverse=True)[0:10]:
+        time_str = f"{power_map_low[peak_pwr][0]}"
+        for times in power_map_low[peak_pwr][1:]:
+            time_str += "".join(f", {times}")
+        print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
 
     if charger_consumption is None:
         print("Power use distribution:")
@@ -177,4 +198,3 @@ async def start():
 
 
 loop = asyncio.run(start())
-
