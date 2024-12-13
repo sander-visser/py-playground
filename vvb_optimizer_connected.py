@@ -626,9 +626,10 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     today_cost = None
     tomorrow_cost = None
     days_since_legionella = 0
+    peak_temp_today = 0
     pending_legionella_reset = False
     temperature_provider = SimpleTemperatureProvider()
-    
+
     if boost_req:
         log_print("Boosting...")
         thermostat.set_thermosat(MIN_LEGIONELLA_TEMP)
@@ -640,6 +641,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             time_provider.get_utc_unix_timestamp()
         )
         if today_cost is None or new_today != today:
+            peak_temp_today = 0
             today = new_today
             if pending_legionella_reset:
                 days_since_legionella = 0
@@ -673,6 +675,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         )
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
+
+        peak_temp_today = max(peak_temp_today, wanted_temp)
+
+        if today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT and local_hour == (
+            LAST_MORNING_HEATING_H - 1
+        ):
+            wanted_temp = peak_temp_today + DEGREES_PER_H / 4
 
         if local_hour != NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
             await delay_minor_temp_increase(wanted_temp, thermostat)
