@@ -12,15 +12,12 @@ import sys
 import pytz
 import requests
 import tibber  # pip install pyTibber
-from nordpool import elspot  # pip install nordpool
 
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
 # Note: Easee access token expires after a few hours
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-# Note: Earliest allowed by nortpool API is datetime.date.fromisoformat("2024-09-25")
-NORDPOOL_REGION = "SE3"  # Set to None to skip pricing calculation
 START_DATE = None  # datetime.date.fromisoformat("2024-11-01") # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
@@ -94,9 +91,6 @@ async def start():
             zulu_to_incl,
         )
     )
-    spot_price = elspot.Prices(NORDPOOL_PRICE_CODE)
-    day_prices = []
-    day_prices_date = None
     power_peak_incl_ev = {}
     power_peak_incl_ev_time = {}
     power_hour_samples = {}
@@ -108,11 +102,6 @@ async def start():
     other_energy = 0.0
     for power_sample in hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
-        if NORDPOOL_REGION is not None and curr_time.date() != day_prices_date:
-            day_prices_date = curr_time.date()
-            day_prices = spot_price.hourly(
-                end_date=day_prices_date, areas=[NORDPOOL_REGION]
-            )["areas"][NORDPOOL_REGION]["values"]
         curr_time_utc_str = str(curr_time.astimezone(pytz.utc)).replace(" ", "T")
         if power_sample["consumption"] is None:
             continue
@@ -124,11 +113,7 @@ async def start():
             power_peak_incl_ev[curr_time.month] = curr_power
             power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
-        curr_hour_price = 0.0
-        for hour_price in day_prices:
-            if hour_price["start"] == curr_time.astimezone(pytz.utc):
-                curr_hour_price = hour_price["value"]
-                break
+        curr_hour_price = float(power_sample["unitPrice"])
 
         if charger_consumption is not None:
             for easee_power_sample in charger_consumption:
@@ -158,18 +143,18 @@ async def start():
         )
 
     print(
-        f"Energy used {other_energy:.3f} kWh at total cost of {(other_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+        f"Energy used {other_energy:.3f} kWh at total cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
     )
     if charger_consumption is None:
-        print("Top peak power hours:")
+        print("\nTop ten peak power hours:")
     else:
         print(
-            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {(ev_cost/1000):.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
         )
-        print("Top ten peak power hours with EV charging excluded:")
+        print("\nTop ten peak power hours with EV charging excluded:")
 
     print(
-        f"High cost peaks - weekdays {WEEKDAY_FIRST_HIGH_H}:00 - {WEEKDAY_LAST_HIGH_H}:59"
+        f"\nHigh cost peaks - weekdays {WEEKDAY_FIRST_HIGH_H}:00 - {WEEKDAY_LAST_HIGH_H}:59"
     )
     for peak_pwr in sorted(power_map_high, reverse=True)[0:10]:
         time_str = f"{power_map_high[peak_pwr][0]}"
@@ -177,7 +162,7 @@ async def start():
             time_str += "".join(f", {times}")
         print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
 
-    print("Low cost peaks:")
+    print("\nLow cost peaks:")
     for peak_pwr in sorted(power_map_low, reverse=True)[0:10]:
         time_str = f"{power_map_low[peak_pwr][0]}"
         for times in power_map_low[peak_pwr][1:]:
@@ -185,9 +170,9 @@ async def start():
         print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
 
     if charger_consumption is None:
-        print("Power use distribution:")
+        print("\nPower use distribution:")
     else:
-        print("Power use distribution with EV charging excluded:")
+        print("\nPower use distribution with EV charging excluded:")
 
     for hour in range(24):
         print(
