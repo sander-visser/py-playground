@@ -143,13 +143,13 @@ async def start():
         )
 
     print(
-        f"Energy used {other_energy:.3f} kWh at total cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+        f"Energy used {other_energy:.3f} kWh at total cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
     )
     if charger_consumption is None:
         print("\nTop ten peak power hours:")
     else:
         print(
-            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (excl VAT and surcharges)"
+            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
