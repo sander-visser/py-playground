@@ -1,4 +1,4 @@
-
+Log created with tibber_easee_peak_power_analyzer.log for a freestanding house outside Gothenburg
 
 Scanning home of Sander Visser
 Scanning peak power 2024-01-01 00:00:00+01:00 - 2024-01-31 23:00:00+01:00...
@@ -454,6 +454,64 @@ Power use distribution with EV charging excluded:
 23-24  Avg: 1.823 kWh/h. Peak: 4.165 kWh/h
 
 
+Scanning home of Sander Visser
+Scanning peak power 2024-09-01 00:00:00+02:00 - 2024-09-30 23:00:00+02:00...
+Month peak power incl EV: 7.495000 at 2024-09-16 01:00:00+02:00
+Energy used 809.947 kWh at total cost of 211.624 SEK (excl VAT and surcharges)
+Plus EV energy used 441.918 kWh at total cost of 65.930 SEK (excl VAT and surcharges)
+
+Top ten peak power hours with EV charging excluded:
+
+High cost peaks - weekdays 6:00 - 22:59
+Peak of 4.163 kWh/h has occured at 2024-09-05 14:00:00+02:00
+Peak of 3.882 kWh/h has occured at 2024-09-05 16:00:00+02:00
+Peak of 3.760 kWh/h has occured at 2024-09-04 22:00:00+02:00
+Peak of 3.597 kWh/h has occured at 2024-09-09 21:00:00+02:00
+Peak of 3.490 kWh/h has occured at 2024-09-30 21:00:00+02:00
+Peak of 3.469 kWh/h has occured at 2024-09-02 06:00:00+02:00
+Peak of 3.348 kWh/h has occured at 2024-09-26 21:00:00+02:00
+Peak of 3.318 kWh/h has occured at 2024-09-19 22:00:00+02:00
+Peak of 3.308 kWh/h has occured at 2024-09-18 13:00:00+02:00
+Peak of 3.231 kWh/h has occured at 2024-09-09 06:00:00+02:00
+
+Low cost peaks:
+Peak of 4.708 kWh/h has occured at 2024-09-21 12:00:00+02:00
+Peak of 4.512 kWh/h has occured at 2024-09-15 15:00:00+02:00
+Peak of 4.391 kWh/h has occured at 2024-09-15 12:00:00+02:00
+Peak of 4.226 kWh/h has occured at 2024-09-15 13:00:00+02:00
+Peak of 4.177 kWh/h has occured at 2024-09-07 13:00:00+02:00
+Peak of 4.012 kWh/h has occured at 2024-09-17 03:00:00+02:00
+Peak of 3.909 kWh/h has occured at 2024-09-29 15:00:00+02:00
+Peak of 3.901 kWh/h has occured at 2024-09-01 14:00:00+02:00
+Peak of 3.853 kWh/h has occured at 2024-09-21 14:00:00+02:00
+Peak of 3.840 kWh/h has occured at 2024-09-22 13:00:00+02:00
+
+Power use distribution with EV charging excluded:
+ 0- 1  Avg: 1.360 kWh/h. Peak: 3.266 kWh/h
+ 1- 2  Avg: 1.273 kWh/h. Peak: 3.799 kWh/h
+ 2- 3  Avg: 1.287 kWh/h. Peak: 3.826 kWh/h
+ 3- 4  Avg: 1.268 kWh/h. Peak: 4.012 kWh/h
+ 4- 5  Avg: 1.078 kWh/h. Peak: 3.549 kWh/h
+ 5- 6  Avg: 0.859 kWh/h. Peak: 3.586 kWh/h
+ 6- 7  Avg: 1.215 kWh/h. Peak: 3.469 kWh/h
+ 7- 8  Avg: 0.727 kWh/h. Peak: 1.793 kWh/h
+ 8- 9  Avg: 0.547 kWh/h. Peak: 1.618 kWh/h
+ 9-10  Avg: 0.569 kWh/h. Peak: 1.640 kWh/h
+10-11  Avg: 0.563 kWh/h. Peak: 1.643 kWh/h
+11-12  Avg: 0.736 kWh/h. Peak: 3.293 kWh/h
+12-13  Avg: 1.093 kWh/h. Peak: 4.708 kWh/h
+13-14  Avg: 1.605 kWh/h. Peak: 4.226 kWh/h
+14-15  Avg: 1.419 kWh/h. Peak: 4.163 kWh/h
+15-16  Avg: 1.160 kWh/h. Peak: 4.512 kWh/h
+16-17  Avg: 1.108 kWh/h. Peak: 3.882 kWh/h
+17-18  Avg: 1.457 kWh/h. Peak: 3.478 kWh/h
+18-19  Avg: 1.113 kWh/h. Peak: 2.738 kWh/h
+19-20  Avg: 1.214 kWh/h. Peak: 2.674 kWh/h
+20-21  Avg: 1.424 kWh/h. Peak: 3.042 kWh/h
+21-22  Avg: 1.570 kWh/h. Peak: 3.597 kWh/h
+22-23  Avg: 1.241 kWh/h. Peak: 3.760 kWh/h
+23-24  Avg: 1.112 kWh/h. Peak: 3.698 kWh/h
+
 
 Scanning home of Sander Visser
 Scanning peak power 2024-10-01 00:00:00+02:00 - 2024-10-31 22:00:00+01:00...
@@ -567,59 +625,61 @@ Power use distribution with EV charging excluded:
 23-24  Avg: 1.527 kWh/h. Peak: 4.247 kWh/h
 
 
-
-
 Scanning home of Sander Visser
-Scanning peak power 2024-11-12 20:00:00+01:00 - 2024-12-13 19:00:00+01:00...
-Month peak power incl EV: 7.500000 at 2024-11-25 04:00:00+01:00
+Scanning peak power 2024-12-01 00:00:00+01:00 - 2024-12-14 22:00:00+01:00...
 Month peak power incl EV: 8.493000 at 2024-12-11 03:00:00+01:00
-Energy used 1490.769 kWh at total cost of 1101.583 SEK (excl VAT and surcharges)
-Plus EV energy used 610.069 kWh at total cost of 157.655 SEK (excl VAT and surcharges)
+Energy used 706.011 kWh at total cost of 789.169 SEK (excl VAT and surcharges)
+Plus EV energy used 293.794 kWh at total cost of 135.884 SEK (excl VAT and surcharges)
+
 Top ten peak power hours with EV charging excluded:
-High cost peaks - weekdays 6 - 21
-Peak of 5.007 kWh/h has occured at 2024-11-21 06:00:00+01:00
+
+High cost peaks - weekdays 6:00 - 22:59
 Peak of 4.680 kWh/h has occured at 2024-12-05 20:00:00+01:00
 Peak of 4.627 kWh/h has occured at 2024-12-04 19:00:00+01:00
 Peak of 4.580 kWh/h has occured at 2024-12-05 21:00:00+01:00
-Peak of 4.412 kWh/h has occured at 2024-11-14 20:00:00+01:00
-Peak of 4.381 kWh/h has occured at 2024-11-18 06:00:00+01:00
-Peak of 4.258 kWh/h has occured at 2024-11-28 06:00:00+01:00
-Peak of 4.091 kWh/h has occured at 2024-11-25 06:00:00+01:00
 Peak of 4.028 kWh/h has occured at 2024-12-12 06:00:00+01:00
-Peak of 3.979 kWh/h has occured at 2024-11-14 06:00:00+01:00
+Peak of 3.882 kWh/h has occured at 2024-12-05 06:00:00+01:00
+Peak of 3.834 kWh/h has occured at 2024-12-06 07:00:00+01:00
+Peak of 3.795 kWh/h has occured at 2024-12-11 20:00:00+01:00
+Peak of 3.618 kWh/h has occured at 2024-12-09 20:00:00+01:00
+Peak of 3.450 kWh/h has occured at 2024-12-02 06:00:00+01:00
+Peak of 3.031 kWh/h has occured at 2024-12-04 22:00:00+01:00
+
 Low cost peaks:
-Peak of 6.109 kWh/h has occured at 2024-11-21 03:00:00+01:00
-Peak of 5.762 kWh/h has occured at 2024-11-22 03:00:00+01:00
 Peak of 5.661 kWh/h has occured at 2024-12-06 02:00:00+01:00
-Peak of 5.535 kWh/h has occured at 2024-11-20 03:00:00+01:00
-Peak of 5.453 kWh/h has occured at 2024-11-23 04:00:00+01:00
 Peak of 5.444 kWh/h has occured at 2024-12-04 00:00:00+01:00
 Peak of 5.434 kWh/h has occured at 2024-12-06 03:00:00+01:00
-Peak of 5.417 kWh/h has occured at 2024-11-22 01:00:00+01:00
 Peak of 5.387 kWh/h has occured at 2024-12-12 03:00:00+01:00
 Peak of 5.381 kWh/h has occured at 2024-12-05 03:00:00+01:00
+Peak of 5.375 kWh/h has occured at 2024-12-01 15:00:00+01:00
+Peak of 5.174 kWh/h has occured at 2024-12-06 04:00:00+01:00
+Peak of 4.965 kWh/h has occured at 2024-12-12 02:00:00+01:00
+Peak of 4.940 kWh/h has occured at 2024-12-10 04:00:00+01:00
+Peak of 4.922 kWh/h has occured at 2024-12-10 03:00:00+01:00
+
 Power use distribution with EV charging excluded:
- 0- 1  Avg: 1.990 kWh/h. Peak: 5.444 kWh/h
- 1- 2  Avg: 2.453 kWh/h. Peak: 5.417 kWh/h
- 2- 3  Avg: 3.003 kWh/h. Peak: 5.661 kWh/h
- 3- 4  Avg: 3.326 kWh/h. Peak: 6.109 kWh/h
- 4- 5  Avg: 2.817 kWh/h. Peak: 5.453 kWh/h
- 5- 6  Avg: 2.147 kWh/h. Peak: 5.161 kWh/h
- 6- 7  Avg: 2.647 kWh/h. Peak: 5.078 kWh/h
- 7- 8  Avg: 1.807 kWh/h. Peak: 4.879 kWh/h
- 8- 9  Avg: 1.394 kWh/h. Peak: 3.656 kWh/h
- 9-10  Avg: 1.256 kWh/h. Peak: 2.719 kWh/h
-10-11  Avg: 1.187 kWh/h. Peak: 3.432 kWh/h
-11-12  Avg: 1.267 kWh/h. Peak: 2.466 kWh/h
-12-13  Avg: 1.348 kWh/h. Peak: 2.940 kWh/h
-13-14  Avg: 1.652 kWh/h. Peak: 3.905 kWh/h
-14-15  Avg: 1.584 kWh/h. Peak: 4.121 kWh/h
-15-16  Avg: 1.677 kWh/h. Peak: 5.375 kWh/h
-16-17  Avg: 1.754 kWh/h. Peak: 3.304 kWh/h
-17-18  Avg: 2.093 kWh/h. Peak: 3.864 kWh/h
-18-19  Avg: 1.931 kWh/h. Peak: 4.907 kWh/h
-19-20  Avg: 2.486 kWh/h. Peak: 4.627 kWh/h
-20-21  Avg: 2.484 kWh/h. Peak: 4.680 kWh/h
-21-22  Avg: 2.441 kWh/h. Peak: 4.580 kWh/h
-22-23  Avg: 1.704 kWh/h. Peak: 3.611 kWh/h
-23-24  Avg: 1.722 kWh/h. Peak: 4.247 kWh/h
+ 0- 1  Avg: 1.998 kWh/h. Peak: 5.444 kWh/h
+ 1- 2  Avg: 2.708 kWh/h. Peak: 4.756 kWh/h
+ 2- 3  Avg: 3.152 kWh/h. Peak: 5.661 kWh/h
+ 3- 4  Avg: 3.524 kWh/h. Peak: 5.434 kWh/h
+ 4- 5  Avg: 3.101 kWh/h. Peak: 5.174 kWh/h
+ 5- 6  Avg: 2.049 kWh/h. Peak: 3.567 kWh/h
+ 6- 7  Avg: 2.467 kWh/h. Peak: 4.028 kWh/h
+ 7- 8  Avg: 1.855 kWh/h. Peak: 4.879 kWh/h
+ 8- 9  Avg: 1.486 kWh/h. Peak: 2.599 kWh/h
+ 9-10  Avg: 1.364 kWh/h. Peak: 2.140 kWh/h
+10-11  Avg: 1.357 kWh/h. Peak: 2.315 kWh/h
+11-12  Avg: 1.503 kWh/h. Peak: 2.466 kWh/h
+12-13  Avg: 1.516 kWh/h. Peak: 2.940 kWh/h
+13-14  Avg: 1.716 kWh/h. Peak: 3.757 kWh/h
+14-15  Avg: 1.921 kWh/h. Peak: 4.121 kWh/h
+15-16  Avg: 2.029 kWh/h. Peak: 5.375 kWh/h
+16-17  Avg: 1.842 kWh/h. Peak: 2.792 kWh/h
+17-18  Avg: 2.168 kWh/h. Peak: 3.864 kWh/h
+18-19  Avg: 2.102 kWh/h. Peak: 4.907 kWh/h
+19-20  Avg: 2.657 kWh/h. Peak: 4.627 kWh/h
+20-21  Avg: 2.448 kWh/h. Peak: 4.680 kWh/h
+21-22  Avg: 2.312 kWh/h. Peak: 4.606 kWh/h
+22-23  Avg: 1.645 kWh/h. Peak: 3.031 kWh/h
+23-24  Avg: 1.628 kWh/h. Peak: 4.163 kWh/h
+
