@@ -59,7 +59,11 @@ async def start():
     home = tibber_connection.get_homes()[0]
     hourly_consumption_data = None
     if START_DATE is not None:
-        hours_in_month = 31 * 24
+        hours_in_month = (
+            (31 * 24)
+            if START_DATE.month in [1, 3, 5, 7, 8, 10, 12]
+            else (30 * 24) if START_DATE.month != 2 else 28 * 30
+        )
         hourly_consumption_data = await home.get_historic_data_date(
             START_DATE, hours_in_month
         )
