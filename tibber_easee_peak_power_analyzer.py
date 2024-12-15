@@ -26,7 +26,7 @@ HTTP_UNAUTHORIZED_CODE = 401
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_FIRST_HIGH_H = 6
-WEEKDAY_LAST_HIGH_H = 22
+WEEKDAY_LAST_HIGH_H = 21
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
