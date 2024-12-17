@@ -301,9 +301,11 @@ def now_is_cheap_in_forecast(now_hour, today_cost, tomorrow_cost):
             max_price_ahead = today_cost[scan_hour]
         if today_cost[scan_hour] <= min_price_ahead:
             min_price_ahead = today_cost[scan_hour]
-            if hours_til_cheaper == 0:
-                hours_til_cheaper = 15 - scan_hours_remaining
-                max_price_til_next_cheap = max_price_ahead
+        if hours_til_cheaper == 0 and cheap_later_test(
+            today_cost, now_hour, scan_hour, now_hour
+        ):
+            hours_til_cheaper = 15 - scan_hours_remaining
+            max_price_til_next_cheap = max_price_ahead
 
     if tomorrow_cost is not None:
         for scan_hour in range(0, scan_hours_remaining):
@@ -585,7 +587,9 @@ def get_wanted_temp(
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
     if now_is_cheap_in_forecast(local_hour, today_cost, tomorrow_cost):
-        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
+        wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
+        if local_hour <= LAST_MORNING_HEATING_H:
+            wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
 
     return wanted_temp
 
