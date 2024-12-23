@@ -245,7 +245,7 @@ async def start():
 
     if irradiance is not None:
         print(
-            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)"
+            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)"
         )
         print(
             f"Estimated export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
