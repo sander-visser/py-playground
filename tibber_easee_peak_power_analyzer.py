@@ -6,6 +6,7 @@ with Easee EV charging excluded.
 """
 
 import asyncio
+import csv
 import datetime
 import statistics
 import sys
