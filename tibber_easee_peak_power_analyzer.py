@@ -27,6 +27,10 @@ HTTP_UNAUTHORIZED_CODE = 401
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_FIRST_HIGH_H = 6
 WEEKDAY_LAST_HIGH_H = 21
+IRRADIANCE_OBSERVATION = None # "smhi-opendata_11_41_42_10_24_71415.csv"  # gotten from : "https://www.smhi.se/data/meteorologi/ladda-ner-meteorologiska-observationer/irradiance/71415"
+INSTALLED_PANEL_POWER = 8 * 0.45  # 8x 450W panels (solar tracking assumed)
+IRRADIANCE_FULL = 775  # W / m2 needed to get full panel production
+IRRADIANCE_MIN = 170  # W / m2 needed for any production
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
@@ -46,7 +50,34 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
     return hourly_energy.json()
 
 
+def get_irradiance_observation():
+    if IRRADIANCE_OBSERVATION is None:
+        return None
+    with open(IRRADIANCE_OBSERVATION, encoding="utf-8") as csvf:
+        csv_lines = csvf.readlines()
+        while True:
+            curr_line = csv_lines.pop(0)
+            if curr_line.startswith("Datum"):
+                csv_lines.insert(0, curr_line)
+                break
+        csvReader = csv.DictReader(csv_lines, delimiter=";")
+        solar_irr = {}
+        for data in csvReader:
+            datetime_str = f"{data['Datum']} {data['Tid (UTC)']}"
+            datetime_object = datetime.datetime.strptime(
+                datetime_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=datetime.timezone.utc)
+            solar_irr[datetime_object] = (
+                data["Global Irradians (svenska stationer)"],
+                data["Solskenstid"],
+            )
+        return solar_irr
+    return None
+
+
 async def start():
+    irradiance = get_irradiance_observation()
+
     tibber_connection = tibber.Tibber(
         TIBBER_API_ACCESS_TOKEN,
         user_agent="tibber_easee_peak_power",
@@ -104,6 +135,10 @@ async def start():
     ev_energy = 0.0
     other_cost = 0.0
     other_energy = 0.0
+    exported_energy = 0.0
+    exported_value = 0.0
+    self_used_energy = 0.0
+    self_used_value = 0.0
     for power_sample in hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
         curr_time_utc_str = str(curr_time.astimezone(pytz.utc)).replace(" ", "T")
@@ -118,6 +153,30 @@ async def start():
             power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
+
+        if irradiance is not None:
+            curr_irr = irradiance[curr_utc_time]
+            if curr_irr[0] == "" or curr_irr[1] == "":
+                curr_irr = (0, 0)
+                # print(f"Missing solar data for {curr_utc_time}")
+            irr_power = min(IRRADIANCE_FULL, float(curr_irr[0]))
+            irr_duration = float(curr_irr[1])
+            if irr_power > IRRADIANCE_MIN:
+                solar_power = irr_power / IRRADIANCE_FULL * INSTALLED_PANEL_POWER
+                self_use = curr_power * irr_duration / 3600
+                solar_utilization = solar_power / curr_power
+                export = 0
+                if solar_utilization > 1:
+                    export = (solar_utilization - 1) * irr_duration / 3600
+                else:
+                    self_use *= solar_utilization
+                # print(
+                #    f"{curr_utc_time} solar irr is {irr_power} W/m2 for {irr_duration}s. Export {export} estimate kWh. Self use estimate {self_use} kWh out of {curr_power} kWh"
+                # )
+                exported_energy += export
+                exported_value += export * curr_hour_price
+                self_used_energy += self_use
+                self_used_value += self_use * curr_hour_price
 
         if charger_consumption is not None:
             for easee_power_sample in charger_consumption:
@@ -183,6 +242,16 @@ async def start():
             f"{hour:2}-{(hour+1):2}  Avg: {(statistics.fmean(power_hour_samples[hour])):.3f} kWh/h. Peak: {sorted(power_hour_samples[hour])[-1]:.3f} kWh/h"
         )
 
+    if irradiance is not None:
+        print(
+            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)"
+        )
+        print(
+            f"Estimated export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
+        )
+        print(
+            f"Estimated self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
+        )
     await tibber_connection.close_connection()
 
 
