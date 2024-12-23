@@ -142,7 +142,8 @@ async def start():
     self_used_value = 0.0
     for power_sample in hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
-        curr_time_utc_str = str(curr_time.astimezone(pytz.utc)).replace(" ", "T")
+        curr_utc_time = curr_time.astimezone(pytz.utc)
+        curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
@@ -155,7 +156,7 @@ async def start():
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
 
-        if irradiance is not None:
+        if irradiance is not None and curr_utc_time in irradiance:
             curr_irr = irradiance[curr_utc_time]
             if curr_irr[0] == "" or curr_irr[1] == "":
                 curr_irr = (0, 0)
@@ -247,6 +248,7 @@ async def start():
         print(
             f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)"
         )
+        print(f"Analysed with database until: {list(irradiance.keys())[-1]}")
         print(
             f"Estimated export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
         )
