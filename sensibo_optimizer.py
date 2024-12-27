@@ -9,8 +9,8 @@ Script is tested with a Sensibo Sky placed 20cm above floor level
 MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
-giving us both ~500 SEK to shop gadgets with. Contact: github[a]visser.se or
-check referral.link in repo, or use referral code 2ar4ax0f.
+giving us both ~1000 SEK to shop gadgets with. Contact: github[a]visser.se or
+check referral.link in repo, or use referral code 3ena65f1.
 
 Usage (adapt constants as needed for your home=:
 Install needed pip packages (see below pip module imports)
@@ -143,8 +143,8 @@ HIGH_HEAT_SETTINGS = {
 }
 COMFORT_EATING_HEAT_SETTINGS = {
     "mode": "heat",
-    "horizontalSwing": "fixedCenterRight",
-    "swing": "fixedMiddle",
+    "horizontalSwing": "fixedRight",
+    "swing": "fixedMiddleBottom",
     "fanLevel": "medium_high",
     "targetTemperature": 21,
 }
@@ -1227,8 +1227,8 @@ class SensiboOptimizer:
             print("No devices present in account associated with API key...")
             sys.exit(0)
         print(f"----- devices -----\n{devices}")
-        if device_name is None:
-            print("No device selected for optimization - exiting")
+        if device_name is None or device_name not in devices:
+            print("No valid device selected for optimization (-d) - exiting")
             sys.exit(0)
 
         uid = devices[device_name]
@@ -1343,8 +1343,11 @@ class SensiboOptimizer:
 
     def manage_eating_comfort(self, eating_comfort_start_hour):
         self.wait_for_hour(eating_comfort_start_hour)
+        current_outdoor_temp = self.get_current_outdoor_temp()
         cold_temp_offset = NORMAL_TEMP_OFFSET
-        if self.get_current_outdoor_temp() < EXTREMELY_COLD_OUTDOOR_TEMP:
+        if current_outdoor_temp < EXTREMELY_COLD_OUTDOOR_TEMP:
+            cold_temp_offset = COMFORT_PLUS_TEMP_DELTA
+        elif current_outdoor_temp < COLD_OUTDOOR_TEMP:
             cold_temp_offset = EXTRA_TEMP_OFFSET
         elif self.get_current_floor_temp() >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE:
             cold_temp_offset = REDUCED_TEMP_OFFSET
