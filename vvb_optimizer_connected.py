@@ -513,7 +513,7 @@ def add_scorebased_wanted_temperature(
             score_based_heating = max(score_based_heating, preload_score)
         else:
             max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
-            if next_night_is_cheaper(today_cost):
+            if is_the_cheapest_hour_during_daytime(today_cost):
                 max_temp_limit += DEGREES_PER_H  # Heat since limited morning heat
 
     max_score = MAX_HOURS_NEEDED_TO_HEAT
