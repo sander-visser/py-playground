@@ -80,6 +80,7 @@ NEW_PRICE_EXPECTED_HOUR = 13
 MAX_TEMP = 78
 MIN_TEMP = 25
 MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
+MIN_USABLE_TEMP = 35  # Good for hand washing, and one hour away from shower temp
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
@@ -500,6 +501,9 @@ def add_scorebased_wanted_temperature(
             get_cheap_score_until(local_hour, DAILY_COMFORT_LAST_H, today_cost),
         )
 
+    if not is_now_significantly_cheaper(local_hour, today_cost, tomorrow_cost):
+        max_temp_limit = MIN_DAILY_TEMP  # Resrict heating if only slightly cheaper
+
     if tomorrow_cost is not None:
         preload_score = get_cheap_score_relative_future(
             today_cost[local_hour],
@@ -509,9 +513,8 @@ def add_scorebased_wanted_temperature(
             score_based_heating = max(score_based_heating, preload_score)
         else:
             max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
-
-    if not is_now_significantly_cheaper(local_hour, today_cost, tomorrow_cost):
-        max_temp_limit = MIN_DAILY_TEMP  # Resrict heating if only slightly cheaper
+            if next_night_is_cheaper(today_cost):
+                max_temp_limit += DEGREES_PER_H  # Heat since limited morning heat
 
     max_score = MAX_HOURS_NEEDED_TO_HEAT
     if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
@@ -523,9 +526,9 @@ def add_scorebased_wanted_temperature(
 
     overshoot_offset = wanted_temp + (DEGREES_PER_H * max_score) - max_temp_limit
     wanted_temp += score_based_heating * DEGREES_PER_H
-    if wanted_temp > MIN_DAILY_TEMP and overshoot_offset > 0:
+    if wanted_temp > MIN_USABLE_TEMP and overshoot_offset > 0:
         wanted_temp -= overshoot_offset
-        wanted_temp = max(MIN_DAILY_TEMP, wanted_temp)
+        wanted_temp = max(MIN_USABLE_TEMP, wanted_temp)
 
     return wanted_temp
 
