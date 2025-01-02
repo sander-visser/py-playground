@@ -51,7 +51,7 @@ WLAN_PASS = "your pass"
 NORDPOOL_REGION = "SE3"
 NTP_HOST = "se.pool.ntp.org"
 SEC_PER_MIN = 60
-EXTRA_HOT_DURATION_S = 120 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
+EXTRA_HOT_DURATION_S = 60 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 OVERRIDE_UTC_UNIX_TIMESTAMP = None  # -3600 to Simulate script behaviour from 1h ago
 MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
@@ -86,7 +86,7 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
-OVERHEAD_BASE_PRICE = 0.075  # In EUR for tax, purchase and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.067032287290990 # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
