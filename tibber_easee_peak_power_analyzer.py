@@ -31,7 +31,7 @@ WEEKDAY_LAST_HIGH_H = 21
 IRRADIANCE_OBSERVATION = None # "smhi-opendata_11_41_42_10_24_71415.csv"  # gotten from : "https://www.smhi.se/data/meteorologi/ladda-ner-meteorologiska-observationer/irradiance/71415"
 INSTALLED_PANEL_POWER = 8 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
-IRRADIANCE_MIN = 170  # W / m2 needed for any production
+IRRADIANCE_MIN = 140  # W / m2 needed for any production
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
@@ -248,6 +248,7 @@ async def start():
         print(
             f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)"
         )
+        print(f"Min solar power required for production: {IRRADIANCE_MIN} W / m2")
         print(f"Analysed with database until: {list(irradiance.keys())[-1]}")
         print(
             f"Estimated export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
