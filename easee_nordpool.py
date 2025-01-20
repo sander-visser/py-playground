@@ -32,6 +32,7 @@ API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 CHARGER_ID_URL = f"{EASEE_API_BASE}/chargers"
 REFRESH_TOKEN_URL = f"{EASEE_API_BASE}/api/accounts/refresh_token"
+CHARGE_SESSION_DURATION_THRES = 1.0
 
 
 def refresh_api_token(prev_api_access_token, api_refresh_token):
@@ -157,7 +158,14 @@ class EaseeCostAnalyzer:
                 datetime.timezone(datetime.timedelta(hours=CHARGER_TIMEZONE_OFFSET))
             )
             if hour_data["consumption"] == 0.0:
-                if charged_last_hour and session_duration_hours > 2.0:
+                if charged_last_hour and self.verbose:
+                    print(
+                        f"Summing up charge session that lasted {session_duration_hours} hours"
+                    )
+                    if session_duration_hours <= CHARGE_SESSION_DURATION_THRES:
+                        print ("Short charge session...\n")
+                    
+                if charged_last_hour and session_duration_hours > CHARGE_SESSION_DURATION_THRES:
                     prolonged_hour_cost = hour_cost_before_charge_start
                     if hour_cost_after_charge_end < hour_cost_before_charge_start:
                         prolonged_hour_cost = hour_cost_after_charge_end
@@ -180,18 +188,17 @@ class EaseeCostAnalyzer:
                         faster_savings += faster_contribution
                     if self.verbose:
                         print(
-                            f"Summing up charge session that lasted {session_duration_hours} hours"
-                        )
-                        print(
                             f"Slower charging could be done during hour with cost {prolonged_hour_cost:.3f}"
                         )
                         print(
                             f"Faster charging would avoid charging during hour with cost {most_expensive_charge_hour_cost:.3f}"
                         )
                         print(
-                            f"Session rate contribution; Faster {faster_contribution:.3f}. Slower {slower_contribution:.3f}"
+                            f"Session rate contribution; Faster {faster_contribution:.3f}. Slower {slower_contribution:.3f}\n"
                         )
                 charged_last_hour = False
+                session_duration_hours = 0.0
+
             else:
                 if peak_kwh_per_hour < hour_data["consumption"]:
                     peak_kwh_per_hour = hour_data["consumption"]
@@ -212,7 +219,6 @@ class EaseeCostAnalyzer:
                     )
                     if not charged_last_hour and hour_data["consumption"] > 1.0:
                         charged_last_hour = True
-                        session_duration_hours = 0.0
                         one_kw_diff_price = 0.0
                         hour_cost_before_charge_start = (
                             day_spot_prices[max(0, curr_date.hour - 1)]["value"]
@@ -238,6 +244,8 @@ class EaseeCostAnalyzer:
                         f"{hour_data['consumption']:.3f} kWh used at hour starting on {curr_date}."
                         + f" Cost was {hour_cost:.3f} @ {curr_hour_price:.3f} {NORDPOOL_PRICE_CODE}"
                     )
+                    if not charged_last_hour:
+                        print ("Tiny charge not considdered part of a charge session...\n")
 
         print(f"\nPeak kWh/h {peak_kwh_per_hour:.03f}")
         if peak_contribution is not None:
