@@ -10,6 +10,7 @@ giving us both 500 SEK to shop gadgets with. Contact: github[a]visser.se or
 check referral.link in repo
 
 Usage:
+python3.10 or later needed for current nordpool API
 Install needed pip packages (see below pip module imports)
 """
 
@@ -291,36 +292,40 @@ if __name__ == "__main__":
         + "'"
     )
     parser.add_argument(
-        "api_access_token", type=str, help="API Access token form " + LOGIN_HELP
+        "api_access_token",
+        type=str,
+        help="API Access token from " + LOGIN_HELP + ". Note: expires in an hour unless refreshed",
     )
     parser.add_argument(
         "-rft",
         dest="api_refresh_token",
         type=str,
-        help="API Refresh token form " + LOGIN_HELP,
+        help="API Refresh token from " + LOGIN_HELP,
         required=False,
     )
     parser.add_argument(
         "-f",
         dest="from_date",
         type=str,
-        help="Zulu ISO_8601 date of earliest consumed energy to include (ex: 2022-12-30T23:00:00Z)",
-        default="2022-12-30T23:00:00Z",
+        help="Zulu ISO_8601 date of earliest consumed energy to include (ex: 2024-12-30T23:00:00Z)."
+        + " Note that nordpool does not supply older price data than 3 months back.",
+        default="2024-12-30T23:00:00Z",
         required=False,
     )
     parser.add_argument(
         "-t",
         dest="to_date",
         type=str,
-        help="Zulu ISO_8601 date of first consumed energy to exclude (ex: 2023-01-31T23:00:00Z)",
-        default="2023-01-31T23:00:00Z",
+        help="Zulu ISO_8601 date of first consumed energy to exclude (ex: 2025-01-31T23:00:00Z)",
+        default="2025-01-31T23:00:00Z",
         required=False,
     )
     parser.add_argument(
         "-r",
         dest="region",
         type=str,
-        help="Nordpool region code",
+        help="Nordpool region code. SE3 for instance."
+        + " Note that nordpool does not supply older price data than 3 months back.",
         default=None,
         required=False,
     )
@@ -329,7 +334,7 @@ if __name__ == "__main__":
         dest="pwr_fee_excl_vat",
         type=float,
         help="Cost for peak power use (per kWh/h excl VAT) in the analyzed period"
-        + ". For instance 23.6 SEK/peak kW in Partille",
+        + ". For instance 26 SEK/peak kW in Partille",
         default=0.0,
         required=False,
     )
@@ -347,8 +352,8 @@ if __name__ == "__main__":
         dest="fees_and_tax_excl_vat",
         type=str,
         help="Cost for fees and taxes per kWh (excl VAT). Comma separated"
-        + ' For instance "0.244,0.392,0.0982" for transmission, energytax, certificates etc.'
-        + " (Example isExample is for Partille Energi with normal tax via Tibber in Okt 2023)",
+        + ' For instance "0.244,0.439,0.06904" for transmission, energytax, certificates etc.'
+        + " (Example is for Partille Energi with normal tax via Tibber in Jan 2025)",
         default=None,
         required=False,
     )
