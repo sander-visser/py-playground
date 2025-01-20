@@ -158,17 +158,6 @@ class EaseeCostAnalyzer:
             )
             if hour_data["consumption"] == 0.0:
                 if charged_last_hour and session_duration_hours > 2.0:
-                    # somewhat inexact if ending during last hour of the day
-                    hour_after_charge = curr_date.hour if curr_date.hour != 0 else 23
-                    hour_of_last_charge = (
-                        curr_date.hour - 1 if curr_date.hour != 0 else 23
-                    )
-                    hour_cost_after_charge_end = (
-                        day_spot_prices[hour_after_charge]["value"] / KWH_PER_MWH
-                    )
-                    cost_of_last_charge_hour = (
-                        day_spot_prices[hour_of_last_charge]["value"] / KWH_PER_MWH
-                    )
                     prolonged_hour_cost = hour_cost_before_charge_start
                     if hour_cost_after_charge_end < hour_cost_before_charge_start:
                         prolonged_hour_cost = hour_cost_after_charge_end
@@ -234,6 +223,16 @@ class EaseeCostAnalyzer:
                     one_kw_diff_price += curr_hour_price
                     hour_cost = hour_data["consumption"] * curr_hour_price
                     total_cost += hour_cost
+                    # somewhat inexact if ending during last hour of the day
+                    hour_after_charge = curr_date.hour  + 1 if curr_date.hour != 23 else 0
+                    if hour_data["consumption"] > 1.0:
+                        hour_cost_after_charge_end = (
+                            day_spot_prices[hour_after_charge]["value"] / KWH_PER_MWH
+                        )
+                        cost_of_last_charge_hour = (
+                            day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
+                        )
+
                 if hour_cost is not None and self.verbose:
                     print(
                         f"{hour_data['consumption']:.3f} kWh used at hour starting on {curr_date}."
