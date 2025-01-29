@@ -692,7 +692,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP)
         log_print(
-            f"-- {local_hour}:00 thermostat @ {wanted_temp}. Outside is {outside_temp}"
+            f"-- {local_hour}:{time.localtime()[4]} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
         )
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
@@ -709,9 +709,14 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
         thermostat.set_thermosat(wanted_temp)
         curr_min = time.localtime()[4]
-        if curr_min < 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+        if curr_min <= 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
-                await asyncio.sleep(5 * SEC_PER_MIN)  # Retry price fetching
+                if curr_min < NEW_PRICE_EXPECTED_MIN:
+                    await asyncio.sleep(
+                        (NEW_PRICE_EXPECTED_MIN - curr_min) * SEC_PER_MIN
+                    )
+                else:
+                    await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
                 continue
             await asyncio.sleep(
                 (50 - curr_min) * SEC_PER_MIN
