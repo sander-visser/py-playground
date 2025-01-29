@@ -691,14 +691,17 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP)
-        log_print(
-            f"-- {local_hour}:{time.localtime()[4]} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
-        )
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
 
-        peak_temp_today = max(peak_temp_today, wanted_temp)
+        pretty_min = f"{time.localtime()[4]}"
+        if len(pretty_min) == 1:
+            pretty_min = f"0{pretty_min}"
+        log_print(
+            f"-- {local_hour}:{pretty_min} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
+        )
 
+        peak_temp_today = max(peak_temp_today, wanted_temp)
         if today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT and local_hour == (
             LAST_MORNING_HEATING_H - 1
         ):
