@@ -76,7 +76,8 @@ DEGREES_LOST_PER_H = round(
 LAST_MORNING_HEATING_H = 6
 FIRST_EVENING_HIGH_TAKEOUT_H = 20  # : 00 - by which time re-heating should have ran
 DAILY_COMFORT_LAST_H = 21  # :59
-NEW_PRICE_EXPECTED_HOUR = 13
+NEW_PRICE_EXPECTED_HOUR = 12
+NEW_PRICE_EXPECTED_MIN = 45
 MAX_TEMP = 78
 MIN_TEMP = 25
 MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
@@ -90,7 +91,7 @@ OVERHEAD_BASE_PRICE = 0.067032287290990 # In EUR for tax, purchase and transfer 
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
-HOURLY_API_URL = "https://www.elprisetjustnu.se/api/v1/prices/"
+HOURLY_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices?currency=EUR&deliveryArea="
 # TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
@@ -252,22 +253,22 @@ async def get_cost(end_date):
     if len(two_digit_day) == 1:
         two_digit_day = f"0{two_digit_day}"
     hourly_api_url = HOURLY_API_URL + (
-        f"{end_date.year}/{two_digit_month}-{two_digit_day}_{NORDPOOL_REGION}.json"
+        f"{NORDPOOL_REGION}&date={end_date.year}/{two_digit_month}-{two_digit_day}"
     )
     gc.collect()
     result = requests.get(hourly_api_url, timeout=10.0)
     if result.status_code != 200:
-        return None
+        return (None,)
 
     the_json_result = result.json()
     gc.collect()
 
     cost_array = []
-    for row in the_json_result:
-        cost_array.append(row["EUR_per_kWh"] + OVERHEAD_BASE_PRICE)
+    for row in the_json_result["multiAreaEntries"]:
+        cost_array.append(row["entryPerArea"][NORDPOOL_REGION] + OVERHEAD_BASE_PRICE)
     if len(cost_array) == 23:
         cost_array.append(OVERHEAD_BASE_PRICE)  # DST hack - off by one in adjust days
-    return cost_array
+    return (the_json_result["areaStates"][0]["state"] == "Final", cost_array)
 
 
 def heat_leakage_loading_desired(local_hour, today_cost, tomorrow_cost, outdoor_temp):
@@ -425,8 +426,7 @@ def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
             compensated_cost = today_cost[i] * (
                 HEATER_KW + (test_hour - i) * extra_kwh_loss_per_hour_of_pre_heat
             )
-            if compensated_cost <= min_compensated_cost:
-                min_compensated_cost = compensated_cost
+            min_compensated_cost = min(compensated_cost, min_compensated_cost)
         else:
             compensated_cost = today_cost[i] * (
                 HEATER_KW - (i - test_hour) * extra_kwh_loss_per_hour_of_pre_heat
@@ -630,8 +630,8 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     time_provider.sync_utc_time()
 
     today = None
-    today_cost = None
-    tomorrow_cost = None
+    todays_cost = (None,)
+    tomorrows_cost = (None,)
     days_since_legionella = 0
     peak_temp_today = 0
     pending_legionella_reset = False
@@ -647,19 +647,33 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         new_today, local_hour = get_local_date_and_hour(
             time_provider.get_utc_unix_timestamp()
         )
-        if today_cost is None or new_today != today:
+        if todays_cost is None or new_today != today:
             peak_temp_today = 0
             today = new_today
             if pending_legionella_reset:
                 days_since_legionella = 0
                 pending_legionella_reset = False
             days_since_legionella += 1
-            today_cost = await get_cost(today)
-            if today_cost is None:
+            todays_cost = await get_cost(today)
+            if todays_cost[0] is None:
                 raise RuntimeError("Optimization not possible")
-            tomorrow_cost = None
-        if tomorrow_cost is None and local_hour >= NEW_PRICE_EXPECTED_HOUR:
-            tomorrow_cost = await get_cost(today + timedelta(days=1))
+            tomorrows_cost = (None,)
+
+        if tomorrows_cost[0] is not None and tomorrows_cost[0] is False:
+            tomorrows_cost = (None,)  # Attempt to get finalized prices
+        if tomorrows_cost[0] is None and (
+            (local_hour > NEW_PRICE_EXPECTED_HOUR)
+            or (
+                local_hour == NEW_PRICE_EXPECTED_HOUR
+                and time.localtime()[4] >= NEW_PRICE_EXPECTED_MIN
+            )
+        ):
+            tomorrows_cost = await get_cost(today + timedelta(days=1))
+
+        today_cost = todays_cost[1]
+        tomorrow_cost = None
+        if tomorrows_cost[0] is not None:
+            tomorrow_cost = tomorrows_cost[1]
 
         log_print(
             f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @ {today_cost[local_hour]} EUR / kWh"
@@ -690,7 +704,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):
             wanted_temp = peak_temp_today + DEGREES_PER_H / 4
 
-        if local_hour != NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
+        if local_hour <= NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
             await delay_minor_temp_increase(wanted_temp, thermostat)
 
         thermostat.set_thermosat(wanted_temp)
