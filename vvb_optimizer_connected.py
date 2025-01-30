@@ -7,7 +7,8 @@ WiFi range improves with ground connection and good placement.
 Designed for WiFi use. Servo connected to theromostat of electric water heater.
 Upload to device using Thonny (as main.py).
 
-Power reset unit to get 2h extra hot water
+Power reset unit to get 1h extra hot water.
+vvb_optimizer_connected.png show price/target temperature behaviour.
 
 Repo also contans a schedule based optimizer (that does not utilize WiFi)
 
@@ -87,6 +88,7 @@ MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
+KWN_PER_MWH = 1000
 OVERHEAD_BASE_PRICE = 0.067032287290990 # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
@@ -265,9 +267,11 @@ async def get_cost(end_date):
 
     cost_array = []
     for row in the_json_result["multiAreaEntries"]:
-        cost_array.append(row["entryPerArea"][NORDPOOL_REGION] + OVERHEAD_BASE_PRICE)
+        cost_array.append(
+            row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
+        )
     if len(cost_array) == 23:
-        cost_array.append(OVERHEAD_BASE_PRICE)  # DST hack - off by one in adjust days
+        cost_array.append(cost_array[0])  # DST hack - off by one in adjust days
     return (the_json_result["areaStates"][0]["state"] == "Final", cost_array)
 
 
