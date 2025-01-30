@@ -89,11 +89,11 @@ LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 KWN_PER_MWH = 1000
-OVERHEAD_BASE_PRICE = 0.067032287290990 # In EUR for tax, purchase and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.067032287290990  # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
-HOURLY_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices?currency=EUR&deliveryArea="
+PRICE_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices?currency=EUR&deliveryArea="
 # TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
@@ -248,19 +248,13 @@ def setup_wifi():
 async def get_cost(end_date):
     if not isinstance(end_date, date):
         raise RuntimeError("Error not a date")
-    two_digit_month = f"{end_date.month}"
-    if len(two_digit_month) == 1:
-        two_digit_month = f"0{two_digit_month}"
-    two_digit_day = f"{end_date.day}"
-    if len(two_digit_day) == 1:
-        two_digit_day = f"0{two_digit_day}"
-    hourly_api_url = HOURLY_API_URL + (
-        f"{NORDPOOL_REGION}&date={end_date.year}/{two_digit_month}-{two_digit_day}"
+    price_api_url = PRICE_API_URL + (
+        f"{NORDPOOL_REGION}&date={end_date.year}-{end_date.month}-{end_date.day}"
     )
     gc.collect()
-    result = requests.get(hourly_api_url, timeout=10.0)
+    result = requests.get(price_api_url, timeout=10.0)
     if result.status_code != 200:
-        return (None,)
+        return (None, None)
 
     the_json_result = result.json()
     gc.collect()
@@ -634,8 +628,9 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     time_provider.sync_utc_time()
 
     today = None
-    todays_cost = (None,)
-    tomorrows_cost = (None,)
+    today_cost = None
+    tomorrow_cost = None
+    tomorrow_final = False
     days_since_legionella = 0
     peak_temp_today = 0
     pending_legionella_reset = False
@@ -651,33 +646,28 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         new_today, local_hour = get_local_date_and_hour(
             time_provider.get_utc_unix_timestamp()
         )
-        if todays_cost is None or new_today != today:
+        if today_cost is None or new_today != today:
             peak_temp_today = 0
             today = new_today
             if pending_legionella_reset:
                 days_since_legionella = 0
                 pending_legionella_reset = False
             days_since_legionella += 1
-            todays_cost = await get_cost(today)
-            if todays_cost[0] is None:
+            today_final, today_cost = await get_cost(today)
+            if today_final is None:
                 raise RuntimeError("Optimization not possible")
-            tomorrows_cost = (None,)
+            tomorrow_final, tomorrow_cost = (False, None)
 
-        if tomorrows_cost[0] is not None and tomorrows_cost[0] is False:
-            tomorrows_cost = (None,)  # Attempt to get finalized prices
-        if tomorrows_cost[0] is None and (
+        if tomorrow_final is not None and tomorrow_final is False:
+            tomorrow_final = False  # Attempt to get finalized prices
+        if not tomorrow_final and (
             (local_hour > NEW_PRICE_EXPECTED_HOUR)
             or (
                 local_hour == NEW_PRICE_EXPECTED_HOUR
                 and time.localtime()[4] >= NEW_PRICE_EXPECTED_MIN
             )
         ):
-            tomorrows_cost = await get_cost(today + timedelta(days=1))
-
-        today_cost = todays_cost[1]
-        tomorrow_cost = None
-        if tomorrows_cost[0] is not None:
-            tomorrow_cost = tomorrows_cost[1]
+            tomorrow_final, tomorrow_cost = await get_cost(today + timedelta(days=1))
 
         log_print(
             f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @ {today_cost[local_hour]} EUR / kWh"
