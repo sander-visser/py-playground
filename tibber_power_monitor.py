@@ -20,10 +20,10 @@ TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo 
 WEEKDAY_FIRST_HIGH_H = 6
 WEEKDAY_LAST_HIGH_H = 21
 API_TIMEOUT = 10.0  # seconds
-MIN_WATER_HEATER_CURRENT = 7.0
+MIN_WATER_HEATER_CURRENT = 6.5
 MIN_WATER_HEATER_MIN_PER_H = 15
-HOURLY_KWH_BUDGET = 6.0
-ACTION_URL = "http://192.168.1.208/26"
+HOURLY_KWH_BUDGET = 3.5
+ACTION_URL = "http://192.168.1.208/25"
 
 
 def _callback(pkg):
@@ -40,7 +40,6 @@ def _callback(pkg):
         and live_data["currentL2"] > MIN_WATER_HEATER_CURRENT
     ):
         could_water_heater_be_running = True
-        print("VVB maybe running")
     if (
         live_data["accumulatedConsumptionLastHour"] > 2.0
         and time.localtime()[4] > MIN_WATER_HEATER_MIN_PER_H
@@ -53,9 +52,13 @@ def _callback(pkg):
             and could_water_heater_be_running
             and acted_hour is None
         ):
-            print(f"acting to reduce power use: {live_data}")
             acted_hour = time.localtime()[3]
-            requests.get(ACTION_URL, timeout=API_TIMEOUT)
+            if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
+                print(f"Acting to reduce power use: {live_data}")
+                requests.get(ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT)
+            else:
+                print (f"Ignoring power use during cheap hours: {live_data}")
+
 
 
 async def start():
