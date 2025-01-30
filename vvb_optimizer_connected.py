@@ -658,8 +658,6 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 raise RuntimeError("Optimization not possible")
             tomorrow_final, tomorrow_cost = (False, None)
 
-        if tomorrow_final is not None and tomorrow_final is False:
-            tomorrow_final = False  # Attempt to get finalized prices
         if not tomorrow_final and (
             (local_hour > NEW_PRICE_EXPECTED_HOUR)
             or (
