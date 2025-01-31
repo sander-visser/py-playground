@@ -66,10 +66,18 @@ def _callback(pkg):
             acted_hour = time.localtime()[3]
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
-                resp = requests.get(
-                    ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT
-                )
-                if resp.status != 200:
+                try:
+                    resp = requests.get(
+                        ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT
+                    )
+                    if resp.status_code != requests.codes.ok:
+                        print(f"Acting failed {resp.status_code}")
+                        acted_hour = None  # Retry...
+                except requests.exceptions.ConnectionError:
+                    print("Acting failed - connection error")
+                    acted_hour = None  # Retry...
+                except requests.exceptions.Timeout:
+                    print("Acting failed - timeout")
                     acted_hour = None  # Retry...
             else:
                 print(f"Ignoring power use during cheap hours: {live_data}")
