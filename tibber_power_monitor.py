@@ -23,7 +23,7 @@ API_TIMEOUT = 10.0  # seconds
 MIN_WATER_HEATER_CURRENT = 6.5
 MIN_WATER_HEATER_MIN_PER_H = 15
 MIN_PER_H = 60
-WATT_PER_KWH = 1000
+WATT_PER_KW = 1000
 HOURLY_KWH_BUDGET = 3.5
 ACTION_URL = "http://192.168.1.208/25"
 
@@ -50,13 +50,13 @@ def _callback(pkg):
         controllable_energy = (
             MIN_WATER_HEATER_CURRENT
             * (live_data["voltagePhase1"] + live_data["voltagePhase2"])
-            * ((MIN_PER_H - time.localtime()[4]) / MIN_PER_H) / WATT_PER_KWH
+            * ((MIN_PER_H - time.localtime()[4]) / MIN_PER_H)
+            / WATT_PER_KW
         )
         print(
-            f"Supervising VVB active: {could_water_heater_be_running} kWh/h: "
-            + f"{live_data["estimatedHourConsumption"]} - {controllable_energy}"
+            f"Supervising VVB active: {could_water_heater_be_running} kWh/h estimate: "
+            + f"{live_data["estimatedHourConsumption"]} - {controllable_energy:.3f}"
         )
-        print(f"controlable_energy {controllable_energy}")
         if (
             (live_data["estimatedHourConsumption"] - controllable_energy)
             > HOURLY_KWH_BUDGET
@@ -66,9 +66,11 @@ def _callback(pkg):
             acted_hour = time.localtime()[3]
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
-                requests.get(
+                resp = requests.get(
                     ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT
                 )
+                if resp.status != 200:
+                    acted_hour = None  # Retry...
             else:
                 print(f"Ignoring power use during cheap hours: {live_data}")
 
