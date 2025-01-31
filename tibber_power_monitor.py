@@ -22,6 +22,8 @@ WEEKDAY_LAST_HIGH_H = 21
 API_TIMEOUT = 10.0  # seconds
 MIN_WATER_HEATER_CURRENT = 6.5
 MIN_WATER_HEATER_MIN_PER_H = 15
+MIN_PER_H = 60
+WATT_PER_KWH = 1000
 HOURLY_KWH_BUDGET = 3.5
 ACTION_URL = "http://192.168.1.208/25"
 
@@ -41,39 +43,57 @@ def _callback(pkg):
     ):
         could_water_heater_be_running = True
     if (
-        live_data["accumulatedConsumptionLastHour"] > 2.0
+        live_data["accumulatedConsumptionLastHour"]
+        > (HOURLY_KWH_BUDGET * MIN_WATER_HEATER_MIN_PER_H / MIN_PER_H)
         and time.localtime()[4] > MIN_WATER_HEATER_MIN_PER_H
     ):
-        print(
-            f"None trivial consumption detected. Estimated: {live_data['estimatedHourConsumption']}. VVB: {could_water_heater_be_running}"
+        controllable_energy = (
+            MIN_WATER_HEATER_CURRENT
+            * (live_data["voltagePhase1"] + live_data["voltagePhase2"])
+            * ((MIN_PER_H - time.localtime()[4]) / MIN_PER_H) / WATT_PER_KWH
         )
+        print(
+            f"Supervising VVB active: {could_water_heater_be_running} kWh/h: "
+            + f"{live_data["estimatedHourConsumption"]} - {controllable_energy}"
+        )
+        print(f"controlable_energy {controllable_energy}")
         if (
-            live_data["estimatedHourConsumption"] > HOURLY_KWH_BUDGET
+            (live_data["estimatedHourConsumption"] - controllable_energy)
+            > HOURLY_KWH_BUDGET
             and could_water_heater_be_running
             and acted_hour is None
         ):
             acted_hour = time.localtime()[3]
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
-                requests.get(ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT)
+                requests.get(
+                    ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT
+                )
             else:
-                print (f"Ignoring power use during cheap hours: {live_data}")
-
+                print(f"Ignoring power use during cheap hours: {live_data}")
 
 
 async def start():
-    async with aiohttp.ClientSession() as session:
-        tibber_connection = tibber.Tibber(
-            TIBBER_API_ACCESS_TOKEN,
-            user_agent="tibber_power_monitor",
-            websession=session,
-            time_zone=datetime.timezone.utc,
-        )
-        await tibber_connection.update_info()
+    session = aiohttp.ClientSession()
+    tibber_connection = tibber.Tibber(
+        TIBBER_API_ACCESS_TOKEN,
+        user_agent="tibber_power_monitor",
+        websession=session,
+        time_zone=datetime.timezone.utc,
+    )
+    await tibber_connection.update_info()
     home = tibber_connection.get_homes()[0]
     await home.rt_subscribe(_callback)
 
+    alive_timeout = 10
     while True:
+        if home.rt_subscription_running:
+            alive_timeout = 10
+        else:
+            alive_timeout -= 1
+            print(f"Reconnecting. Session closed? {session.closed}")
+            if alive_timeout <= 0:
+                await home.rt_resubscribe()
         await asyncio.sleep(10)
 
 
