@@ -614,7 +614,7 @@ def get_local_date_and_hour(utc_unix_timestamp):
 
 async def delay_minor_temp_increase(wanted_temp, thermostat):
     diff_temp = wanted_temp - thermostat.prev_degrees
-    if 0 < diff_temp < DEGREES_PER_H:
+    if 0 < diff_temp < DEGREES_PER_H and time.localtime()[4] < 45:
         temp_raise_delay = (45 * SEC_PER_MIN) - (
             (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
         )
