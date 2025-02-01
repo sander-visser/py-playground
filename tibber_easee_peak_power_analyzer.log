@@ -2,10 +2,10 @@ Rolling 12 months log created with tibber_easee_peak_power_analyzer.py
 for a freestanding house outside Gothenburg (without PV installed).
 
 Scanning home of Sander Visser
-Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 20:00:00+01:00...
+Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
 Month peak power incl EV: 8.125000 at 2025-01-29 00:00:00+01:00
-Energy used 1541.299 kWh at total cost of 1221.115 SEK (incl VAT and surcharges)
-Plus EV energy used 512.899 kWh at total cost of 169.467 SEK (incl VAT and surcharges)
+Energy used 1549.115 kWh at total cost of 1226.681 SEK (incl VAT and surcharges)
+Plus EV energy used 517.345 kWh at total cost of 171.530 SEK (incl VAT and surcharges)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -55,12 +55,12 @@ Power use distribution with EV charging excluded:
 18-19  Avg: 1.944 kWh/h. Peak: 3.936 kWh/h
 19-20  Avg: 2.454 kWh/h. Peak: 4.563 kWh/h
 20-21  Avg: 2.620 kWh/h. Peak: 4.906 kWh/h
-21-22  Avg: 2.754 kWh/h. Peak: 4.710 kWh/h
-22-23  Avg: 1.942 kWh/h. Peak: 4.546 kWh/h
-23-24  Avg: 1.997 kWh/h. Peak: 4.428 kWh/h
+21-22  Avg: 2.777 kWh/h. Peak: 4.710 kWh/h
+22-23  Avg: 1.941 kWh/h. Peak: 4.546 kWh/h
+23-24  Avg: 2.011 kWh/h. Peak: 4.428 kWh/h
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
-Min solar power req for production: 140 W / m2
+Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-01-31 20:00:00+00:00
 Estimated export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
 Estimated self use: 5.922 kWh - valued at 9.326 SEK (incl VAT)
