@@ -12,7 +12,7 @@ import statistics
 import sys
 import pytz
 import requests
-import tibber  # pip install pyTibber
+import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
 # Note: Easee access token expires after a few hours
