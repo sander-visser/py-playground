@@ -769,7 +769,7 @@ async def handle_client(reader, writer):
     log_print("Request: ", request)
     
     try:
-        if request == "/log":
+        if request != "/log":
             override_temp = float(request[1:])
             log_print(f"Overriding thermostat until next schedule point {override_temp}")
             shared_thermostat.set_thermosat(override_temp)
