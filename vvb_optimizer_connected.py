@@ -113,20 +113,29 @@ def log_print(*args, **kwargs):
     last_log.append(log_str.getvalue())
     if len(last_log) > 125:
         last_log.pop(0)
+        last_log.pop(0)
+        last_log.pop(0)
+        last_log.pop(0)
+        last_log.pop(0)
+        gc.collect()
     print(f"   {log_str.getvalue().rstrip()}")
-    gc.collect()
 
 
 class SimpleTemperatureProvider:
     def __init__(self):
         self.outdoor_temperature = 0
+        self.last_update = None
 
     def get_outdoor_temp(self):
+        if self.last_update is not None and (self.last_update + 600) > time.time():
+            return self.outdoor_temperature
         try:
             outdoor_temperature_req = requests.get(TEMPERATURE_URL, timeout=10.0)
             if outdoor_temperature_req.status_code == 200:
                 try:
                     self.outdoor_temperature = float(outdoor_temperature_req.text)
+                    self.last_update = time.time()
+                    gc.collect()
                 except ValueError:
                     log_print(
                         f"Ignored {outdoor_temperature_req.text} from {TEMPERATURE_URL}"
@@ -567,6 +576,7 @@ def get_wanted_temp(
             wanted_temp += (
                 1 + (DAILY_COMFORT_LAST_H - local_hour)
             ) * DEGREES_LOST_PER_H
+    gc.collect()  # Avoid fragmentation after alarm API use
 
     wanted_temp = add_scorebased_wanted_temperature(
         local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp
@@ -653,9 +663,11 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 days_since_legionella = 0
                 pending_legionella_reset = False
             days_since_legionella += 1
-            today_final, today_cost = await get_cost(today)
-            if today_final is None:
-                raise RuntimeError("Optimization not possible")
+            today_cost = tomorrow_cost
+            if today_cost is None:
+                today_final, today_cost = await get_cost(today)
+                if today_final is None:
+                    raise RuntimeError("Optimization not possible")
             tomorrow_final, tomorrow_cost = (False, None)
 
         if not tomorrow_final and (
@@ -666,6 +678,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             )
         ):
             tomorrow_final, tomorrow_cost = await get_cost(today + timedelta(days=1))
+            gc.collect()
 
         log_print(
             f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @ {today_cost[local_hour]} EUR / kWh"
@@ -744,7 +757,6 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 async def handle_client(reader, writer):
     global last_log
 
-    log_print("Client connected")
     request_line = await reader.readline()
 
     # Skip HTTP request headers
@@ -752,15 +764,17 @@ async def handle_client(reader, writer):
         pass
 
     request = str(request_line, "utf-8").split()[1]
-    log_print("Request:", request)
+    if request == "/favicon.ico":
+        return
+    log_print("Request: ", request)
     
     try:
-        override_temp = float(request[1:])
-        log_print(f"Overriding thermostat until next schedule point {override_temp}")
-        shared_thermostat.set_thermosat(override_temp)
+        if request == "/log":
+            override_temp = float(request[1:])
+            log_print(f"Overriding thermostat until next schedule point {override_temp}")
+            shared_thermostat.set_thermosat(override_temp)
     except ValueError:
         log_print("Failed to parse target temp req as float")
-        
 
     writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
     log_cpy = last_log.copy()
@@ -769,7 +783,6 @@ async def handle_client(reader, writer):
         writer.write("<br>")
     await writer.drain()
     await writer.wait_closed()
-    log_print("Client Disconnected")
 
 
 async def main():
@@ -801,6 +814,7 @@ async def main():
         boost_req = machine.reset_cause() == machine.PWRON_RESET
 
         while attemts_remaing_before_reset > 0:
+            gc.collect()
             tasks.append(run_hotwater_optimization(thermostat, alarm_status, boost_req))
             boost_req = False
             try:
