@@ -190,6 +190,7 @@ class Thermostat:
         self.pwm = PWM(Pin(0))
         self.pwm.freq(50)
         self.prev_degrees = None
+        self.overridden = False
 
     @staticmethod
     def get_pwm_degrees(degrees):
@@ -198,7 +199,8 @@ class Thermostat:
             pwm_degrees += (degrees - MIN_TEMP) * PWM_PER_DEGREE
         return min(pwm_degrees, PWM_78_DEGREES)
 
-    def set_thermosat(self, degrees):
+    def set_thermosat(self, degrees, override=False):
+        self.overridden = override
         if self.prev_degrees != degrees:
             pwm_degrees = self.get_pwm_degrees(degrees)
             self.pwm.duty_u16(int(pwm_degrees))
@@ -224,7 +226,8 @@ class Thermostat:
 
     def nudge_down(self):
         # log_print("Nudging down")
-        self.nudge(-5)
+        if self.prev_degrees is not None and self.prev_degrees >= MIN_NUDGABLE_TEMP:
+            self.nudge(-5)
 
     def nudge_up(self):
         # log_print("Nudging up")
@@ -406,7 +409,7 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
 
     if verbose:
         log_print(
-            f"Score for {now_hour} - {now_hour+1} is {score} (until {until_hour})"
+            f"Score for {now_hour}-{now_hour+1} is {score} (until {until_hour}:59)"
         )
     return max(score, 0)
 
@@ -694,7 +697,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             tomorrow_cost,
             outside_temp,
             alarm_status,
-            True
+            True,
         )
         if days_since_legionella > LEGIONELLA_INTERVAL and (
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
@@ -716,10 +719,14 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):
             wanted_temp = peak_temp_today + DEGREES_PER_H / 4
 
+        pre_delay_override = thermostat.overridden
         if local_hour <= NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
             await delay_minor_temp_increase(wanted_temp, thermostat)
 
-        thermostat.set_thermosat(wanted_temp)
+        if pre_delay_override == thermostat.overridden:
+            thermostat.set_thermosat(wanted_temp)
+        else:
+            log_print("Skipping thermostat setting due to override during delay")
         curr_min = time.localtime()[4]
         if curr_min <= 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
@@ -741,7 +748,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 tomorrow_cost,
                 temperature_provider.get_outdoor_temp(),
                 alarm_status,
-                False
+                False,
             )
             if (
                 next_hour_wanted_temp >= wanted_temp
@@ -749,7 +756,8 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             ):
                 thermostat.nudge_down()
             if (
-                next_hour_wanted_temp <= wanted_temp
+                not thermostat.overridden
+                and next_hour_wanted_temp <= wanted_temp
                 and today_cost[local_hour + 1] > today_cost[local_hour]
             ):
                 thermostat.nudge_up()
@@ -772,12 +780,14 @@ async def handle_client(reader, writer):
     if request == "/favicon.ico":
         return
     log_print("Request: ", request)
-    
+
     try:
         if request != "/log":
             override_temp = float(request[1:])
-            log_print(f"Overriding thermostat until next schedule point {override_temp}")
-            shared_thermostat.set_thermosat(override_temp)
+            log_print(
+                f"Overriding thermostat until next schedule point {override_temp}"
+            )
+            shared_thermostat.set_thermosat(override_temp, True)
     except ValueError:
         log_print("Failed to parse target temp req as float")
 
@@ -841,6 +851,7 @@ async def main():
         log_print("Resetting to recover")
         await asyncio.sleep(10)
         machine.reset()
+
 
 # Globals
 last_log = []
