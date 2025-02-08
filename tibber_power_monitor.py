@@ -13,7 +13,7 @@ import time
 
 import aiohttp
 import requests
-import tibber  # pip install pyTibber
+import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
@@ -22,7 +22,9 @@ WEEKDAY_LAST_HIGH_H = 21  # :59
 MIN_SUPERVISED_CURRENT = 6.5
 SUPERVISED_CIRCUITS = ["1", "2"]
 MINIMUM_LOAD_MINUTES_PER_H = 15
-HOURLY_KWH_BUDGET = 3.5
+HOURLY_KWH_BUDGET = 4.0
+ADDED_LOAD_MARGIN_KW = 2.3  # Laundry load
+ADDED_LOAD_MARGIN_DURATION_MINS = 15
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/25"  # .[ACTED_MINUTE]
 API_TIMEOUT = 10.0  # In seconds
@@ -51,6 +53,11 @@ def _callback(pkg):
         > (HOURLY_KWH_BUDGET * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
         and time.localtime()[4] > MINIMUM_LOAD_MINUTES_PER_H
     ):
+        reserved_energy_duration = min(
+            ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - time.localtime()[4]
+        )
+        reserved_energy = ADDED_LOAD_MARGIN_KW * reserved_energy_duration / MIN_PER_H
+
         volt_sum = 0
         for circuit in SUPERVISED_CIRCUITS:
             volt_sum += live_data[f"voltagePhase{circuit}"]
@@ -61,11 +68,17 @@ def _callback(pkg):
             / WATT_PER_KW
         )
         print(
-            f"Supervised load active: {supervised_load_maybe_active}. kWh/h estimate: "
-            + f"{live_data["estimatedHourConsumption"]} - {controllable_energy:.3f}"
+            f"Supervised load active: {supervised_load_maybe_active}\n"
+            + f"kWh/h estimate: {live_data["estimatedHourConsumption"]} + "
+            + f"reserved: {reserved_energy:.3f} - "
+            + f"controllable {controllable_energy:.3f}"
         )
         if (
-            (live_data["estimatedHourConsumption"] - controllable_energy)
+            (
+                live_data["estimatedHourConsumption"]
+                + reserved_energy
+                - controllable_energy
+            )
             > HOURLY_KWH_BUDGET
             and supervised_load_maybe_active
             and acted_hour is None
