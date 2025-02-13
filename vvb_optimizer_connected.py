@@ -628,15 +628,15 @@ def get_local_date_and_hour(utc_unix_timestamp):
     return (adjusted_day, now[3])
 
 
-async def delay_minor_temp_increase(wanted_temp, thermostat):
+async def delay_minor_temp_increase(wanted_temp, thermostat, local_hour):
     diff_temp = wanted_temp - thermostat.prev_degrees
     if 0 < diff_temp < DEGREES_PER_H and time.localtime()[4] < 45:
-        temp_raise_delay = (45 * SEC_PER_MIN) - (
+        raise_delay = (45 * SEC_PER_MIN) - (
             (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
         )
-        log_print(f"Delaying temp increase with {temp_raise_delay}s")
+        log_print(f"Delaying temp increase to {local_hour}:{raise_delay/60:.0f}")
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            await asyncio.sleep(temp_raise_delay)
+            await asyncio.sleep(raise_delay)
 
 
 async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
@@ -706,22 +706,19 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         if wanted_temp >= MIN_LEGIONELLA_TEMP:
             pending_legionella_reset = True
 
-        pretty_min = f"{time.localtime()[4]}"
-        if len(pretty_min) == 1:
-            pretty_min = f"0{pretty_min}"
-        log_print(
-            f"-- {local_hour}:{pretty_min} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
-        )
-
         peak_temp_today = max(peak_temp_today, wanted_temp)
         if today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT and local_hour == (
             LAST_MORNING_HEATING_H - 1
         ):
-            wanted_temp = peak_temp_today + DEGREES_PER_H / 4
+            wanted_temp = min(MAX_TEMP, peak_temp_today + DEGREES_PER_H / 4)
 
-        pre_delay_override = thermostat.overridden
+        pretty_time = f"{local_hour}:{'%02d' % time.localtime()[4]}"
+        log_print(
+            f"-- {pretty_time} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
+        )
+
         if local_hour <= NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
-            await delay_minor_temp_increase(wanted_temp, thermostat)
+            await delay_minor_temp_increase(wanted_temp, thermostat, local_hour)
 
         if pre_delay_override == thermostat.overridden:
             thermostat.set_thermosat(wanted_temp)
