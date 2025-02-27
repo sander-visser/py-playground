@@ -21,12 +21,14 @@ check referral.link in repo
 
 # Install micropyton (hold BOOTSEL while connecting USB to get drive mounted),
 # or execute "machine.bootloader()" to upgrade existing MicroPython board.
-# Copy https://micropython.org/download/RPI_PICO_W/RPI_PICO_W-latest.uf2
-# then (when WiFi connected, and before copying this script as main.py)
+# Copy UF2 file to the USB drive:
+# Pico W: https://micropython.org/download/RPI_PICO_W/RPI_PICO_W-latest.uf2
+# Pico2 W (preview build): https://micropython.org/download/RPI_PICO2_W/
+# then (when WiFi connected, and before saving this script as main.py)
 # import network
 # wlan = network.WLAN(network.STA_IF)
 # wlan.active(True)
-# wlan.connect(WLAN_SSID, WLAN_PASS)
+# wlan.connect("WLAN_SSID", "WLAN_PASS")
 # import mip
 # mip.install("requests")
 # mip.install("datetime")
@@ -717,6 +719,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             f"-- {pretty_time} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
         )
 
+        pre_delay_override = thermostat.overridden
         if local_hour <= NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
             await delay_minor_temp_increase(wanted_temp, thermostat, local_hour)
 
@@ -798,7 +801,7 @@ async def handle_client(reader, writer):
 
 
 async def main():
-    if "Pico W" in sys.implementation._machine:
+    if "Pico W" or "Pico 2 W" in sys.implementation._machine:
         thermostat = shared_thermostat
         thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
         attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
@@ -848,7 +851,7 @@ async def main():
         log_print("Resetting to recover")
         await asyncio.sleep(10)
         machine.reset()
-
+    log_print("Unsupported board?")
 
 # Globals
 last_log = []
