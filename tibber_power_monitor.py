@@ -30,6 +30,7 @@ ACTION_URL = "http://192.168.1.208/25"  # .[ACTED_MINUTE]
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
 WATT_PER_KW = 1000
+MAX_RETRY_COUNT = 6  # 10s apart
 
 
 def _callback(pkg):
@@ -69,6 +70,7 @@ def _callback(pkg):
         )
         print(
             f"Supervised load active: {supervised_load_maybe_active}\n"
+            + f"Acted to reduce consumption: {acted_hour is not None}\n"
             + f"kWh/h estimate: {live_data["estimatedHourConsumption"]} + "
             + f"reserved: {reserved_energy:.3f} - "
             + f"controllable {controllable_energy:.3f}"
@@ -115,19 +117,23 @@ async def start():
     home = tibber_connection.get_homes()[0]
     await home.rt_subscribe(_callback)
 
-    alive_timeout = 10
+    alive_timeout = MAX_RETRY_COUNT
     while True:
         if home.rt_subscription_running:
-            alive_timeout = 10
+            alive_timeout = MAX_RETRY_COUNT
         else:
             alive_timeout -= 1
-            print(f"Reconnecting. Session closed? {session.closed}")
-            if alive_timeout <= 0:
-                await home.rt_resubscribe()
+            if alive_timeout < 0:
+                return
         await asyncio.sleep(10)
 
 
 #  Globals
 acted_hour = None
 
-loop = asyncio.run(start())
+while True:
+    try:
+        loop = asyncio.run(start())
+    except tibber.exceptions.FatalHttpExceptionError:
+        print("Server issues detected...")
+    sleep(60)
