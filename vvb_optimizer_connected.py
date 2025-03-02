@@ -22,7 +22,7 @@ check referral.link in repo
 # Install micropyton (hold BOOTSEL while connecting USB to get drive mounted),
 # or execute "machine.bootloader()" to upgrade existing MicroPython board.
 # Copy UF2 file to the USB drive:
-# Pico W: https://micropython.org/download/RPI_PICO_W/RPI_PICO_W-latest.uf2
+# Pico W (v1.25.0+): https://micropython.org/download/RPI_PICO_W/RPI_PICO_W-latest.uf2
 # Pico2 W (preview build): https://micropython.org/download/RPI_PICO2_W/
 # then (when WiFi connected, and before saving this script as main.py)
 # import network
