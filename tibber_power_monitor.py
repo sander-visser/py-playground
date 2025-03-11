@@ -136,4 +136,4 @@ while True:
         loop = asyncio.run(start())
     except tibber.exceptions.FatalHttpExceptionError:
         print("Server issues detected...")
-    sleep(60)
+    time.sleep(60)
