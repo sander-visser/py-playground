@@ -577,7 +577,7 @@ def get_wanted_temp(
 ):
     wanted_temp = MIN_TEMP
 
-    if alarm_fully_armed:
+    if not alarm_fully_armed:
         wanted_temp += get_wanted_temp_boost(local_hour, weekday, today_cost)
     elif MAX_HOURS_NEEDED_TO_HEAT <= local_hour < DAILY_COMFORT_LAST_H:
         if is_now_cheapest_remaining_during_comfort(today_cost, local_hour):
@@ -700,7 +700,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             today_cost,
             tomorrow_cost,
             outside_temp,
-            alarm_status is None or not alarm_status.is_fully_armed(),
+            alarm_status is not None and alarm_status.is_fully_armed(),
             True,
         )
         if days_since_legionella > LEGIONELLA_INTERVAL and (
@@ -749,7 +749,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 today_cost,
                 tomorrow_cost,
                 temperature_provider.get_outdoor_temp(),
-                alarm_status is None or not alarm_status.is_fully_armed(),
+                alarm_status is not None and alarm_status.is_fully_armed(),
                 False,
             )
             if (
