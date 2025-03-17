@@ -71,7 +71,7 @@ def _callback(pkg):
         print(
             f"Supervised load active: {supervised_load_maybe_active}\n"
             + f"Acted to reduce consumption: {acted_hour is not None}\n"
-            + f"kWh/h estimate: {live_data["estimatedHourConsumption"]} + "
+            + f"kWh/h estimate: {live_data['estimatedHourConsumption']} + "
             + f"reserved: {reserved_energy:.3f} - "
             + f"controllable {controllable_energy:.3f}"
         )
