@@ -36,10 +36,9 @@ headers = {"Content-Type": "application/x-www-form-urlencoded"}
 response = requests.post(
     OAUTH_ENDPOINT, data=request_body, verify=HTTPS_VERIFY, timeout=API_TIMEOUT
 )
-if (response.status_code != 200)
-{
+if response.status_code != 200:
     print(response.text)
-}
+
 api_access_token = response.json()["access_token"]
 
 api_header = {
