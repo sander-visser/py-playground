@@ -136,4 +136,6 @@ while True:
         loop = asyncio.run(start())
     except tibber.exceptions.FatalHttpExceptionError:
         print("Server issues detected...")
+    except gql.transport.exceptions.TransportQueryError:
+        print("Server setup issue detected...")
     time.sleep(60)
