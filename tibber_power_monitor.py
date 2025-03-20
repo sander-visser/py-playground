@@ -113,9 +113,14 @@ async def start():
         websession=session,
         time_zone=datetime.timezone.utc,
     )
-    await tibber_connection.update_info()
-    home = tibber_connection.get_homes()[0]
-    await home.rt_subscribe(_callback)
+    home = None
+    try:
+        await tibber_connection.update_info()
+        home = tibber_connection.get_homes()[0]
+        await home.rt_subscribe(_callback)
+    except Exception as e:
+        print(f"Setup error: {e}")
+
 
     alive_timeout = MAX_RETRY_COUNT
     while True:
@@ -136,6 +141,4 @@ while True:
         loop = asyncio.run(start())
     except tibber.exceptions.FatalHttpExceptionError:
         print("Server issues detected...")
-    except gql.transport.exceptions.TransportQueryError:
-        print("Server setup issue detected...")
     time.sleep(60)
