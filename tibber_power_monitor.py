@@ -121,9 +121,8 @@ async def start():
     except Exception as e:
         print(f"Setup error: {e}")
 
-
     alive_timeout = MAX_RETRY_COUNT
-    while True:
+    while home is not None:
         if home.rt_subscription_running:
             alive_timeout = MAX_RETRY_COUNT
         else:
