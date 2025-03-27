@@ -27,8 +27,10 @@ ADDED_LOAD_MARGIN_KW = 2.3  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 15
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/25"  # .[ACTED_MINUTE]
+RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="  # Inverted logic NC contactor
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
+SEC_PER_MIN = 60
 WATT_PER_KW = 1000
 MAX_RETRY_COUNT = 6  # 10s apart
 
@@ -75,16 +77,27 @@ def _callback(pkg):
             + f"reserved: {reserved_energy:.3f} - "
             + f"controllable {controllable_energy:.3f}"
         )
-        if (
-            (
-                live_data["estimatedHourConsumption"]
-                + reserved_energy
-                - controllable_energy
-            )
-            > HOURLY_KWH_BUDGET
-            and supervised_load_maybe_active
-            and acted_hour is None
-        ):
+        acting_needed = (
+            live_data["estimatedHourConsumption"]
+            + reserved_energy
+            - controllable_energy
+        ) > HOURLY_KWH_BUDGET and supervised_load_maybe_active
+        if acting_needed and acted_hour is not None and RELAY_URL is not None:
+            if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
+                print(f"Acting with relay to reduce power use: {live_data}")
+                sec_remaining = (MIN_PER_H - time.localtime()[4]) * SEC_PER_MIN
+                try:
+                    resp = requests.get(
+                        RELAY_URL + f"{sec_remaining}", timeout=API_TIMEOUT
+                    )
+                    if resp.status_code != requests.codes.ok:
+                        print(f"Acting relay failed {resp.status_code}")
+                except requests.exceptions.ConnectionError:
+                    print("Acting relay failed - connection error")
+                except requests.exceptions.Timeout:
+                    print("Acting relay failed - timeout")
+
+        if acting_needed and acted_hour is None and ACTION_URL is not None:
             acted_hour = time.localtime()[3]
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
