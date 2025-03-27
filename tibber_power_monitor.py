@@ -97,7 +97,7 @@ def _callback(pkg):
                 except requests.exceptions.Timeout:
                     print("Acting relay failed - timeout")
 
-        if acting_needed and acted_hour is None and ACTION_URL is not None:
+        if acting_needed and acted_hour is None:
             acted_hour = time.localtime()[3]
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
