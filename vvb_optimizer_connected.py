@@ -784,10 +784,15 @@ async def handle_client(reader, writer):
     log_print("Request: ", request)
 
     try:
-        if request != "/log":
+        if request == "/reduceload":
+            shared_thermostat.set_thermosat(shared_thermostat.prev_degrees - DEGREES_PER_H, True)
+            log_print(
+                f"-- {time.localtime()} Lowering thermostat until next schedule point {shared_thermostat.prev_degrees}"
+            )
+        elif request != "/log":
             override_temp = float(request[1:])
             log_print(
-                f"Overriding thermostat until next schedule point {override_temp}"
+                f"-- {time.localtime()} Overriding thermostat until next schedule point {override_temp}"
             )
             shared_thermostat.set_thermosat(override_temp, True)
     except ValueError:
