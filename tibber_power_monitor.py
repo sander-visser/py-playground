@@ -27,7 +27,7 @@ HOURLY_KWH_BUDGET = 4.0
 ADDED_LOAD_MARGIN_KW = 2.3  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 15
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
-ACTION_URL = "http://192.168.1.208/25"  # .[ACTED_MINUTE]
+ACTION_URL = "http://192.168.1.208/reduceload"
 # Shelly PRO relay with inverted logic NC contactor cutting load current
 RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="
 API_TIMEOUT = 10.0  # In seconds
@@ -117,9 +117,7 @@ def _callback(pkg):
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting to reduce power use: {live_data}")
                 try:
-                    resp = requests.get(
-                        ACTION_URL + f".{time.localtime()[4]}", timeout=API_TIMEOUT
-                    )
+                    resp = requests.get(ACTION_URL, timeout=API_TIMEOUT)
                     if resp.status_code != requests.codes.ok:
                         print(f"Acting failed {resp.status_code}")
                         acted_hour = None  # Retry...
