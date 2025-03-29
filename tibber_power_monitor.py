@@ -20,19 +20,32 @@ TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo 
 WEEKDAY_FIRST_HIGH_H = 6
 WEEKDAY_LAST_HIGH_H = 21  # :59
 MIN_SUPERVISED_CURRENT = 6.5
-SUPERVISED_CIRCUITS = ["1", "2"]
+MAIN_FUSE_MAX_CURRENT = 30.0
+SUPERVISED_CIRCUITS = [1, 2]
 MINIMUM_LOAD_MINUTES_PER_H = 15
 HOURLY_KWH_BUDGET = 4.0
 ADDED_LOAD_MARGIN_KW = 2.3  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 15
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/25"  # .[ACTED_MINUTE]
-RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="  # Inverted logic NC contactor
+# Shelly PRO relay with inverted logic NC contactor cutting load current
+RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
 SEC_PER_MIN = 60
 WATT_PER_KW = 1000
 MAX_RETRY_COUNT = 6  # 10s apart
+
+
+def pause_with_relay(sec_pause):
+    try:
+        resp = requests.get(RELAY_URL + f"{sec_pause}", timeout=API_TIMEOUT)
+        if resp.status_code != requests.codes.ok:
+            print(f"Acting relay failed {resp.status_code}")
+    except requests.exceptions.ConnectionError:
+        print("Acting relay failed - connection error")
+    except requests.exceptions.Timeout:
+        print("Acting relay failed - timeout")
 
 
 def _callback(pkg):
@@ -42,6 +55,7 @@ def _callback(pkg):
         return
     live_data = data.get("liveMeasurement")
     supervised_load_maybe_active = False
+    main_fuse_protection_needed = False
     if acted_hour is not None and acted_hour != time.localtime()[3]:
         acted_hour = None
 
@@ -50,8 +64,17 @@ def _callback(pkg):
         supervised_currents.append(live_data[f"currentL{circuit}"])
     if min(supervised_currents) > MIN_SUPERVISED_CURRENT:
         supervised_load_maybe_active = True
+    if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
+        main_fuse_protection_needed = True
+    elif not supervised_load_maybe_active:
+        main_fuse_protection_needed = max(supervised_currents) > (
+            MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
+        )
 
-    if (
+    if main_fuse_protection_needed:
+        print(f"Protecting main fuse: {live_data}")
+        pause_with_relay(5 * SEC_PER_MIN)
+    elif (
         live_data["accumulatedConsumptionLastHour"]
         > (HOURLY_KWH_BUDGET * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
         and time.localtime()[4] > MINIMUM_LOAD_MINUTES_PER_H
@@ -85,17 +108,9 @@ def _callback(pkg):
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
             if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
                 print(f"Acting with relay to reduce power use: {live_data}")
-                sec_remaining = (MIN_PER_H - time.localtime()[4]) * SEC_PER_MIN
-                try:
-                    resp = requests.get(
-                        RELAY_URL + f"{sec_remaining}", timeout=API_TIMEOUT
-                    )
-                    if resp.status_code != requests.codes.ok:
-                        print(f"Acting relay failed {resp.status_code}")
-                except requests.exceptions.ConnectionError:
-                    print("Acting relay failed - connection error")
-                except requests.exceptions.Timeout:
-                    print("Acting relay failed - timeout")
+                sec_pause = (MIN_PER_H - time.localtime()[4]) * SEC_PER_MIN
+                sec_pause = min(sec_pause, 5 * SEC_PER_MIN)
+                pause_with_relay(sec_pause)
 
         if acting_needed and acted_hour is None:
             acted_hour = time.localtime()[3]
