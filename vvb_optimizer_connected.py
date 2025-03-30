@@ -779,7 +779,7 @@ async def handle_client(reader, writer):
         pass
 
     request = str(request_line, "utf-8").split()[1]
-    if request == "/favicon.ico":
+    if request == "/favicon.ico" or request == "/shelly":
         return
     log_print("Request: ", request)
 
