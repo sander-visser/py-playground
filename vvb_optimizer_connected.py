@@ -384,8 +384,12 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
     if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(cheap_hours)[
         NORMAL_HOURS_NEEDED_TO_HEAT - 1
     ]:
-        # If delayed (or late cheap hour) still heat aggressive now
-        score = MAX_HOURS_NEEDED_TO_HEAT
+        if heat_end_hour - now_hour > NORMAL_HOURS_NEEDED_TO_HEAT:
+            # If late cheap hour preheat somewhat now
+            score = max(score, 1)
+        else:
+            # If delayed still heat aggressive now
+            score = MAX_HOURS_NEEDED_TO_HEAT
 
     if now_price <= sorted(cheap_hours)[NORMAL_HOURS_NEEDED_TO_HEAT - 1]:
         if verbose and delay_msg is not None:
