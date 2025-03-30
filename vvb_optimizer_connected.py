@@ -780,6 +780,9 @@ async def handle_client(reader, writer):
 
     request = str(request_line, "utf-8").split()[1]
     if request == "/favicon.ico" or request == "/shelly":
+        writer.write("HTTP/1.0 404 Not Found\r\n")
+        await writer.drain()
+        await writer.wait_closed()
         return
     log_print("Request: ", request)
 
@@ -789,6 +792,16 @@ async def handle_client(reader, writer):
             log_print(
                 f"-- {time.localtime()} Lowering thermostat until next schedule point {shared_thermostat.prev_degrees}"
             )
+            writer.write("HTTP/1.0 200 OK\r\n")
+            await writer.drain()
+            await writer.wait_closed()
+            return
+        elif request == "/postponedload":
+            writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
+            writer.write("True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False")
+            await writer.drain()
+            await writer.wait_closed()
+            return
         elif request != "/log":
             override_temp = float(request[1:])
             log_print(
