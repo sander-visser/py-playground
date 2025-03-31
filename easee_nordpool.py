@@ -214,9 +214,18 @@ class EaseeCostAnalyzer:
                     if looked_up_date is None or curr_date.date() != looked_up_date:
                         looked_up_date = curr_date.date()
                         day_spot_prices = self.get_day_spot_prices(looked_up_date)
-                    curr_hour_price = (
-                        day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
-                    )
+                    if len(day_spot_prices) == 23 and curr_date.hour > 2:  # DST adjust
+                        curr_hour_price = (
+                            day_spot_prices[curr_date.hour - 1]["value"] / KWH_PER_MWH
+                        )
+                    elif len(day_spot_prices) == 25 and curr_date.hour > 3:  # DST adjust
+                        curr_hour_price = (
+                            day_spot_prices[curr_date.hour + 1]["value"] / KWH_PER_MWH
+                        ) 
+                    else:
+                        curr_hour_price = (
+                            day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
+                        )
                     if not charged_last_hour and hour_data["consumption"] > 1.0:
                         charged_last_hour = True
                         one_kw_diff_price = 0.0
@@ -235,9 +244,7 @@ class EaseeCostAnalyzer:
                         hour_cost_after_charge_end = (
                             day_spot_prices[hour_after_charge]["value"] / KWH_PER_MWH
                         )
-                        cost_of_last_charge_hour = (
-                            day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
-                        )
+                        cost_of_last_charge_hour = curr_hour_price
 
                 if hour_cost is not None and self.verbose:
                     print(
