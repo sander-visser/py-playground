@@ -96,6 +96,12 @@ async def start():
             if START_DATE.month in [1, 3, 5, 7, 8, 10, 12]
             else (30 * 24) if START_DATE.month != 2 else 28 * 30
         )
+        if START_DATE.month == 2 and (START_DATE.year % 4) == 0:
+            hours_in_month += 24
+        if START_DATE.month == 3:
+            hours_in_month -= 1
+        if START_DATE.month == 10:
+            hours_in_month += 1
         hourly_consumption_data = await home.get_historic_data_date(
             START_DATE, hours_in_month
         )
