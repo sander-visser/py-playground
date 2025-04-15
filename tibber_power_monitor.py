@@ -24,8 +24,8 @@ MAIN_FUSE_MAX_CURRENT = 30.0
 SUPERVISED_CIRCUITS = [1, 2]
 MINIMUM_LOAD_MINUTES_PER_H = 15
 HOURLY_KWH_BUDGET = 4.0
-ADDED_LOAD_MARGIN_KW = 2.3  # Laundry load
-ADDED_LOAD_MARGIN_DURATION_MINS = 15
+ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
+ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/reduceload"
 # Shelly PRO relay with inverted logic NC contactor cutting load current
