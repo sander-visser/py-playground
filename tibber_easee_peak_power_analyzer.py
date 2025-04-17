@@ -252,7 +252,7 @@ async def start():
 
     if irradiance is not None:
         print(
-            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)"
+            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)"
         )
         print(f"Min solar power required for production: {IRRADIANCE_MIN} W / m2")
         print(f"Analysed with database until: {list(irradiance.keys())[-1]}")
