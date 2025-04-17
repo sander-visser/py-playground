@@ -95,7 +95,7 @@ OVERHEAD_BASE_PRICE = 0.067032287290990  # In EUR for tax, purchase and transfer
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
-PRICE_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices?currency=EUR&resolutionInMinutes=60&deliveryArea="
+PRICE_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?market=DayAhead&currency=EUR&resolutionInMinutes=60&indexNames="
 # TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
@@ -274,7 +274,7 @@ async def get_cost(end_date):
     gc.collect()
 
     cost_array = []
-    for row in the_json_result["multiAreaEntries"]:
+    for row in the_json_result["multiIndexEntries"]:
         cost_array.append(
             row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
         )
