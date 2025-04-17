@@ -278,6 +278,8 @@ async def get_cost(end_date):
         cost_array.append(
             row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
         )
+    if len(the_json_result["areaStates"]) == 0 or len(cost_array) == 0:
+        return (None, None)
     if len(cost_array) == 23:
         cost_array.append(cost_array[0])  # DST hack - off by one in adjust days
     return (the_json_result["areaStates"][0]["state"] == "Final", cost_array)
