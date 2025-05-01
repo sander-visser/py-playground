@@ -28,8 +28,8 @@ HTTP_UNAUTHORIZED_CODE = 401
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_FIRST_HIGH_H = 6
 WEEKDAY_LAST_HIGH_H = 21
-IRRADIANCE_OBSERVATION = None # "smhi-opendata_11_41_42_10_24_71415.csv"  # gotten from : "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
-INSTALLED_PANEL_POWER = 8 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
+IRRADIANCE_OBSERVATION = None # "smhi-opendata.csv"  # gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415" - with leading garbage removed
+INSTALLED_PANEL_POWER = 10 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
 
@@ -214,13 +214,13 @@ async def start():
         )
 
     print(
-        f"Energy used {other_energy:.3f} kWh at total cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+        f"Energy used {other_energy:.3f} kWh at energy cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges) (avg price: {other_cost/other_energy:.3f})"
     )
     if charger_consumption is None:
         print("\nTop ten peak power hours:")
     else:
         print(
-            f"Plus EV energy used {ev_energy:.3f} kWh at total cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+            f"Plus EV energy used {ev_energy:.3f} kWh at enrgy cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges) (avg price: {ev_cost/ev_energy:.3f})"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
