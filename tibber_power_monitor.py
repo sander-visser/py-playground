@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Monitor power usage via Tibber and if too high act
+Monitor power usage via Tibber and if too high act by controlling load.
 
 If getting issues with certificate verification run on windows:
 export SSL_CERT_FILE=$(python -m certifi)
@@ -17,18 +17,21 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
-WEEKDAY_FIRST_HIGH_H = 6
+HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
+WEEKDAY_FIRST_HIGH_H = 6  # :00
 WEEKDAY_LAST_HIGH_H = 21  # :59
+WEEKDAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 MIN_SUPERVISED_CURRENT = 6.5
 MAIN_FUSE_MAX_CURRENT = 30.0
 SUPERVISED_CIRCUITS = [1, 2]
 MINIMUM_LOAD_MINUTES_PER_H = 15
-HOURLY_KWH_BUDGET = 4.0
+RESTRICTED_HOURLY_KWH_BUDGET = 6.0
+UNRESTRICTED_HOURLY_KWH_BUDGET = 6.0
 ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
-ACTION_URL = "http://192.168.1.208/reduceload"
-# Shelly PRO relay with inverted logic NC contactor cutting load current
+ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
+# Shelly PRO relay with NC contactor cutting load current - None if not used
 RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
@@ -56,8 +59,19 @@ def _callback(pkg):
     live_data = data.get("liveMeasurement")
     supervised_load_maybe_active = False
     main_fuse_protection_needed = False
-    if acted_hour is not None and acted_hour != time.localtime()[3]:
+    current_time = time.localtime()
+    if acted_hour is not None and acted_hour != current_time.tm_hour:
         acted_hour = None
+
+    restricted_budget = (
+        current_time.tm_wday in WEEKDAYS
+        and WEEKDAY_FIRST_HIGH_H <= current_time.tm_hour <= WEEKDAY_LAST_HIGH_H
+    )
+    budget = (
+        RESTRICTED_HOURLY_KWH_BUDGET
+        if restricted_budget
+        else UNRESTRICTED_HOURLY_KWH_BUDGET
+    )
 
     supervised_currents = []
     for circuit in SUPERVISED_CIRCUITS:
@@ -76,11 +90,11 @@ def _callback(pkg):
         pause_with_relay(5 * SEC_PER_MIN)
     elif (
         live_data["accumulatedConsumptionLastHour"]
-        > (HOURLY_KWH_BUDGET * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
-        and time.localtime()[4] > MINIMUM_LOAD_MINUTES_PER_H
+        > (budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
+        and current_time.tm_min > MINIMUM_LOAD_MINUTES_PER_H
     ):
         reserved_energy_duration = min(
-            ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - time.localtime()[4]
+            ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - current_time.tm_min
         )
         reserved_energy = ADDED_LOAD_MARGIN_KW * reserved_energy_duration / MIN_PER_H
 
@@ -90,7 +104,7 @@ def _callback(pkg):
         controllable_energy = (
             MIN_SUPERVISED_CURRENT
             * volt_sum
-            * ((MIN_PER_H - time.localtime()[4]) / MIN_PER_H)
+            * ((MIN_PER_H - current_time.tm_min) / MIN_PER_H)
             / WATT_PER_KW
         )
         print(
@@ -104,18 +118,17 @@ def _callback(pkg):
             live_data["estimatedHourConsumption"]
             + reserved_energy
             - controllable_energy
-        ) > HOURLY_KWH_BUDGET and supervised_load_maybe_active
+        ) > budget and supervised_load_maybe_active
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
-            if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
-                print(f"Acting with relay to reduce power use: {live_data}")
-                sec_pause = (MIN_PER_H - time.localtime()[4]) * SEC_PER_MIN
-                sec_pause = min(sec_pause, 5 * SEC_PER_MIN)
-                pause_with_relay(sec_pause)
+            print(f"Acting with relay to reduce power use: {live_data}")
+            sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
+            sec_pause = min(sec_pause, 5 * SEC_PER_MIN)
+            pause_with_relay(sec_pause)
 
         if acting_needed and acted_hour is None:
-            acted_hour = time.localtime()[3]
-            if WEEKDAY_FIRST_HIGH_H <= acted_hour <= WEEKDAY_LAST_HIGH_H:
-                print(f"Acting to reduce power use: {live_data}")
+            acted_hour = current_time.tm_hour
+            if ACTION_URL is not None:
+                print(f"Acting with action to reduce power use: {live_data}")
                 try:
                     resp = requests.get(ACTION_URL, timeout=API_TIMEOUT)
                     if resp.status_code != requests.codes.ok:
@@ -142,7 +155,7 @@ async def start():
     home = None
     try:
         await tibber_connection.update_info()
-        home = tibber_connection.get_homes()[0]
+        home = tibber_connection.get_homes()[HOME_INDEX]
         await home.rt_subscribe(_callback)
     except Exception as e:
         print(f"Setup error: {e}")
