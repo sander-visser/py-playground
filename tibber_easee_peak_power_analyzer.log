@@ -198,68 +198,68 @@ Estimated self use: 200.940 kWh - valued at 105.140 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
-Scanning peak power 2024-04-01 00:00:00+02:00 - 2024-04-30 23:00:00+02:00...
-Month peak power incl EV: 11.590000 at 2024-04-07 23:00:00+02:00
-Energy used 1187.409 kWh at total cost of 888.354 SEK (incl VAT and surcharges)
-Plus EV energy used 464.483 kWh at total cost of 217.503 SEK (incl VAT and surcharges)
+Scanning peak power 2025-04-01 00:00:00+02:00 - 2025-04-30 23:00:00+02:00...
+Month peak power incl EV: 8.562000 at 2025-04-09 17:00:00+02:00
+Energy used 943.796 kWh at total cost of 447.435 SEK (incl VAT and surcharges)
+Plus EV energy used 501.179 kWh at total cost of 183.380 SEK (incl VAT and surcharges)
 
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays 6:00 - 21:59
-Peak of 5.127 kWh/h has occured at 2024-04-05 15:00:00+02:00
-Peak of 4.935 kWh/h has occured at 2024-04-05 14:00:00+02:00
-Peak of 4.917 kWh/h has occured at 2024-04-02 16:00:00+02:00
-Peak of 4.775 kWh/h has occured at 2024-04-05 17:00:00+02:00
-Peak of 4.402 kWh/h has occured at 2024-04-12 15:00:00+02:00
-Peak of 4.340 kWh/h has occured at 2024-04-01 21:00:00+02:00
-Peak of 4.338 kWh/h has occured at 2024-04-12 14:00:00+02:00
-Peak of 4.309 kWh/h has occured at 2024-04-05 16:00:00+02:00
-Peak of 4.108 kWh/h has occured at 2024-04-23 11:00:00+02:00
-Peak of 4.046 kWh/h has occured at 2024-04-15 06:00:00+02:00
+Peak of 4.014 kWh/h has occured at 2025-04-30 07:00:00+02:00
+Peak of 3.978 kWh/h has occured at 2025-04-08 13:00:00+02:00
+Peak of 3.921 kWh/h has occured at 2025-04-11 12:00:00+02:00
+Peak of 3.865 kWh/h has occured at 2025-04-23 12:00:00+02:00, 2025-04-30 12:00:00+02:00
+Peak of 3.856 kWh/h has occured at 2025-04-04 12:00:00+02:00
+Peak of 3.799 kWh/h has occured at 2025-04-04 14:00:00+02:00
+Peak of 3.735 kWh/h has occured at 2025-04-04 15:00:00+02:00, 2025-04-28 12:00:00+02:00
+Peak of 3.691 kWh/h has occured at 2025-04-23 13:00:00+02:00, 2025-04-30 13:00:00+02:00
+Peak of 3.646 kWh/h has occured at 2025-04-10 14:00:00+02:00
+Peak of 3.640 kWh/h has occured at 2025-04-04 13:00:00+02:00
 
 Low cost peaks:
-Peak of 5.748 kWh/h has occured at 2024-04-07 14:00:00+02:00
-Peak of 5.128 kWh/h has occured at 2024-04-20 13:00:00+02:00
-Peak of 5.032 kWh/h has occured at 2024-04-19 03:00:00+02:00
-Peak of 4.984 kWh/h has occured at 2024-04-21 19:00:00+02:00
-Peak of 4.896 kWh/h has occured at 2024-04-11 23:00:00+02:00
-Peak of 4.866 kWh/h has occured at 2024-04-21 17:00:00+02:00
-Peak of 4.818 kWh/h has occured at 2024-04-02 23:00:00+02:00
-Peak of 4.719 kWh/h has occured at 2024-04-07 15:00:00+02:00
-Peak of 4.607 kWh/h has occured at 2024-04-06 21:00:00+02:00
-Peak of 4.575 kWh/h has occured at 2024-04-21 14:00:00+02:00
+Peak of 5.650 kWh/h has occured at 2025-04-30 04:00:00+02:00
+Peak of 4.571 kWh/h has occured at 2025-04-08 01:00:00+02:00
+Peak of 4.267 kWh/h has occured at 2025-04-16 02:00:00+02:00
+Peak of 4.222 kWh/h has occured at 2025-04-08 02:00:00+02:00
+Peak of 4.051 kWh/h has occured at 2025-04-21 04:00:00+02:00
+Peak of 3.975 kWh/h has occured at 2025-04-05 13:00:00+02:00
+Peak of 3.877 kWh/h has occured at 2025-04-11 04:00:00+02:00
+Peak of 3.844 kWh/h has occured at 2025-04-27 13:00:00+02:00
+Peak of 3.757 kWh/h has occured at 2025-04-05 02:00:00+02:00
+Peak of 3.752 kWh/h has occured at 2025-04-04 04:00:00+02:00
 
 Power use distribution with EV charging excluded:
- 0- 1  Avg: 1.869 kWh/h. Peak: 4.320 kWh/h
- 1- 2  Avg: 1.929 kWh/h. Peak: 4.410 kWh/h
- 2- 3  Avg: 1.947 kWh/h. Peak: 4.438 kWh/h
- 3- 4  Avg: 1.834 kWh/h. Peak: 5.032 kWh/h
- 4- 5  Avg: 1.867 kWh/h. Peak: 4.457 kWh/h
- 5- 6  Avg: 1.307 kWh/h. Peak: 3.398 kWh/h
- 6- 7  Avg: 1.896 kWh/h. Peak: 4.529 kWh/h
- 7- 8  Avg: 1.071 kWh/h. Peak: 2.281 kWh/h
- 8- 9  Avg: 0.836 kWh/h. Peak: 2.233 kWh/h
- 9-10  Avg: 1.013 kWh/h. Peak: 4.192 kWh/h
-10-11  Avg: 0.956 kWh/h. Peak: 4.283 kWh/h
-11-12  Avg: 1.061 kWh/h. Peak: 4.108 kWh/h
-12-13  Avg: 1.162 kWh/h. Peak: 3.409 kWh/h
-13-14  Avg: 1.931 kWh/h. Peak: 5.128 kWh/h
-14-15  Avg: 2.285 kWh/h. Peak: 5.748 kWh/h
-15-16  Avg: 1.983 kWh/h. Peak: 5.127 kWh/h
-16-17  Avg: 2.071 kWh/h. Peak: 4.917 kWh/h
-17-18  Avg: 1.872 kWh/h. Peak: 4.866 kWh/h
-18-19  Avg: 1.758 kWh/h. Peak: 3.157 kWh/h
-19-20  Avg: 1.749 kWh/h. Peak: 4.984 kWh/h
-20-21  Avg: 1.891 kWh/h. Peak: 3.999 kWh/h
-21-22  Avg: 2.180 kWh/h. Peak: 4.607 kWh/h
-22-23  Avg: 1.447 kWh/h. Peak: 4.086 kWh/h
-23-24  Avg: 1.666 kWh/h. Peak: 4.896 kWh/h
+ 0- 1  Avg: 1.166 kWh/h. Peak: 3.233 kWh/h
+ 1- 2  Avg: 1.339 kWh/h. Peak: 4.571 kWh/h
+ 2- 3  Avg: 1.633 kWh/h. Peak: 4.267 kWh/h
+ 3- 4  Avg: 1.558 kWh/h. Peak: 3.706 kWh/h
+ 4- 5  Avg: 1.656 kWh/h. Peak: 5.650 kWh/h
+ 5- 6  Avg: 0.925 kWh/h. Peak: 2.742 kWh/h
+ 6- 7  Avg: 1.089 kWh/h. Peak: 2.266 kWh/h
+ 7- 8  Avg: 0.977 kWh/h. Peak: 4.014 kWh/h
+ 8- 9  Avg: 0.807 kWh/h. Peak: 3.087 kWh/h
+ 9-10  Avg: 0.817 kWh/h. Peak: 2.910 kWh/h
+10-11  Avg: 0.651 kWh/h. Peak: 1.609 kWh/h
+11-12  Avg: 1.032 kWh/h. Peak: 2.888 kWh/h
+12-13  Avg: 1.882 kWh/h. Peak: 3.921 kWh/h
+13-14  Avg: 2.843 kWh/h. Peak: 3.978 kWh/h
+14-15  Avg: 2.270 kWh/h. Peak: 3.799 kWh/h
+15-16  Avg: 1.943 kWh/h. Peak: 3.735 kWh/h
+16-17  Avg: 1.277 kWh/h. Peak: 3.566 kWh/h
+17-18  Avg: 1.360 kWh/h. Peak: 2.908 kWh/h
+18-19  Avg: 1.158 kWh/h. Peak: 2.585 kWh/h
+19-20  Avg: 1.175 kWh/h. Peak: 3.318 kWh/h
+20-21  Avg: 1.222 kWh/h. Peak: 3.373 kWh/h
+21-22  Avg: 0.938 kWh/h. Peak: 1.740 kWh/h
+22-23  Avg: 0.918 kWh/h. Peak: 3.609 kWh/h
+23-24  Avg: 0.821 kWh/h. Peak: 3.620 kWh/h
 
-Value from 4.5 kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)
+Value from 3.6 kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-03-31 23:00:00+00:00
-Estimated export: 267.692 kWh - valued at 232.039 SEK (incl VAT)
-Estimated self use: 196.942 kWh - valued at 144.771 SEK (incl VAT)
+Analysed with database until: 2025-05-01 06:00:00+00:00
+Estimated export: 208.975 kWh - valued at 89.356 SEK (incl VAT)
+Estimated self use: 269.122 kWh - valued at 96.314 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
