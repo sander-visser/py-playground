@@ -94,7 +94,7 @@ async def start():
         hours_in_month = (
             (31 * 24)
             if START_DATE.month in [1, 3, 5, 7, 8, 10, 12]
-            else (30 * 24) if START_DATE.month != 2 else 28 * 30
+            else (30 * 24) if START_DATE.month != 2 else 28 * 24
         )
         if START_DATE.month == 2 and (START_DATE.year % 4) == 0:
             hours_in_month += 24
