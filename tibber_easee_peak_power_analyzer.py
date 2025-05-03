@@ -28,6 +28,7 @@ HTTP_UNAUTHORIZED_CODE = 401
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_FIRST_HIGH_H = 6
 WEEKDAY_LAST_HIGH_H = 21
+ARBITRAGE_BATTERNY_SIZE_KWH = 7.0
 IRRADIANCE_OBSERVATION = None # "smhi-opendata.csv"  # gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415" - with leading garbage removed
 INSTALLED_PANEL_POWER = 10 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
@@ -138,6 +139,8 @@ async def start():
     power_hour_samples = {}
     power_map_low = {}
     power_map_high = {}
+    curr_day_samples = {}
+    arbitrage_savings = 0.0
     ev_cost = 0.0
     ev_energy = 0.0
     other_cost = 0.0
@@ -147,6 +150,19 @@ async def start():
     self_used_energy = 0.0
     self_used_value = 0.0
     for power_sample in hourly_consumption_data:
+        if len(curr_day_samples) == 24:
+            arbitrage_energy = ARBITRAGE_BATTERNY_SIZE_KWH
+            arbitrage_savings -= ARBITRAGE_BATTERNY_SIZE_KWH * sorted(curr_day_samples)[0]
+            for energy_price in sorted(curr_day_samples, reverse=True):
+                energy_use = curr_day_samples[energy_price]
+                if arbitrage_energy > energy_use:
+                    arbitrage_savings += energy_use * energy_price
+                    arbitrage_energy -= energy_use
+                else:
+                    arbitrage_savings += arbitrage_energy * energy_price
+                    break
+            curr_day_samples = {}
+
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
         curr_utc_time = curr_time.astimezone(pytz.utc)
         curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
@@ -161,6 +177,7 @@ async def start():
             power_peak_incl_ev_time[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
+        curr_day_samples[curr_hour_price + (curr_time.hour * 0.000001)] = curr_power
 
         if irradiance is not None and curr_utc_time in irradiance:
             curr_irr = irradiance[curr_utc_time]
@@ -262,6 +279,7 @@ async def start():
         print(
             f"Estimated self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
         )
+    print(f"Arbitrage savings possible with {ARBITRAGE_BATTERNY_SIZE_KWH} kWh battery: {arbitrage_savings} SEK")
     await tibber_connection.close_connection()
 
 
