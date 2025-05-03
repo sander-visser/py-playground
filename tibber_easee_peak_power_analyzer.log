@@ -4,8 +4,8 @@ for a freestanding house outside Gothenburg (without PV installed).
 Scanning home of Sander Visser
 Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
 Month peak power incl EV: 8.125000 at 2025-01-29 00:00:00+01:00
-Energy used 1549.115 kWh at total cost of 1226.681 SEK (incl VAT and surcharges)
-Plus EV energy used 517.345 kWh at total cost of 171.530 SEK (incl VAT and surcharges)
+Energy used 1549.117 kWh at energy cost of 1226.708 SEK (incl VAT and surcharges) (avg price: 0.792)
+Plus EV energy used 517.345 kWh at energy cost of 171.533 SEK (incl VAT and surcharges) (avg price: 0.332)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -67,11 +67,11 @@ Estimated self use: 5.922 kWh - valued at 9.326 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
-Scanning peak power 2025-02-01 00:00:00+01:00 - 2025-03-02 19:00:00+01:00...
+Scanning peak power 2025-02-01 00:00:00+01:00 - 2025-03-03 23:00:00+01:00...
 Month peak power incl EV: 7.501000 at 2025-02-20 05:00:00+01:00
-Month peak power incl EV: 6.849000 at 2025-03-02 04:00:00+01:00
-Energy used 1640.897 kWh at total cost of 1645.080 SEK (incl VAT and surcharges)
-Plus EV energy used 526.836 kWh at total cost of 290.004 SEK (incl VAT and surcharges)
+Month peak power incl EV: 6.979000 at 2025-03-03 23:00:00+01:00
+Energy used 1699.286 kWh at energy cost of 1654.023 SEK (incl VAT and surcharges) (avg price: 0.973)
+Plus EV energy used 552.402 kWh at energy cost of 293.164 SEK (incl VAT and surcharges) (avg price: 0.531)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -100,30 +100,30 @@ Peak of 5.497 kWh/h has occured at 2025-02-17 03:00:00+01:00
 Peak of 5.445 kWh/h has occured at 2025-02-19 02:00:00+01:00
 
 Power use distribution with EV charging excluded:
- 0- 1  Avg: 2.481 kWh/h. Peak: 4.394 kWh/h
- 1- 2  Avg: 2.409 kWh/h. Peak: 5.277 kWh/h
- 2- 3  Avg: 3.360 kWh/h. Peak: 5.680 kWh/h
- 3- 4  Avg: 3.475 kWh/h. Peak: 5.882 kWh/h
- 4- 5  Avg: 3.534 kWh/h. Peak: 5.768 kWh/h
- 5- 6  Avg: 2.538 kWh/h. Peak: 5.300 kWh/h
- 6- 7  Avg: 2.365 kWh/h. Peak: 4.494 kWh/h
- 7- 8  Avg: 1.664 kWh/h. Peak: 3.285 kWh/h
- 8- 9  Avg: 1.536 kWh/h. Peak: 3.380 kWh/h
- 9-10  Avg: 1.608 kWh/h. Peak: 5.695 kWh/h
-10-11  Avg: 1.430 kWh/h. Peak: 3.766 kWh/h
-11-12  Avg: 1.672 kWh/h. Peak: 5.136 kWh/h
-12-13  Avg: 1.815 kWh/h. Peak: 4.589 kWh/h
-13-14  Avg: 2.108 kWh/h. Peak: 4.445 kWh/h
-14-15  Avg: 2.156 kWh/h. Peak: 5.294 kWh/h
-15-16  Avg: 1.953 kWh/h. Peak: 3.570 kWh/h
-16-17  Avg: 1.928 kWh/h. Peak: 3.152 kWh/h
-17-18  Avg: 2.195 kWh/h. Peak: 4.279 kWh/h
-18-19  Avg: 2.017 kWh/h. Peak: 3.560 kWh/h
-19-20  Avg: 2.549 kWh/h. Peak: 3.879 kWh/h
+ 0- 1  Avg: 2.502 kWh/h. Peak: 4.394 kWh/h
+ 1- 2  Avg: 2.361 kWh/h. Peak: 5.277 kWh/h
+ 2- 3  Avg: 3.305 kWh/h. Peak: 5.680 kWh/h
+ 3- 4  Avg: 3.486 kWh/h. Peak: 5.882 kWh/h
+ 4- 5  Avg: 3.469 kWh/h. Peak: 5.768 kWh/h
+ 5- 6  Avg: 2.566 kWh/h. Peak: 5.300 kWh/h
+ 6- 7  Avg: 2.378 kWh/h. Peak: 4.494 kWh/h
+ 7- 8  Avg: 1.648 kWh/h. Peak: 3.285 kWh/h
+ 8- 9  Avg: 1.517 kWh/h. Peak: 3.380 kWh/h
+ 9-10  Avg: 1.584 kWh/h. Peak: 5.695 kWh/h
+10-11  Avg: 1.413 kWh/h. Peak: 3.766 kWh/h
+11-12  Avg: 1.649 kWh/h. Peak: 5.136 kWh/h
+12-13  Avg: 1.808 kWh/h. Peak: 4.589 kWh/h
+13-14  Avg: 2.104 kWh/h. Peak: 4.445 kWh/h
+14-15  Avg: 2.115 kWh/h. Peak: 5.294 kWh/h
+15-16  Avg: 1.917 kWh/h. Peak: 3.570 kWh/h
+16-17  Avg: 1.986 kWh/h. Peak: 3.721 kWh/h
+17-18  Avg: 2.191 kWh/h. Peak: 4.279 kWh/h
+18-19  Avg: 1.977 kWh/h. Peak: 3.560 kWh/h
+19-20  Avg: 2.505 kWh/h. Peak: 3.879 kWh/h
 20-21  Avg: 2.609 kWh/h. Peak: 4.516 kWh/h
-21-22  Avg: 2.732 kWh/h. Peak: 5.008 kWh/h
-22-23  Avg: 2.510 kWh/h. Peak: 6.330 kWh/h
-23-24  Avg: 2.394 kWh/h. Peak: 5.379 kWh/h
+21-22  Avg: 2.797 kWh/h. Peak: 5.008 kWh/h
+22-23  Avg: 2.489 kWh/h. Peak: 6.330 kWh/h
+23-24  Avg: 2.439 kWh/h. Peak: 5.379 kWh/h
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
@@ -135,8 +135,8 @@ Estimated self use: 71.150 kWh - valued at 85.593 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2025-03-01 00:00:00+01:00 - 2025-03-31 23:00:00+02:00...
 Month peak power incl EV: 7.051000 at 2025-03-05 02:00:00+01:00
-Energy used 1275.005 kWh at total cost of 889.575 SEK (incl VAT and surcharges)
-Plus EV energy used 612.444 kWh at total cost of 241.040 SEK (incl VAT and surcharges)
+Energy used 1275.005 kWh at energy cost of 889.576 SEK (incl VAT and surcharges) (avg price: 0.698)
+Plus EV energy used 612.444 kWh at energy cost of 241.040 SEK (incl VAT and surcharges) (avg price: 0.394)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -265,8 +265,8 @@ Estimated self use: 309.252 kWh - valued at 107.007 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-05-01 00:00:00+02:00 - 2024-05-31 23:00:00+02:00...
 Month peak power incl EV: 7.581000 at 2024-05-30 05:00:00+02:00
-Energy used 805.953 kWh at total cost of 264.717 SEK (incl VAT and surcharges)
-Plus EV energy used 543.082 kWh at total cost of 142.670 SEK (incl VAT and surcharges)
+Energy used 805.953 kWh at energy cost of 264.717 SEK (incl VAT and surcharges) (avg price: 0.328)
+Plus EV energy used 543.082 kWh at energy cost of 142.670 SEK (incl VAT and surcharges) (avg price: 0.263)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -328,8 +328,8 @@ Estimated self use: 302.447 kWh - valued at 76.929 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-06-01 00:00:00+02:00 - 2024-06-30 23:00:00+02:00...
 Month peak power incl EV: 6.480000 at 2024-06-21 04:00:00+02:00
-Energy used 921.011 kWh at total cost of 342.065 SEK (incl VAT and surcharges)
-Plus EV energy used 408.733 kWh at total cost of 90.545 SEK (incl VAT and surcharges)
+Energy used 921.011 kWh at energy cost of 342.065 SEK (incl VAT and surcharges) (avg price: 0.371)
+Plus EV energy used 408.733 kWh at energy cost of 90.545 SEK (incl VAT and surcharges) (avg price: 0.222)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -390,17 +390,9 @@ Estimated self use: 247.308 kWh - valued at 101.736 SEK (incl VAT)
 
 Scanning home of Sander Visser
 Scanning peak power 2024-07-01 00:00:00+02:00 - 2024-07-31 23:00:00+02:00...
-Missing solar data for 2024-07-20 01:00:00+00:00
-Missing solar data for 2024-07-20 02:00:00+00:00
-Missing solar data for 2024-07-20 03:00:00+00:00
-Missing solar data for 2024-07-20 20:00:00+00:00
-Missing solar data for 2024-07-20 21:00:00+00:00
-Missing solar data for 2024-07-20 22:00:00+00:00
-Missing solar data for 2024-07-20 23:00:00+00:00
-Missing solar data for 2024-07-21 00:00:00+00:00
 Month peak power incl EV: 11.611000 at 2024-07-14 12:00:00+02:00
-Energy used 695.885 kWh at total cost of 219.714 SEK (incl VAT and surcharges)
-Plus EV energy used 384.170 kWh at total cost of 102.200 SEK (incl VAT and surcharges)
+Energy used 695.885 kWh at energy cost of 219.714 SEK (incl VAT and surcharges) (avg price: 0.316)
+Plus EV energy used 384.170 kWh at energy cost of 102.200 SEK (incl VAT and surcharges) (avg price: 0.266)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -462,8 +454,8 @@ Estimated self use: 184.402 kWh - valued at 54.153 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-08-01 00:00:00+02:00 - 2024-08-31 23:00:00+02:00...
 Month peak power incl EV: 7.494000 at 2024-08-12 00:00:00+02:00
-Energy used 748.163 kWh at total cost of 139.341 SEK (incl VAT and surcharges)
-Plus EV energy used 426.849 kWh at total cost of 63.501 SEK (incl VAT and surcharges)
+Energy used 748.163 kWh at energy cost of 139.341 SEK (incl VAT and surcharges) (avg price: 0.186)
+Plus EV energy used 426.849 kWh at energy cost of 63.501 SEK (incl VAT and surcharges) (avg price: 0.149)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -525,8 +517,8 @@ Estimated self use: 159.280 kWh - valued at 32.545 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-09-01 00:00:00+02:00 - 2024-09-30 23:00:00+02:00...
 Month peak power incl EV: 7.495000 at 2024-09-16 01:00:00+02:00
-Energy used 809.947 kWh at total cost of 211.624 SEK (incl VAT and surcharges)
-Plus EV energy used 441.918 kWh at total cost of 65.930 SEK (incl VAT and surcharges)
+Energy used 809.947 kWh at energy cost of 211.624 SEK (incl VAT and surcharges) (avg price: 0.261)
+Plus EV energy used 441.918 kWh at energy cost of 65.930 SEK (incl VAT and surcharges) (avg price: 0.149)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -588,8 +580,8 @@ Estimated self use: 190.217 kWh - valued at 49.746 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-10-01 00:00:00+02:00 - 2024-10-31 22:00:00+01:00...
 Month peak power incl EV: 12.053000 at 2024-10-14 04:00:00+02:00
-Energy used 1058.828 kWh at total cost of 342.783 SEK (incl VAT and surcharges)
-Plus EV energy used 517.232 kWh at total cost of 96.010 SEK (incl VAT and surcharges)
+Energy used 1058.828 kWh at energy cost of 342.783 SEK (incl VAT and surcharges) (avg price: 0.324)
+Plus EV energy used 517.232 kWh at energy cost of 96.010 SEK (incl VAT and surcharges) (avg price: 0.186)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -651,8 +643,8 @@ Estimated self use: 53.475 kWh - valued at 22.958 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2024-11-01 00:00:00+01:00 - 2024-11-30 23:00:00+01:00...
 Month peak power incl EV: 7.609000 at 2024-11-12 01:00:00+01:00
-Energy used 1243.988 kWh at total cost of 1095.795 SEK (incl VAT and surcharges)
-Plus EV energy used 498.551 kWh at total cost of 172.332 SEK (incl VAT and surcharges)
+Energy used 1243.988 kWh at energy cost of 1095.795 SEK (incl VAT and surcharges) (avg price: 0.881)
+Plus EV energy used 498.551 kWh at energy cost of 172.332 SEK (incl VAT and surcharges) (avg price: 0.346)
 
 Top ten peak power hours with EV charging excluded:
 
@@ -713,10 +705,9 @@ Estimated self use: 12.616 kWh - valued at 9.000 SEK (incl VAT)
 
 Scanning home of Sander Visser
 Scanning peak power 2024-12-01 00:00:00+01:00 - 2024-12-31 23:00:00+01:00...
-2024-12-09 12:00:00+00:00 solar irr is 141.28 W/m2 for 3598.0s. Export 0 estimate kWh. Self use estimate 0.6354067999999999 kWh out of 1.51 kWh
 Month peak power incl EV: 8.495000 at 2024-12-17 03:00:00+01:00
-Energy used 1327.394 kWh at total cost of 1017.975 SEK (incl VAT and surcharges)
-Plus EV energy used 526.210 kWh at total cost of 179.034 SEK (incl VAT and surcharges)
+Energy used 1327.394 kWh at energy cost of 1017.975 SEK (incl VAT and surcharges) (avg price: 0.767)
+Plus EV energy used 526.210 kWh at energy cost of 179.034 SEK (incl VAT and surcharges) (avg price: 0.340)
 
 Top ten peak power hours with EV charging excluded:
 
