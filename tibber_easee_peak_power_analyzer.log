@@ -1,6 +1,9 @@
 Rolling 12 months log created with tibber_easee_peak_power_analyzer.py
 for a freestanding house outside Gothenburg (without PV installed).
 
+Script uses SMHI solar data to estimate value of a small PV setup.
+Value for May 2024 - April 2025 is 2941 SEK incl tax effect (excl 0,6 SEK tax credit system to be scrapped)
+
 Scanning home of Sander Visser
 Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
 Month peak power incl EV: 8.125000 at 2025-01-29 00:00:00+01:00
