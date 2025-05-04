@@ -24,7 +24,7 @@ WEEKDAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 MIN_SUPERVISED_CURRENT = 6.5
 MAIN_FUSE_MAX_CURRENT = 30.0
 SUPERVISED_CIRCUITS = [1, 2]
-MINIMUM_LOAD_MINUTES_PER_H = 15
+MINIMUM_LOAD_MINUTES_PER_H = 15  # Energy equivalent used in supervision
 RESTRICTED_HOURLY_KWH_BUDGET = 6.0
 UNRESTRICTED_HOURLY_KWH_BUDGET = 6.0
 ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
@@ -91,7 +91,6 @@ def _callback(pkg):
     elif (
         live_data["accumulatedConsumptionLastHour"]
         > (budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
-        and current_time.tm_min > MINIMUM_LOAD_MINUTES_PER_H
     ):
         reserved_energy_duration = min(
             ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - current_time.tm_min
@@ -107,8 +106,10 @@ def _callback(pkg):
             * ((MIN_PER_H - current_time.tm_min) / MIN_PER_H)
             / WATT_PER_KW
         )
+        if not supervised_load_maybe_active:
+            controllable_energy = 0.0
         print(
-            f"Supervised load active: {supervised_load_maybe_active}\n"
+            f"Supervised load active at {live_data['timestamp']}: {supervised_load_maybe_active}\n"
             + f"Acted to reduce consumption: {acted_hour is not None}\n"
             + f"kWh/h estimate: {live_data['estimatedHourConsumption']} + "
             + f"reserved: {reserved_energy:.3f} - "
@@ -120,7 +121,7 @@ def _callback(pkg):
             - controllable_energy
         ) > budget and supervised_load_maybe_active
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
-            print(f"Acting with relay to reduce power use: {live_data}")
+            print(f"Acting with relay to pause power use: {live_data}")
             sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
             sec_pause = min(sec_pause, 5 * SEC_PER_MIN)
             pause_with_relay(sec_pause)
@@ -140,9 +141,6 @@ def _callback(pkg):
                 except requests.exceptions.Timeout:
                     print("Acting failed - timeout")
                     acted_hour = None  # Retry...
-            else:
-                print(f"Ignoring power use during cheap hours: {live_data}")
-
 
 async def start():
     session = aiohttp.ClientSession()
