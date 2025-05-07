@@ -500,7 +500,7 @@ def is_now_significantly_cheaper(now_hour, today_cost, tomorrow_cost):
 
 
 def add_scorebased_wanted_temperature(
-    local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
+    local_hour, weekday, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
 ):
     score_based_heating = 0
     max_temp_limit = MAX_TEMP
@@ -532,10 +532,16 @@ def add_scorebased_wanted_temperature(
         )
         if preload_score > 0:
             score_based_heating = max(score_based_heating, preload_score)
+            if cheap_later_test(
+                today_cost, local_hour, 24, FIRST_EVENING_HIGH_TAKEOUT_H
+            ):
+                max_temp_limit = MIN_DAILY_TEMP + DEGREES_PER_H
         else:
-            max_temp_limit = MIN_DAILY_TEMP  # Will become cheaper tomorrow morning
-            if is_the_cheapest_hour_during_daytime(today_cost):
-                max_temp_limit += DEGREES_PER_H  # Heat since limited morning heat
+            max_temp_limit = (
+                MIN_DAILY_TEMP + DEGREES_PER_H
+            )  # Long cheap period is ahead
+        if weekday not in WEEKDAYS_WITH_EXTRA_TAKEOUT:
+            max_temp_limit -= DEGREES_PER_H  # Avoid storing long time if low takeout
 
     max_score = MAX_HOURS_NEEDED_TO_HEAT
     if outside_temp < HEAT_LEAK_VALUE_THRESHOLD and heat_leakage_loading_desired(
@@ -593,7 +599,7 @@ def get_wanted_temp(
     gc.collect()  # Avoid fragmentation after alarm API use
 
     wanted_temp = add_scorebased_wanted_temperature(
-        local_hour, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
+        local_hour, weekday, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
     )
 
     if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
