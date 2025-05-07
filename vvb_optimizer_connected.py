@@ -60,7 +60,7 @@ MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
 COP_FACTOR = 2.5  # Utilize leakage unless heatpump will be cheaper
 HIGH_WATER_TAKEOUT_LIKELYHOOD = (
-    0.5  # Percent chance that thermostat will heat at MIN_TEMP setting during max price
+    0.2  # Percent chance that thermostat will heat at MIN_TEMP setting during max price
 )
 HEAT_LEAK_VALUE_THRESHOLD = 10
 EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
@@ -91,7 +91,7 @@ LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 KWN_PER_MWH = 1000
-OVERHEAD_BASE_PRICE = 0.067032287290990  # In EUR for tax, purchase and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.0691656  # In EUR for tax, purchase and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
