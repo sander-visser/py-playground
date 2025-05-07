@@ -528,7 +528,7 @@ def add_scorebased_wanted_temperature(
     if tomorrow_cost is not None:
         preload_score = get_cheap_score_relative_future(
             today_cost[local_hour],
-            today_cost[local_hour:23] + tomorrow_cost[0:LAST_MORNING_HEATING_H],
+            today_cost[local_hour:23] + tomorrow_cost[0:],
         )
         if preload_score > 0:
             score_based_heating = max(score_based_heating, preload_score)
@@ -717,8 +717,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             pending_legionella_reset = True
 
         peak_temp_today = max(peak_temp_today, wanted_temp)
-        if today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT and local_hour == (
-            LAST_MORNING_HEATING_H - 1
+        if (
+            today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
+            and local_hour == (LAST_MORNING_HEATING_H - 1)
+            and get_cheap_score_until(
+                local_hour, FIRST_EVENING_HIGH_TAKEOUT_H, today_cost, False
+            )
+            > 0
         ):
             wanted_temp = min(MAX_TEMP, peak_temp_today + DEGREES_PER_H / 4)
 
@@ -760,7 +765,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             )
             if (
                 next_hour_wanted_temp >= wanted_temp
-                and today_cost[local_hour + 1] < today_cost[local_hour]
+                and today_cost[local_hour + 1] <= today_cost[local_hour]
             ):
                 thermostat.nudge_down()
             if (
