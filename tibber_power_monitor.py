@@ -18,15 +18,14 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
-WEEKDAY_FIRST_HIGH_H = 6  # :00
-WEEKDAY_LAST_HIGH_H = 21  # :59
-WEEKDAYS = [0, 1, 2, 3, 4]  # 0 is Monday
+RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
+RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
+RESTRICTED_HOURLY_KWH_BUDGET = 2.5
+UNRESTRICTED_HOURLY_KWH_BUDGET = 6.0
 MIN_SUPERVISED_CURRENT = 6.5
 MAIN_FUSE_MAX_CURRENT = 30.0
 SUPERVISED_CIRCUITS = [1, 2]
 MINIMUM_LOAD_MINUTES_PER_H = 15  # Energy equivalent used in supervision
-RESTRICTED_HOURLY_KWH_BUDGET = 6.0
-UNRESTRICTED_HOURLY_KWH_BUDGET = 6.0
 ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
@@ -63,13 +62,12 @@ def _callback(pkg):
     if acted_hour is not None and acted_hour != current_time.tm_hour:
         acted_hour = None
 
-    restricted_budget = (
-        current_time.tm_wday in WEEKDAYS
-        and WEEKDAY_FIRST_HIGH_H <= current_time.tm_hour <= WEEKDAY_LAST_HIGH_H
-    )
     budget = (
         RESTRICTED_HOURLY_KWH_BUDGET
-        if restricted_budget
+        if (
+            current_time.tm_wday in RESTRICTED_DAYS
+            and current_time.tm_hour in RESTRICTED_HOURS
+        )
         else UNRESTRICTED_HOURLY_KWH_BUDGET
     )
 
@@ -88,14 +86,14 @@ def _callback(pkg):
     if main_fuse_protection_needed:
         print(f"Protecting main fuse: {live_data}")
         pause_with_relay(5 * SEC_PER_MIN)
-    elif (
-        live_data["accumulatedConsumptionLastHour"]
-        > (budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H)
+    elif live_data["accumulatedConsumptionLastHour"] > (
+        budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H
     ):
-        reserved_energy_duration = min(
-            ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - current_time.tm_min
+        reserved_energy = (
+            ADDED_LOAD_MARGIN_KW
+            * min(ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - current_time.tm_min)
+            / MIN_PER_H
         )
-        reserved_energy = ADDED_LOAD_MARGIN_KW * reserved_energy_duration / MIN_PER_H
 
         volt_sum = 0
         for circuit in SUPERVISED_CIRCUITS:
@@ -141,6 +139,7 @@ def _callback(pkg):
                 except requests.exceptions.Timeout:
                     print("Acting failed - timeout")
                     acted_hour = None  # Retry...
+
 
 async def start():
     session = aiohttp.ClientSession()
