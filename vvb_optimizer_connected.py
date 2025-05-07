@@ -528,7 +528,7 @@ def add_scorebased_wanted_temperature(
     if tomorrow_cost is not None:
         preload_score = get_cheap_score_relative_future(
             today_cost[local_hour],
-            today_cost[local_hour:23] + tomorrow_cost[0:],
+            today_cost[local_hour:23] + tomorrow_cost[0:LAST_MORNING_HEATING_H],
         )
         if preload_score > 0:
             score_based_heating = max(score_based_heating, preload_score)
