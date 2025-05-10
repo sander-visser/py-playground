@@ -279,7 +279,7 @@ async def start():
         print(
             f"Estimated self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
         )
-    print(f"Arbitrage savings possible with {ARBITRAGE_BATTERNY_SIZE_KWH} kWh battery: {arbitrage_savings} SEK")
+    print(f"Arbitrage savings possible with {ARBITRAGE_BATTERNY_SIZE_KWH} kWh battery: {arbitrage_savings:.2f} SEK")
     await tibber_connection.close_connection()
 
 
