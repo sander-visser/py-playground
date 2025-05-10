@@ -4,6 +4,8 @@ for a freestanding house outside Gothenburg (without PV installed).
 Script uses SMHI solar data to estimate value of a small PV setup.
 Value for May 2024 - April 2025 is 2941 SEK incl tax effect (excl 0,6 SEK tax credit system to be scrapped)
 
+Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2024 - April 2025 is 1673 SEK + VAT.
+
 Scanning home of Sander Visser
 Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
 Month peak power incl EV: 8.125000 at 2025-01-29 00:00:00+01:00
@@ -61,6 +63,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 2.777 kWh/h. Peak: 4.710 kWh/h
 22-23  Avg: 1.941 kWh/h. Peak: 4.546 kWh/h
 23-24  Avg: 2.011 kWh/h. Peak: 4.428 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 236.97 SEK
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
@@ -126,6 +129,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 2.768 kWh/h. Peak: 5.008 kWh/h
 22-23  Avg: 2.521 kWh/h. Peak: 6.330 kWh/h
 23-24  Avg: 2.443 kWh/h. Peak: 5.379 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 195.75 SEK
 
 Value from 4.5 kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
@@ -191,6 +195,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.813 kWh/h. Peak: 4.352 kWh/h
 22-23  Avg: 1.524 kWh/h. Peak: 4.264 kWh/h
 23-24  Avg: 1.746 kWh/h. Peak: 4.423 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 204.73 SEK
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
@@ -256,6 +261,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 0.938 kWh/h. Peak: 1.740 kWh/h
 22-23  Avg: 0.918 kWh/h. Peak: 3.609 kWh/h
 23-24  Avg: 0.821 kWh/h. Peak: 3.620 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 145.52 SEK
 
 Value from 4.5 kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
@@ -321,6 +327,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.057 kWh/h. Peak: 2.787 kWh/h
 22-23  Avg: 0.762 kWh/h. Peak: 2.508 kWh/h
 23-24  Avg: 1.453 kWh/h. Peak: 4.022 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 97.53 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 649.726 kWh - valued at 271.996 SEK (incl VAT)
@@ -384,6 +391,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.335 kWh/h. Peak: 5.049 kWh/h
 22-23  Avg: 1.087 kWh/h. Peak: 4.391 kWh/h
 23-24  Avg: 1.590 kWh/h. Peak: 3.846 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 83.79 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 457.552 kWh - valued at 249.230 SEK (incl VAT)
@@ -447,6 +455,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 0.936 kWh/h. Peak: 3.488 kWh/h
 22-23  Avg: 0.828 kWh/h. Peak: 1.834 kWh/h
 23-24  Avg: 1.058 kWh/h. Peak: 3.505 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 49.81 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 549.309 kWh - valued at 200.656 SEK (incl VAT)
@@ -510,6 +519,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.305 kWh/h. Peak: 4.252 kWh/h
 22-23  Avg: 0.918 kWh/h. Peak: 4.093 kWh/h
 23-24  Avg: 1.823 kWh/h. Peak: 4.165 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 40.05 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 540.611 kWh - valued at 109.356 SEK (incl VAT)
@@ -573,6 +583,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.570 kWh/h. Peak: 3.597 kWh/h
 22-23  Avg: 1.241 kWh/h. Peak: 3.760 kWh/h
 23-24  Avg: 1.112 kWh/h. Peak: 3.698 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 58.61 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 321.348 kWh - valued at 144.405 SEK (incl VAT)
@@ -636,6 +647,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.797 kWh/h. Peak: 3.920 kWh/h
 22-23  Avg: 1.314 kWh/h. Peak: 3.471 kWh/h
 23-24  Avg: 1.416 kWh/h. Peak: 4.198 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 92.97 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 86.362 kWh - valued at 42.813 SEK (incl VAT)
@@ -699,6 +711,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 2.327 kWh/h. Peak: 4.517 kWh/h
 22-23  Avg: 1.554 kWh/h. Peak: 4.004 kWh/h
 23-24  Avg: 1.538 kWh/h. Peak: 4.247 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 219.44 SEK
 
 Value from 4.5 kW solar installation (energy cost only - assuming broker fee and network benefit cancle eatchother out)
 Estimated export: 14.740 kWh - valued at 4.619 SEK (incl VAT)
@@ -762,6 +775,7 @@ Power use distribution with EV charging excluded:
 21-22  Avg: 1.989 kWh/h. Peak: 4.606 kWh/h
 22-23  Avg: 1.551 kWh/h. Peak: 4.765 kWh/h
 23-24  Avg: 1.404 kWh/h. Peak: 4.163 kWh/h
+Arbitrage savings possible with 7.0 kWh battery: 250.22 SEK
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
 Min solar power req for production: 140 W / m2
