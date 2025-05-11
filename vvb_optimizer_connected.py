@@ -95,7 +95,10 @@ OVERHEAD_BASE_PRICE = 0.0691656  # In EUR for tax, purchase and transfer costs (
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
-PRICE_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?market=DayAhead&currency=EUR&resolutionInMinutes=15&indexNames="
+PRICE_API_URL = (
+    "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?"
+    + "market=DayAhead&currency=EUR&resolutionInMinutes=15&indexNames="
+)
 # TEMPERATURE_URL should return a number "x.y" for degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
@@ -276,7 +279,9 @@ async def get_cost(end_date):
     cost_array = []
     hourly_price = {avg: 0.0, quartely: []}
     for row in the_json_result["multiIndexEntries"]:
-        curr_price = row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
+        curr_price = (
+            row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
+        )
         hourly_price.avg += curr_price / 4
         hourly_price.quartely.append(curr_price)
         if len(hourly_price.quartely) == 4:
@@ -352,10 +357,10 @@ def now_is_cheap_in_forecast(now_hour, today_cost, tomorrow_cost):
 
 
 def summarize_cost(hours_to_summarize):
-    sum = 0.0
-    for hour in hours_to_summarize
-        sum += hour.avg
-    return sum
+    cost_sum = 0.0
+    for hour in hours_to_summarize:
+        cost_sum += hour.avg
+    return cost_sum
 
 
 def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
@@ -391,9 +396,9 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
                 ]
                 heat_end_hour = scan_hour
 
-    if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(cheap_hours, key=lambda h: h["avg"])[
-        NORMAL_HOURS_NEEDED_TO_HEAT - 1
-    ].avg:
+    if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(
+        cheap_hours, key=lambda h: h["avg"]
+    )[NORMAL_HOURS_NEEDED_TO_HEAT - 1].avg:
         if heat_end_hour - now_hour > NORMAL_HOURS_NEEDED_TO_HEAT:
             # If late cheap hour preheat somewhat now
             score = max(score, 1)
@@ -401,7 +406,12 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
             # If delayed still heat aggressive now
             score = MAX_HOURS_NEEDED_TO_HEAT
 
-    if now_price <= sorted(cheap_hours, key=lambda h: h["avg"])[NORMAL_HOURS_NEEDED_TO_HEAT - 1].avg:
+    if (
+        now_price
+        <= sorted(cheap_hours, key=lambda h: h["avg"])[
+            NORMAL_HOURS_NEEDED_TO_HEAT - 1
+        ].avg
+    ):
         if verbose and delay_msg is not None:
             log_print(delay_msg)
         # Secure correct score inside boost period (with late peak favored)
@@ -410,7 +420,11 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
             if (now_price + ACCEPTABLE_PRICING_ERROR) <= cheap_price_route.avg:
                 min_score += 1
         if (
-            now_price <= (sorted(cheap_hours, key=lambda h: h["avg"])[0] + ACCEPTABLE_PRICING_ERROR)
+            now_price
+            <= (
+                sorted(cheap_hours, key=lambda h: h["avg"])[0]
+                + ACCEPTABLE_PRICING_ERROR
+            )
         ) and heat_end_hour == (now_hour + 1):
             min_score = MAX_HOURS_NEEDED_TO_HEAT
         # Secure rampup before boost end
@@ -432,7 +446,9 @@ def get_cheap_score_until(now_hour, until_hour, today_cost, verbose):
 
 def get_cheap_score_relative_future(this_hour_cost, future_cost):
     score = 0
-    for cheap_future_cost in sorted(future_cost, key=lambda h: h["avg"])[0:MAX_HOURS_NEEDED_TO_HEAT]:
+    for cheap_future_cost in sorted(future_cost, key=lambda h: h["avg"])[
+        0:MAX_HOURS_NEEDED_TO_HEAT
+    ]:
         if this_hour_cost < cheap_future_cost.avg:
             score += 1
     return score
@@ -460,7 +476,8 @@ def cheap_later_test(today_cost, scan_from, scan_to, test_hour):
             )  # Less energy is used when load is heated later than test_hour
             if compensated_cost <= min_compensated_cost:
                 log_print(
-                    f"Analyzed {scan_from}-{scan_to}: Delaying beyond {test_hour} worth while (delay til {i})"
+                    f"Analyzed {scan_from}-{scan_to}: Delaying beyond {test_hour} worth while"
+                    + f" (delay til {i})"
                 )
                 return True  # Found cost to be cheaper if heating later
     return False
@@ -580,7 +597,10 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
     if MAX_HOURS_NEEDED_TO_HEAT <= local_hour < DAILY_COMFORT_LAST_H:
         if today_cost[local_hour].avg < HIGH_PRICE_THRESHOLD:
             wanted_temp_boost += 5  # Slightly raise hot water takeout capacity
-        if local_hour < 23 and today_cost[local_hour].avg < today_cost[local_hour + 1].avg:
+        if (
+            local_hour < 23
+            and today_cost[local_hour].avg < today_cost[local_hour + 1].avg
+        ):
             hours_to_bridge = hours_to_next_lower_price(today_cost, local_hour)
             if is_now_cheapest_remaining_during_comfort(today_cost, local_hour):
                 hours_to_bridge = 1 + (DAILY_COMFORT_LAST_H - local_hour)
@@ -591,7 +611,13 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
 
 
 def get_wanted_temp(
-    local_hour, weekday, today_cost, tomorrow_cost, outside_temp, alarm_fully_armed, verbose
+    local_hour,
+    weekday,
+    today_cost,
+    tomorrow_cost,
+    outside_temp,
+    alarm_fully_armed,
+    verbose,
 ):
     wanted_temp = MIN_TEMP
 
@@ -605,7 +631,13 @@ def get_wanted_temp(
     gc.collect()  # Avoid fragmentation after alarm API use
 
     wanted_temp = add_scorebased_wanted_temperature(
-        local_hour, weekday, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
+        local_hour,
+        weekday,
+        today_cost,
+        tomorrow_cost,
+        outside_temp,
+        wanted_temp,
+        verbose,
     )
 
     if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
@@ -616,11 +648,15 @@ def get_wanted_temp(
     if DAILY_COMFORT_LAST_H > local_hour > LAST_MORNING_HEATING_H and (
         MAX_HOURS_NEEDED_TO_HEAT - 1
     ) <= get_cheap_score_relative_future(
-        today_cost[local_hour].avg, today_cost[LAST_MORNING_HEATING_H:DAILY_COMFORT_LAST_H]
+        today_cost[local_hour].avg,
+        today_cost[LAST_MORNING_HEATING_H:DAILY_COMFORT_LAST_H],
     ):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Restore comfort once per day
 
-    if today_cost[local_hour].avg >= sorted(today_cost, key=lambda h: h["avg"])[24 - NUM_MOST_EXPENSIVE_HOURS]:
+    if (
+        today_cost[local_hour].avg
+        >= sorted(today_cost, key=lambda h: h["avg"])[24 - NUM_MOST_EXPENSIVE_HOURS]
+    ):
         wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
 
     if now_is_cheap_in_forecast(local_hour, today_cost, tomorrow_cost):
@@ -698,18 +734,20 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     raise RuntimeError("Optimization not possible")
             tomorrow_final, tomorrow_cost = (False, None)
 
+        current_minute = time.localtime()[4]
         if not tomorrow_final and (
             (local_hour > NEW_PRICE_EXPECTED_HOUR)
             or (
                 local_hour == NEW_PRICE_EXPECTED_HOUR
-                and time.localtime()[4] >= NEW_PRICE_EXPECTED_MIN
+                and current_minute >= NEW_PRICE_EXPECTED_MIN
             )
         ):
             tomorrow_final, tomorrow_cost = await get_cost(today + timedelta(days=1))
             gc.collect()
 
         log_print(
-            f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @ {today_cost[local_hour]} EUR / kWh"
+            f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @"
+            + f" {today_cost[local_hour].avg} EUR / kWh"
         )
         outside_temp = temperature_provider.get_outdoor_temp()
         wanted_temp = get_wanted_temp(
@@ -739,9 +777,10 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):
             wanted_temp = min(MAX_TEMP, peak_temp_today + DEGREES_PER_H / 4)
 
-        pretty_time = f"{local_hour}:{'%02d' % time.localtime()[4]}"
+        pretty_time = f"{local_hour}:{(current_minute<=9) and '0'}{current_minute}"
         log_print(
-            f"-- {pretty_time} thermostat @ {wanted_temp}. Outside is {outside_temp}. Tomorrow {tomorrow_cost is not None}"
+            f"-- {pretty_time} thermostat @ {wanted_temp}. Outside is {outside_temp}."
+            + f" Tomorrow {tomorrow_cost is not None}"
         )
 
         pre_delay_override = thermostat.overridden
@@ -802,7 +841,7 @@ async def handle_client(reader, writer):
         pass
 
     request = str(request_line, "utf-8").split()[1]
-    if request == "/favicon.ico" or request == "/shelly":
+    if request in ["/favicon.ico", "/shelly"]:
         writer.write("HTTP/1.0 404 Not Found\r\n")
         await writer.drain()
         await writer.wait_closed()
@@ -811,24 +850,30 @@ async def handle_client(reader, writer):
 
     try:
         if request == "/reduceload":
-            shared_thermostat.set_thermosat(shared_thermostat.prev_degrees - DEGREES_PER_H, True)
+            shared_thermostat.set_thermosat(
+                shared_thermostat.prev_degrees - DEGREES_PER_H, True
+            )
             log_print(
-                f"-- {time.localtime()} Lowering thermostat until next schedule point {shared_thermostat.prev_degrees}"
+                f"-- {time.localtime()} Lowering thermostat until next schedule point"
+                + f" {shared_thermostat.prev_degrees}"
             )
             writer.write("HTTP/1.0 200 OK\r\n")
             await writer.drain()
             await writer.wait_closed()
             return
-        elif request == "/postponedload":
+        if request == "/postponedload":
             writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
-            writer.write("True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False")
+            writer.write(
+                "True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False"
+            )
             await writer.drain()
             await writer.wait_closed()
             return
-        elif request != "/log":
+        if request != "/log":
             override_temp = float(request[1:])
             log_print(
-                f"-- {time.localtime()} Overriding thermostat until next schedule point {override_temp}"
+                f"-- {time.localtime()} Overriding thermostat to {override_temp} "
+                + "until next scheduling point"
             )
             shared_thermostat.set_thermosat(override_temp, True)
     except ValueError:
@@ -844,7 +889,7 @@ async def handle_client(reader, writer):
 
 
 async def main():
-    if "Pico W" or "Pico 2 W" in sys.implementation._machine:
+    if " W" in sys.implementation._machine:
         thermostat = shared_thermostat
         thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
         attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
@@ -895,6 +940,7 @@ async def main():
         await asyncio.sleep(10)
         machine.reset()
     log_print("Unsupported board?")
+
 
 # Globals
 last_log = []
