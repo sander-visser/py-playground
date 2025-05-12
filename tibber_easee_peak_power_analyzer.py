@@ -26,8 +26,7 @@ HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
-WEEKDAY_FIRST_HIGH_H = 6
-WEEKDAY_LAST_HIGH_H = 21
+WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
 ARBITRAGE_BATTERNY_SIZE_KWH = 7.0
 IRRADIANCE_OBSERVATION = None # "smhi-opendata.csv"  # gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415" - with leading garbage removed
 INSTALLED_PANEL_POWER = 10 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
@@ -213,10 +212,7 @@ async def start():
                     #    print(f"power excl easee: {curr_power}")
                     break
 
-        if (
-            curr_time.weekday() < 5
-            and WEEKDAY_FIRST_HIGH_H <= curr_time.hour <= WEEKDAY_LAST_HIGH_H
-        ):
+        if curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS:
             power_map_high.setdefault(curr_power, []).append(curr_time)
         else:
             power_map_low.setdefault(curr_power, []).append(curr_time)
@@ -241,9 +237,7 @@ async def start():
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
-    print(
-        f"\nHigh cost peaks - weekdays {WEEKDAY_FIRST_HIGH_H}:00 - {WEEKDAY_LAST_HIGH_H}:59"
-    )
+    print(f"\nHigh cost peaks - weekdays at {WEEKDAY_RESTRICTED_HOURS} :00 - :59")
     for peak_pwr in sorted(power_map_high, reverse=True)[0:10]:
         time_str = f"{power_map_high[peak_pwr][0]}"
         for times in power_map_high[peak_pwr][1:]:
