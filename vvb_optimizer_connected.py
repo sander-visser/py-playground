@@ -779,7 +779,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):
             wanted_temp = min(MAX_TEMP, peak_temp_today + DEGREES_PER_H / 4)
 
-        pretty_time = f"{local_hour}:{'0' if (current_minute<=9)}{current_minute}"
+        pretty_time = f"{local_hour}:{'0' if (current_minute<=9) else ''}{current_minute}"
         log_print(
             f"-- {pretty_time} thermostat @ {wanted_temp}. Outside is {outside_temp}."
             + f" Tomorrow {tomorrow_cost is not None}"
@@ -891,7 +891,7 @@ async def handle_client(reader, writer):
 
 
 async def main():
-    if " W" in sys.implementation._machine:
+    if " W " in sys.implementation._machine:
         thermostat = shared_thermostat
         thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
         attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
