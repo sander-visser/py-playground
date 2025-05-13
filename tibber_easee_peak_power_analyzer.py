@@ -24,12 +24,18 @@ API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
+SECONDS_PER_HOUR = 3600
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
-ARBITRAGE_BATTERNY_SIZE_KWH = 7.0
-IRRADIANCE_OBSERVATION = None # "smhi-opendata.csv"  # gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415" - with leading garbage removed
-INSTALLED_PANEL_POWER = 10 * 0.45  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
+ARBITRAGE_BATTERY_SIZE_KWH = 7.0
+# Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
+IRRADIANCE_OBSERVATION = (
+    None  # "smhi-opendata.csv" # Cleaned up with leading garbage removed
+)
+INSTALLED_PANEL_POWER = (
+    10 * 0.45
+)  # 8x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
 
@@ -61,9 +67,9 @@ def get_irradiance_observation():
             if curr_line.startswith("Datum"):
                 csv_lines.insert(0, curr_line)
                 break
-        csvReader = csv.DictReader(csv_lines, delimiter=";")
+        csv_reader = csv.DictReader(csv_lines, delimiter=";")
         solar_irr = {}
-        for data in csvReader:
+        for data in csv_reader:
             datetime_str = f"{data['Datum']} {data['Tid (UTC)']}"
             datetime_object = datetime.datetime.strptime(
                 datetime_str, "%Y-%m-%d %H:%M:%S"
@@ -134,7 +140,7 @@ async def start():
         )
     )
     power_peak_incl_ev = {}
-    power_peak_incl_ev_time = {}
+    time_peak_incl_ev = {}
     power_hour_samples = {}
     power_map_low = {}
     power_map_high = {}
@@ -150,8 +156,10 @@ async def start():
     self_used_value = 0.0
     for power_sample in hourly_consumption_data:
         if len(curr_day_samples) == 24:
-            arbitrage_energy = ARBITRAGE_BATTERNY_SIZE_KWH
-            arbitrage_savings -= ARBITRAGE_BATTERNY_SIZE_KWH * sorted(curr_day_samples)[0]
+            arbitrage_energy = ARBITRAGE_BATTERY_SIZE_KWH
+            arbitrage_savings -= (
+                ARBITRAGE_BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
+            )
             for energy_price in sorted(curr_day_samples, reverse=True):
                 energy_use = curr_day_samples[energy_price]
                 if arbitrage_energy > energy_use:
@@ -173,7 +181,7 @@ async def start():
             or curr_power > power_peak_incl_ev[curr_time.month]
         ):
             power_peak_incl_ev[curr_time.month] = curr_power
-            power_peak_incl_ev_time[curr_time.month] = curr_time
+            time_peak_incl_ev[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
         curr_day_samples[curr_hour_price + (curr_time.hour * 0.000001)] = curr_power
@@ -187,16 +195,13 @@ async def start():
             irr_duration = float(curr_irr[1])
             if irr_power > IRRADIANCE_MIN:
                 solar_power = irr_power / IRRADIANCE_FULL * INSTALLED_PANEL_POWER
-                self_use = curr_power * irr_duration / 3600
+                self_use = curr_power * irr_duration / SECONDS_PER_HOUR
                 solar_utilization = solar_power / curr_power
                 export = 0
                 if solar_utilization > 1:
-                    export = (solar_utilization - 1) * irr_duration / 3600
+                    export = (solar_utilization - 1) * irr_duration / SECONDS_PER_HOUR
                 else:
                     self_use *= solar_utilization
-                # print(
-                #    f"{curr_utc_time} solar irr is {irr_power} W/m2 for {irr_duration}s. Export {export} estimate kWh. Self use estimate {self_use} kWh out of {curr_power} kWh"
-                # )
                 exported_energy += export
                 exported_value += export * curr_hour_price
                 self_used_energy += self_use
@@ -223,17 +228,21 @@ async def start():
 
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
-            f"Month peak power incl EV: {peak_month_pwr:3f} at {power_peak_incl_ev_time[peak_month]}"
+            f"Month peak power incl EV: {peak_month_pwr:3f} at {time_peak_incl_ev[peak_month]}"
         )
 
     print(
-        f"Energy used {other_energy:.3f} kWh at energy cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges) (avg price: {other_cost/other_energy:.3f})"
+        f"Energy used {other_energy:.3f} kWh"
+        + f" at energy cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+        + f" (avg price: {other_cost/other_energy:.3f})"
     )
     if charger_consumption is None:
         print("\nTop ten peak power hours:")
     else:
         print(
-            f"Plus EV energy used {ev_energy:.3f} kWh at energy cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges) (avg price: {ev_cost/ev_energy:.3f})"
+            f"Plus EV energy used {ev_energy:.3f} kWh"
+            + f" at energy cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+            + f" (avg price: {ev_cost/ev_energy:.3f} (excl grid rewards))"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
@@ -258,22 +267,28 @@ async def start():
 
     for hour in range(24):
         print(
-            f"{hour:2}-{(hour+1):2}  Avg: {(statistics.fmean(power_hour_samples[hour])):.3f} kWh/h. Peak: {sorted(power_hour_samples[hour])[-1]:.3f} kWh/h"
+            f"{hour:2}-{(hour+1):2}  Avg: {(statistics.fmean(power_hour_samples[hour])):.3f} kWh/h."
+            + f" Peak: {sorted(power_hour_samples[hour])[-1]:.3f} kWh/h"
         )
 
     if irradiance is not None:
         print(
-            f"\nValue from {INSTALLED_PANEL_POWER} kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)"
+            f"\nEstimated value from {INSTALLED_PANEL_POWER} kW solar installation"
+            + " (excl energy tax and network transfer cost."
+            + " Note: assuming broker fee and network benefit cancel eachother out)"
         )
         print(f"Min solar power required for production: {IRRADIANCE_MIN} W / m2")
         print(f"Analysed with database until: {list(irradiance.keys())[-1]}")
         print(
-            f"Estimated export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
+            f"Export: {exported_energy:.3f} kWh - valued at {exported_value:.3f} SEK (incl VAT)"
         )
         print(
-            f"Estimated self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
+            f"Self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
         )
-    print(f"Arbitrage savings possible with {ARBITRAGE_BATTERNY_SIZE_KWH} kWh battery: {arbitrage_savings:.2f} SEK")
+    print(
+        f"Arbitrage savings possible with {ARBITRAGE_BATTERY_SIZE_KWH} kWh battery:"
+        + f" {arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT)"
+    )
     await tibber_connection.close_connection()
 
 
