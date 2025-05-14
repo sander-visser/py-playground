@@ -142,6 +142,7 @@ async def start():
     power_peak_incl_ev = {}
     time_peak_incl_ev = {}
     power_hour_samples = {}
+    high_power_hour_samples = {}
     power_map_low = {}
     power_map_high = {}
     curr_day_samples = {}
@@ -219,9 +220,10 @@ async def start():
 
         if curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS:
             power_map_high.setdefault(curr_power, []).append(curr_time)
+            high_power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
         else:
             power_map_low.setdefault(curr_power, []).append(curr_time)
-        power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
+            power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
 
         other_cost += curr_power * curr_hour_price
         other_energy += curr_power
@@ -266,9 +268,18 @@ async def start():
         print("\nPower use distribution with EV charging excluded:")
 
     for hour in range(24):
+        high_str = ""
+        if hour in high_power_hour_samples:
+            high_str = (
+                f".  High avg: {(statistics.fmean(high_power_hour_samples[hour])):.2f} kWh/h."
+                + f" High peak: {sorted(high_power_hour_samples[hour])[-1]:.2f} kWh/h"
+            )
+
         print(
-            f"{hour:2}-{(hour+1):2}  Avg: {(statistics.fmean(power_hour_samples[hour])):.3f} kWh/h."
-            + f" Peak: {sorted(power_hour_samples[hour])[-1]:.3f} kWh/h"
+            f"{hour:2}-{(hour+1):2}  Low avg: "
+            + f"{(statistics.fmean(power_hour_samples[hour])):.2f} kWh/h."
+            + f" Low peak: {sorted(power_hour_samples[hour])[-1]:.2f} kWh/h"
+            + high_str
         )
 
     if irradiance is not None:
