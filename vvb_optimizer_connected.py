@@ -783,7 +783,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
         log_print(
             f"-- {local_hour}:{'0' if (current_minute<=9) else ''}{current_minute}"
-            + f"thermostat @ {wanted_temp}. Outside is {outside_temp}."
+            + f" thermostat @ {wanted_temp}. Outside is {outside_temp}."
             + f" Tomorrow {tomorrow_cost is not None}"
         )
 
