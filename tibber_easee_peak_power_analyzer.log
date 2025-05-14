@@ -207,22 +207,22 @@ Estimated self use: 200.940 kWh - valued at 105.140 SEK (incl VAT)
 Scanning home of Sander Visser
 Scanning peak power 2025-04-01 00:00:00+02:00 - 2025-04-30 23:00:00+02:00...
 Month peak power incl EV: 8.562000 at 2025-04-09 17:00:00+02:00
-Energy used 943.796 kWh at energy cost of 447.435 SEK (incl VAT and surcharges) (avg price: 0.474)
-Plus EV energy used 501.179 kWh at energy cost of 183.380 SEK (incl VAT and surcharges) (avg price: 0.366)
+Energy used 927.802 kWh at energy cost of 438.285 SEK (incl VAT and surcharges) (avg price: 0.472)
+Plus EV energy used 501.179 kWh at energy cost of 183.380 SEK (incl VAT and surcharges) (avg price: 0.366 (excl grid rewards))
 
 Top ten peak power hours with EV charging excluded:
 
-High cost peaks - weekdays 6:00 - 21:59
-Peak of 4.014 kWh/h has occured at 2025-04-30 07:00:00+02:00
-Peak of 3.978 kWh/h has occured at 2025-04-08 13:00:00+02:00
-Peak of 3.921 kWh/h has occured at 2025-04-11 12:00:00+02:00
-Peak of 3.865 kWh/h has occured at 2025-04-23 12:00:00+02:00, 2025-04-30 12:00:00+02:00
-Peak of 3.856 kWh/h has occured at 2025-04-04 12:00:00+02:00
-Peak of 3.799 kWh/h has occured at 2025-04-04 14:00:00+02:00
-Peak of 3.735 kWh/h has occured at 2025-04-04 15:00:00+02:00, 2025-04-28 12:00:00+02:00
-Peak of 3.691 kWh/h has occured at 2025-04-23 13:00:00+02:00, 2025-04-30 13:00:00+02:00
-Peak of 3.646 kWh/h has occured at 2025-04-10 14:00:00+02:00
-Peak of 3.640 kWh/h has occured at 2025-04-04 13:00:00+02:00
+High cost peaks - weekdays at [6, 7, 8, 9, 10, 17, 18, 19, 20, 21] :00 - :59
+Peak of 3.087 kWh/h has occured at 2025-04-21 08:00:00+02:00
+Peak of 2.908 kWh/h has occured at 2025-04-21 17:00:00+02:00
+Peak of 2.550 kWh/h has occured at 2025-04-18 07:00:00+02:00
+Peak of 2.536 kWh/h has occured at 2025-04-04 18:00:00+02:00
+Peak of 2.515 kWh/h has occured at 2025-04-08 19:00:00+02:00
+Peak of 2.308 kWh/h has occured at 2025-04-10 20:00:00+02:00
+Peak of 2.266 kWh/h has occured at 2025-04-28 06:00:00+02:00
+Peak of 2.237 kWh/h has occured at 2025-04-17 20:00:00+02:00
+Peak of 2.105 kWh/h has occured at 2025-04-15 17:00:00+02:00
+Peak of 1.978 kWh/h has occured at 2025-04-10 19:00:00+02:00
 
 Low cost peaks:
 Peak of 4.571 kWh/h has occured at 2025-04-08 01:00:00+02:00
