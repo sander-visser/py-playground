@@ -220,10 +220,14 @@ async def start():
 
         if curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS:
             power_map_high.setdefault(curr_power, []).append(curr_time)
-            high_power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
-        else:
-            power_map_low.setdefault(curr_power, []).append(curr_time)
-            power_hour_samples.setdefault(curr_time.hour, []).append(curr_power)
+            high_power_hour_samples.setdefault(curr_time.hour, []).append(
+                {curr_power: curr_hour_price}
+            )
+         else:
+             power_map_low.setdefault(curr_power, []).append(curr_time)
+            power_hour_samples.setdefault(curr_time.hour, []).append(
+                {curr_power: curr_hour_price}
+            )
 
         other_cost += curr_power * curr_hour_price
         other_energy += curr_power
@@ -270,17 +274,28 @@ async def start():
     for hour in range(24):
         high_str = ""
         if hour in high_power_hour_samples:
+            price_list = []
+            consumption_list = []
+            for hour_sample in high_power_hour_samples[hour]:
+                price_list.append(list(hour_sample.values())[0])
+                consumption_list.append(list(hour_sample.keys())[0])
             high_str = (
-                f".  High avg: {(statistics.fmean(high_power_hour_samples[hour])):.2f} kWh/h."
-                + f" High peak: {sorted(high_power_hour_samples[hour])[-1]:.2f} kWh/h"
+                f".  High avg: {(statistics.fmean(consumption_list)):.2f} kWh/h"
+                + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
+                + f" High peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
             )
-
-        print(
+        price_list = []
+        consumption_list = []
+        for hour_sample in power_hour_samples[hour]:
+            price_list.append(list(hour_sample.values())[0])
+            consumption_list.append(list(hour_sample.keys())[0])
+         print(
             f"{hour:2}-{(hour+1):2}  Low avg: "
-            + f"{(statistics.fmean(power_hour_samples[hour])):.2f} kWh/h."
-            + f" Low peak: {sorted(power_hour_samples[hour])[-1]:.2f} kWh/h"
+            + f"{(statistics.fmean(consumption_list)):.2f} kWh/h"
+            + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
+            + f" Low peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
             + high_str
-        )
+         )
 
     if irradiance is not None:
         print(
@@ -297,7 +312,7 @@ async def start():
             f"Self use: {self_used_energy:.3f} kWh - valued at {self_used_value:.3f} SEK (incl VAT)"
         )
     print(
-        f"Arbitrage savings possible with {ARBITRAGE_BATTERY_SIZE_KWH} kWh battery:"
+        f"\nArbitrage savings possible with {ARBITRAGE_BATTERY_SIZE_KWH} kWh battery:"
         + f" {arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT)"
     )
     await tibber_connection.close_connection()
