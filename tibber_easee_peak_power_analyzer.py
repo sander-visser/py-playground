@@ -280,9 +280,9 @@ async def start():
                 price_list.append(list(hour_sample.values())[0])
                 consumption_list.append(list(hour_sample.keys())[0])
             high_str = (
-                f".  High avg: {(statistics.fmean(consumption_list)):.2f} kWh/h"
+                f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
                 + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
-                + f" High peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+                + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
             )
         price_list = []
         consumption_list = []
@@ -290,10 +290,10 @@ async def start():
             price_list.append(list(hour_sample.values())[0])
             consumption_list.append(list(hour_sample.keys())[0])
          print(
-            f"{hour:2}-{(hour+1):2}  Low avg: "
-            + f"{(statistics.fmean(consumption_list)):.2f} kWh/h"
+            f"{hour:2}-{(hour+1):2}  Low Avg: "
+            + f"{(statistics.fmean(consumption_list)):.2f} kW"
             + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
-            + f" Low peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+            + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
             + high_str
          )
 
