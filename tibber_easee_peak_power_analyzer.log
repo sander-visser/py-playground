@@ -171,31 +171,32 @@ Peak of 4.443 kWh/h has occured at 2025-03-05 03:00:00+01:00
 Peak of 4.424 kWh/h has occured at 2025-03-14 03:00:00+01:00
 
 Power use distribution with EV charging excluded:
- 0- 1  Low avg: 2.06 kWh/h. Low peak: 5.02 kWh/h
- 1- 2  Low avg: 1.52 kWh/h. Low peak: 4.23 kWh/h
- 2- 3  Low avg: 1.92 kWh/h. Low peak: 5.01 kWh/h
- 3- 4  Low avg: 2.04 kWh/h. Low peak: 4.44 kWh/h
- 4- 5  Low avg: 1.65 kWh/h. Low peak: 4.85 kWh/h
- 5- 6  Low avg: 1.65 kWh/h. Low peak: 4.21 kWh/h
- 6- 7  Low avg: 1.87 kWh/h. Low peak: 3.47 kWh/h.  High avg: 1.98 kWh/h. High peak: 4.73 kWh/h
- 7- 8  Low avg: 1.30 kWh/h. Low peak: 2.55 kWh/h.  High avg: 1.16 kWh/h. High peak: 2.60 kWh/h
- 8- 9  Low avg: 1.42 kWh/h. Low peak: 2.62 kWh/h.  High avg: 0.98 kWh/h. High peak: 2.45 kWh/h
- 9-10  Low avg: 1.59 kWh/h. Low peak: 3.97 kWh/h.  High avg: 0.83 kWh/h. High peak: 1.80 kWh/h
-10-11  Low avg: 1.95 kWh/h. Low peak: 3.48 kWh/h.  High avg: 0.82 kWh/h. High peak: 1.74 kWh/h
-11-12  Low avg: 1.79 kWh/h. Low peak: 5.14 kWh/h
-12-13  Low avg: 2.48 kWh/h. Low peak: 4.17 kWh/h
-13-14  Low avg: 2.61 kWh/h. Low peak: 4.86 kWh/h
-14-15  Low avg: 1.69 kWh/h. Low peak: 4.64 kWh/h
-15-16  Low avg: 1.50 kWh/h. Low peak: 4.28 kWh/h
-16-17  Low avg: 1.59 kWh/h. Low peak: 4.27 kWh/h
-17-18  Low avg: 2.12 kWh/h. Low peak: 3.59 kWh/h.  High avg: 1.66 kWh/h. High peak: 2.66 kWh/h
-18-19  Low avg: 1.51 kWh/h. Low peak: 3.10 kWh/h.  High avg: 1.63 kWh/h. High peak: 2.84 kWh/h
-19-20  Low avg: 1.69 kWh/h. Low peak: 2.40 kWh/h.  High avg: 1.87 kWh/h. High peak: 2.80 kWh/h
-20-21  Low avg: 2.07 kWh/h. Low peak: 4.36 kWh/h.  High avg: 1.79 kWh/h. High peak: 3.27 kWh/h
-21-22  Low avg: 1.77 kWh/h. Low peak: 4.35 kWh/h.  High avg: 1.83 kWh/h. High peak: 3.76 kWh/h
-22-23  Low avg: 1.52 kWh/h. Low peak: 4.26 kWh/h
-23-24  Low avg: 1.75 kWh/h. Low peak: 4.42 kWh/h
-Arbitrage savings possible with 7.0 kWh battery: 204.73 SEK (incl VAT)
+ 0- 1  Low Avg: 1.17 kW @0.49 SEK/kWh. Peak: 3.23 kWh/h
+ 1- 2  Low Avg: 1.34 kW @0.45 SEK/kWh. Peak: 4.57 kWh/h
+ 2- 3  Low Avg: 1.64 kW @0.45 SEK/kWh. Peak: 4.27 kWh/h
+ 3- 4  Low Avg: 1.49 kW @0.45 SEK/kWh. Peak: 3.71 kWh/h
+ 4- 5  Low Avg: 1.52 kW @0.48 SEK/kWh. Peak: 4.05 kWh/h
+ 5- 6  Low Avg: 1.03 kW @0.57 SEK/kWh. Peak: 2.74 kWh/h
+ 6- 7  Low Avg: 1.19 kW @0.48 SEK/kWh. Peak: 1.53 kWh/h.  High Avg: 1.04 kW @0.78 SEK/kWh. Peak: 2.27 kWh/h
+ 7- 8  Low Avg: 0.84 kW @0.52 SEK/kWh. Peak: 1.30 kWh/h.  High Avg: 0.87 kW @1.17 SEK/kWh. Peak: 2.55 kWh/h
+ 8- 9  Low Avg: 0.91 kW @0.45 SEK/kWh. Peak: 1.71 kWh/h.  High Avg: 0.76 kW @1.05 SEK/kWh. Peak: 3.09 kWh/h
+ 9-10  Low Avg: 1.46 kW @0.26 SEK/kWh. Peak: 2.91 kWh/h.  High Avg: 0.59 kW @0.77 SEK/kWh. Peak: 1.78 kWh/h
+10-11  Low Avg: 0.87 kW @0.15 SEK/kWh. Peak: 1.61 kWh/h.  High Avg: 0.56 kW @0.57 SEK/kWh. Peak: 1.37 kWh/h
+11-12  Low Avg: 1.06 kW @0.35 SEK/kWh. Peak: 2.89 kWh/h
+12-13  Low Avg: 1.88 kW @0.29 SEK/kWh. Peak: 3.92 kWh/h
+13-14  Low Avg: 2.83 kW @0.21 SEK/kWh. Peak: 3.98 kWh/h
+14-15  Low Avg: 2.17 kW @0.23 SEK/kWh. Peak: 3.80 kWh/h
+15-16  Low Avg: 1.91 kW @0.29 SEK/kWh. Peak: 3.73 kWh/h
+16-17  Low Avg: 1.22 kW @0.38 SEK/kWh. Peak: 3.57 kWh/h
+17-18  Low Avg: 1.60 kW @0.35 SEK/kWh. Peak: 2.64 kWh/h.  High Avg: 1.23 kW @0.62 SEK/kWh. Peak: 2.91 kWh/h
+18-19  Low Avg: 1.33 kW @0.65 SEK/kWh. Peak: 2.58 kWh/h.  High Avg: 1.05 kW @0.75 SEK/kWh. Peak: 2.54 kWh/h
+19-20  Low Avg: 1.37 kW @0.79 SEK/kWh. Peak: 3.32 kWh/h.  High Avg: 1.09 kW @0.92 SEK/kWh. Peak: 2.52 kWh/h
+20-21  Low Avg: 1.33 kW @0.68 SEK/kWh. Peak: 3.37 kWh/h.  High Avg: 1.15 kW @1.02 SEK/kWh. Peak: 2.31 kWh/h
+21-22  Low Avg: 0.98 kW @0.67 SEK/kWh. Peak: 1.74 kWh/h.  High Avg: 0.91 kW @0.81 SEK/kWh. Peak: 1.72 kWh/h
+22-23  Low Avg: 0.91 kW @0.65 SEK/kWh. Peak: 3.61 kWh/h
+23-24  Low Avg: 0.82 kW @0.54 SEK/kWh. Peak: 3.62 kWh/h
+
+Arbitrage savings possible with 7.0 kWh battery: 145.52 SEK (incl VAT)
 
 Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
 Min solar power required for production: 140 W / m2
