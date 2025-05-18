@@ -91,8 +91,12 @@ def _callback(pkg):
     ):
         reserved_energy = (
             ADDED_LOAD_MARGIN_KW
-            * min(ADDED_LOAD_MARGIN_DURATION_MINS, MIN_PER_H - current_time.tm_min)
-            / MIN_PER_H
+            * min(
+                ADDED_LOAD_MARGIN_DURATION_MINS * SEC_PER_MIN,
+                (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
+                + (SEC_PER_MIN - current_time.tm_sec),
+            )
+            / (MIN_PER_H * SEC_PER_MIN)
         )
 
         volt_sum = 0
@@ -101,11 +105,13 @@ def _callback(pkg):
         controllable_energy = (
             MIN_SUPERVISED_CURRENT
             * volt_sum
-            * ((MIN_PER_H - current_time.tm_min) / MIN_PER_H)
+            * (
+                ((MIN_PER_H - current_time.tm_min) * SEC_PER_MIN)
+                + (SEC_PER_MIN - current_time.tm_sec)
+            )
+            / (MIN_PER_H * SEC_PER_MIN)
             / WATT_PER_KW
         )
-        if not supervised_load_maybe_active:
-            controllable_energy = 0.0
         print(
             f"Supervised load active at {live_data['timestamp']}: {supervised_load_maybe_active}\n"
             + f"Acted to reduce consumption: {acted_hour is not None}\n"
@@ -117,14 +123,14 @@ def _callback(pkg):
             live_data["estimatedHourConsumption"]
             + reserved_energy
             - controllable_energy
-        ) > budget and supervised_load_maybe_active
+        ) > budget
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
             print(f"Acting with relay to pause power use: {live_data}")
             sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
-            sec_pause = min(sec_pause, 5 * SEC_PER_MIN)
+            sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
             pause_with_relay(sec_pause)
 
-        if acting_needed and acted_hour is None:
+        if acting_needed and acted_hour is None and supervised_load_maybe_active:
             acted_hour = current_time.tm_hour
             if ACTION_URL is not None:
                 print(f"Acting with action to reduce power use: {live_data}")
