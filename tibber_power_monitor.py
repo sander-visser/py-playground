@@ -66,12 +66,12 @@ def _callback(pkg):
         acted_hour = None
 
     budget = (
-        RESTRICTED_KW_BUDGET[current_time.month - 1]
+        RESTRICTED_KW_BUDGET[datetime.datetime.today().month - 1]
         if (
             current_time.tm_wday in RESTRICTED_DAYS
             and current_time.tm_hour in RESTRICTED_HOURS
         )
-        else UNRESTRICTED_KW_BUDGET[current_time.month - 1]
+        else UNRESTRICTED_KW_BUDGET[datetime.datetime.today().month - 1]
     )
 
     supervised_currents = []
