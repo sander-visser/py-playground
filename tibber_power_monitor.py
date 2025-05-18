@@ -20,8 +20,11 @@ TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo 
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
 RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
-RESTRICTED_HOURLY_KWH_BUDGET = 2.5
-UNRESTRICTED_HOURLY_KWH_BUDGET = 6.0
+# fmt: off
+# kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
+RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 2.7, 2.7, 2.7, 2.7, 2.7, 2.7, 3.0, 3.0, 3.5]
+UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 5.4, 5.4, 5.4, 6.0, 6.0, 7.0]
+# fmt: on
 MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
@@ -63,12 +66,12 @@ def _callback(pkg):
         acted_hour = None
 
     budget = (
-        RESTRICTED_HOURLY_KWH_BUDGET
+        RESTRICTED_KW_BUDGET[current_time.month - 1]
         if (
             current_time.tm_wday in RESTRICTED_DAYS
             and current_time.tm_hour in RESTRICTED_HOURS
         )
-        else UNRESTRICTED_HOURLY_KWH_BUDGET
+        else UNRESTRICTED_KW_BUDGET[current_time.month - 1]
     )
 
     supervised_currents = []
