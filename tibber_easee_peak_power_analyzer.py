@@ -223,8 +223,8 @@ async def start():
             high_power_hour_samples.setdefault(curr_time.hour, []).append(
                 {curr_power: curr_hour_price}
             )
-         else:
-             power_map_low.setdefault(curr_power, []).append(curr_time)
+        else:
+            power_map_low.setdefault(curr_power, []).append(curr_time)
             power_hour_samples.setdefault(curr_time.hour, []).append(
                 {curr_power: curr_hour_price}
             )
@@ -289,13 +289,13 @@ async def start():
         for hour_sample in power_hour_samples[hour]:
             price_list.append(list(hour_sample.values())[0])
             consumption_list.append(list(hour_sample.keys())[0])
-         print(
+        print(
             f"{hour:2}-{(hour+1):2}  Low Avg: "
             + f"{(statistics.fmean(consumption_list)):.2f} kW"
             + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
             + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
             + high_str
-         )
+        )
 
     if irradiance is not None:
         print(
