@@ -135,9 +135,9 @@ Power use distribution with EV charging excluded:
 
 Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
-Self use: 0.000 kWh - valued at 0.000 SEK (incl VAT)
+Analysed with database until: 2025-05-01 06:00:00+00:00
+Estimated export: 6.423 kWh - valued at 6.702 SEK (incl VAT)
+Estimated self use: 65.247 kWh - valued at 84.872 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: 195.75 SEK (incl VAT)
 
