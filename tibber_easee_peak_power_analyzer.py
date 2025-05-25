@@ -170,7 +170,7 @@ async def start():
                     else:
                         arbitrage_savings += arbitrage_energy * energy_price
                         break
-            curr_day_samples = {}f
+            curr_day_samples = {}
 
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
         curr_utc_time = curr_time.astimezone(pytz.utc)
@@ -203,6 +203,19 @@ async def start():
                 if solar_factor < 1:
                     self_use *= solar_factor
                 export = solar_power - self_use
+
+                if ARBITRAGE_BATTERY_SIZE_KWH is not None:
+                    if solar_battery_contents < ARBITRAGE_BATTERY_SIZE_KWH:
+                        solar_battery_contents += export
+                        export = 0
+                        if solar_battery_contents > ARBITRAGE_BATTERY_SIZE_KWH:
+                            export = solar_battery_contents - ARBITRAGE_BATTERY_SIZE_KWH
+                            solar_battery_contents = ARBITRAGE_BATTERY_SIZE_KWH
+                    if (curr_power - self_use) > 0:
+                        discharge = min(solar_battery_contents, (curr_power - self_use))
+                        self_use += discharge
+                        solar_battery_contents -= discharge
+                        solar_battery_self_use_kwh += discharge
 
                 exported_energy += export
                 exported_value += export * curr_hour_price
@@ -301,6 +314,7 @@ async def start():
     if irradiance is not None:
         print(
             f"\nEstimated value from {INSTALLED_PANEL_POWER} kW solar installation"
+            + f" when combined with {ARBITRAGE_BATTERY_SIZE_KWH} kWh energy storage"
             + " (excl energy tax and network transfer cost, incl VAT."
             + " Note: Assuming broker fee and network benefit cancel each other out)"
         )
@@ -314,6 +328,7 @@ async def start():
         )
     print(
         f"\nArbitrage savings possible with {ARBITRAGE_BATTERY_SIZE_KWH} kWh battery:"
+        + " (not relevant during months when battery is used for solar storage)"
         + f" {arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT)"
     )
     await tibber_connection.close_connection()
