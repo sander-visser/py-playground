@@ -1,9 +1,13 @@
 Rolling 12 months log created with tibber_easee_peak_power_analyzer.py
-for a freestanding house outside Gothenburg (without PV installed).
+for a freestanding house with 5 occupants outside Gothenburg (without PV installed).
+Household that optimizes pure electric hot water heating using vvb_optimizer_connected.py
 
 Script uses SMHI solar data to estimate value of a small (4.5kWp) PV setup. Incl VAT:
-1759 kWh/year self use without battery storage system (or changed consumption pattern)
-Value for May 2024 - April 2025 is 1552 SEK (+965 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+- 1759 kWh/year self use without battery storage system (or changed consumption pattern)
+  Value for May 2024 - April 2025 is 1552 SEK (+965 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+- 2914 kWh/year self use with battery storage system (no changed consumption pattern)
+  Value for May 2024 - April 2025 is 1472 SEK (+1599 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+  Thus: Arbitrage is more valuable Oct - April
 
 Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2024 - April 2025 is 1673 SEK incl VAT.
 
@@ -134,13 +138,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 2.52 kW @0.87 SEK/kWh. Peak: 6.33 kWh/h
 23-24  Low Avg: 2.44 kW @0.73 SEK/kWh. Peak: 5.38 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-05-01 06:00:00+00:00
-Export: 19.735 kWh - valued at 18.557 SEK (incl VAT)
-Self use: 65.247 kWh - valued at 84.872 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
+Self use: 84.127 kWh - valued at 102.618 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 195.75 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 195.75 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -200,13 +204,13 @@ Peak of 4.424 kWh/h has occured at 2025-03-14 03:00:00+01:00
 22-23  Low Avg: 1.52 kW @0.63 SEK/kWh. Peak: 4.26 kWh/h
 23-24  Low Avg: 1.75 kW @0.52 SEK/kWh. Peak: 4.42 kWh/h
 
-Value from 4.5 kW solar installation (excl energy tax - assuming broker fee and network benefit cancel eachother out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-03-31 23:00:00+00:00
-Export: 101.344 kWh - valued at 61.180 SEK (incl VAT)
-Self use: 200.937 kWh - valued at 105.140 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 14.914 kWh - valued at 15.349 SEK (incl VAT)
+Self use: 281.705 kWh - valued at 141.803 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 204.73 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 204.73 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -267,13 +271,13 @@ Power use distribution with EV charging excluded:
 22-23  Low avg: 0.91 kWh/h @0.65 SEK/kWh. Low peak: 3.61 kWh/h
 23-24  Low avg: 0.82 kWh/h @0.54 SEK/kWh. Low peak: 3.62 kWh/h
 
-Value from 4.5 kW solar installation (excl energy tax and network transfer cost. Note: assuming broker fee and network benefit cancel eachother out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-05-01 06:00:00+00:00
-Export: 227.333 kWh - valued at 92.501 SEK (incl VAT)
-Self use: 301.360 kWh - valued at 104.221 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 79.377 kWh - valued at 28.119 SEK (incl VAT)
+Self use: 442.315 kWh - valued at 147.316 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 145.52 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 145.52 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -334,13 +338,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.76 kW @0.42 SEK/kWh. Peak: 2.51 kWh/h
 23-24  Low Avg: 1.45 kW @0.32 SEK/kWh. Peak: 4.02 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 432.036 kWh - valued at 164.889 SEK (incl VAT)
-Self use: 311.589 kWh - valued at 82.196 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 255.807 kWh - valued at 94.314 SEK (incl VAT)
+Self use: 480.944 kWh - valued at 134.924 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 97.53 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 97.53 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -401,13 +405,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.09 kW @0.49 SEK/kWh. Peak: 4.39 kWh/h
 23-24  Low Avg: 1.59 kW @0.41 SEK/kWh. Peak: 3.85 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 426.987 kWh - valued at 195.314 SEK (incl VAT)
-Self use: 254.039 kWh - valued at 105.786 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 212.086 kWh - valued at 112.763 SEK (incl VAT)
+Self use: 468.940 kWh - valued at 175.795 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 83.79 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 83.79 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -468,13 +472,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.83 kW @0.38 SEK/kWh. Peak: 1.83 kWh/h
 23-24  Low Avg: 1.06 kW @0.34 SEK/kWh. Peak: 3.50 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 444.650 kWh - valued at 156.993 SEK (incl VAT)
-Self use: 186.825 kWh - valued at 55.243 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 200.038 kWh - valued at 76.201 SEK (incl VAT)
+Self use: 424.437 kWh - valued at 128.393 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 49.81 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 49.81 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -535,13 +539,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.92 kW @0.21 SEK/kWh. Peak: 4.09 kWh/h
 23-24  Low Avg: 1.82 kW @0.18 SEK/kWh. Peak: 4.17 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 371.929 kWh - valued at 81.109 SEK (incl VAT)
-Self use: 162.998 kWh - valued at 33.635 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 221.754 kWh - valued at 45.764 SEK (incl VAT)
+Self use: 306.204 kWh - valued at 66.745 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 40.05 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 40.05 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -602,13 +606,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.24 kW @0.22 SEK/kWh. Peak: 3.76 kWh/h
 23-24  Low Avg: 1.11 kW @0.20 SEK/kWh. Peak: 3.70 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 191.857 kWh - valued at 73.803 SEK (incl VAT)
-Self use: 194.778 kWh - valued at 52.075 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 98.993 kWh - valued at 36.696 SEK (incl VAT)
+Self use: 281.662 kWh - valued at 76.358 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 58.61 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 58.61 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -669,13 +673,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.31 kW @0.28 SEK/kWh. Peak: 3.47 kWh/h
 23-24  Low Avg: 1.42 kW @0.23 SEK/kWh. Peak: 4.20 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 68.119 kWh - valued at 29.274 SEK (incl VAT)
-Self use: 56.180 kWh - valued at 23.953 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 16.031 kWh - valued at 8.921 SEK (incl VAT)
+Self use: 106.807 kWh - valued at 41.371 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 92.97 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 92.97 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -736,13 +740,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.55 kW @0.75 SEK/kWh. Peak: 4.00 kWh/h
 23-24  Low Avg: 1.54 kW @0.59 SEK/kWh. Peak: 4.25 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 9.710 kWh - valued at 5.746 SEK (incl VAT)
-Self use: 18.894 kWh - valued at 17.374 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 0.075 kWh - valued at 0.054 SEK (incl VAT)
+Self use: 28.530 kWh - valued at 29.084 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 219.44 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 219.44 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -803,10 +807,10 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.55 kW @0.53 SEK/kWh. Peak: 4.76 kWh/h
 23-24  Low Avg: 1.40 kW @0.42 SEK/kWh. Peak: 4.16 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
+Analysed with database until: 2025-05-23 20:00:00+00:00
 Export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
-Self use: 0.635 kWh - valued at 0.796 SEK (incl VAT)
+Self use: 0.636 kWh - valued at 0.796 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 250.22 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 250.22 SEK (incl VAT)
