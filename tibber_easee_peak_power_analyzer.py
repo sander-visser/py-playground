@@ -5,6 +5,39 @@ Find peak power use based on Tibber 30 day historic consumption
 with Easee EV charging excluded.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+low_p_color = 'tab:red'
+low_e_color = 'tab:green'
+high_e_color = 'tab:orange'
+
+x = np.arange(0, 24) 
+xa = np.array([3,4,5]) 
+y1 = np.array([1.17, 1.34, 1.64, 1.49, 1.52, 1.03, 1.19, 0.84, 0.91, 1.46, 0.87, 1.06, 1.88, 2.83, 2.17, 1.91, 1.22, 1.6, 1.33, 1.37, 1.33, 0.98, 0.91, 0.82])
+y2 = np.array([5.17, 1.34, 1.64])
+yprice = [3, 4, 5]
+fig, ay1 = plt.subplots()
+twiny = ay1.twinx()
+twiny.set_ylabel('price')
+twiny.plot(xa, np.array(yprice), color=low_p_color)
+twiny.tick_params(axis='y', labelcolor=low_p_color)
+twiny.set_ylabel('energy use', color=low_e_color)
+
+
+
+ay1.plot(x, y1, color=low_e_color, label="low energy")
+ay1.plot(xa, y2, color=high_e_color, label="high energy")
+ay1.set_xlabel('avg hour')
+ay1.set_ylabel('energy use', color=high_e_color)
+ay1.legend()
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.title('Energy plot month X')
+plt.grid(True)
+plt.savefig('plot.png')
+plt.show()
+
 import asyncio
 import csv
 import datetime
