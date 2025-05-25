@@ -5,8 +5,9 @@ Household that optimizes pure electric hot water heating using vvb_optimizer_con
 Script uses SMHI solar data to estimate value of a small (4.5kWp) PV setup. Incl VAT:
 - 1759 kWh/year self use without battery storage system (or changed consumption pattern)
   Value for May 2024 - April 2025 is 1552 SEK (+965 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
-- 2914 kWh/year self use with battery storage system (no changed consumption pattern)
-  Value for May 2024 - April 2025 is 1472 SEK (+1599 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+- 3402 kWh/year self use with 7 kWh battery storage system (no changed consumption pattern)
+  Value for May 2024 - April 2025 is 1565 SEK (+1867 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+  Battery cycles used in one year: 235
   Thus: Arbitrage is more valuable Oct - April
 
 Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2024 - April 2025 is 1673 SEK incl VAT.
@@ -71,13 +72,13 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.94 kW @0.62 SEK/kWh. Peak: 4.55 kWh/h
 23-24  Low Avg: 2.01 kW @0.49 SEK/kWh. Peak: 4.43 kWh/h
 
-Estimated value from 4.5 kW solar installation (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 0.0 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-02-01 06:00:00+00:00
-Export: 0.000 kWh - valued at -0.000 SEK (incl VAT)
-Self use: 5.922 kWh - valued at 9.326 SEK (incl VAT)
+Analysed with database until: 2025-05-23 20:00:00+00:00
+Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
+Self use: 5.92 kWh - valued at 9.33 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: 236.97 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 236.97 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
@@ -138,11 +139,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 2.52 kW @0.87 SEK/kWh. Peak: 6.33 kWh/h
 23-24  Low Avg: 2.44 kW @0.73 SEK/kWh. Peak: 5.38 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 2.8 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
-Self use: 84.127 kWh - valued at 102.618 SEK (incl VAT)
+Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
+Self use: 84.98 kWh - valued at 102.96 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 195.75 SEK (incl VAT)
 
@@ -204,11 +205,11 @@ Peak of 4.424 kWh/h has occured at 2025-03-14 03:00:00+01:00
 22-23  Low Avg: 1.52 kW @0.63 SEK/kWh. Peak: 4.26 kWh/h
 23-24  Low Avg: 1.75 kW @0.52 SEK/kWh. Peak: 4.42 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 13.4 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 14.914 kWh - valued at 15.349 SEK (incl VAT)
-Self use: 281.705 kWh - valued at 141.803 SEK (incl VAT)
+Export: 6.65 kWh - valued at 7.79 SEK (incl VAT)
+Self use: 294.70 kWh - valued at 187.43 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 204.73 SEK (incl VAT)
 
@@ -271,11 +272,11 @@ Power use distribution with EV charging excluded:
 22-23  Low avg: 0.91 kWh/h @0.65 SEK/kWh. Low peak: 3.61 kWh/h
 23-24  Low avg: 0.82 kWh/h @0.54 SEK/kWh. Low peak: 3.62 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 26.3 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 79.377 kWh - valued at 28.119 SEK (incl VAT)
-Self use: 442.315 kWh - valued at 147.316 SEK (incl VAT)
+Export: 37.89 kWh - valued at 17.42 SEK (incl VAT)
+Self use: 485.36 kWh - valued at 189.78 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 145.52 SEK (incl VAT)
 
@@ -338,11 +339,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.76 kW @0.42 SEK/kWh. Peak: 2.51 kWh/h
 23-24  Low Avg: 1.45 kW @0.32 SEK/kWh. Peak: 4.02 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 37.9 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 255.807 kWh - valued at 94.314 SEK (incl VAT)
-Self use: 480.944 kWh - valued at 134.924 SEK (incl VAT)
+Export: 166.42 kWh - valued at 57.26 SEK (incl VAT)
+Self use: 577.20 kWh - valued at 179.58 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 97.53 SEK (incl VAT)
 
@@ -405,11 +406,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.09 kW @0.49 SEK/kWh. Peak: 4.39 kWh/h
 23-24  Low Avg: 1.59 kW @0.41 SEK/kWh. Peak: 3.85 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 41.7 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 212.086 kWh - valued at 112.763 SEK (incl VAT)
-Self use: 468.940 kWh - valued at 175.795 SEK (incl VAT)
+Export: 134.90 kWh - valued at 70.13 SEK (incl VAT)
+Self use: 546.13 kWh - valued at 220.77 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 83.79 SEK (incl VAT)
 
@@ -472,11 +473,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.83 kW @0.38 SEK/kWh. Peak: 1.83 kWh/h
 23-24  Low Avg: 1.06 kW @0.34 SEK/kWh. Peak: 3.50 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 44.3 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 200.038 kWh - valued at 76.201 SEK (incl VAT)
-Self use: 424.437 kWh - valued at 128.393 SEK (incl VAT)
+Export: 128.69 kWh - valued at 46.17 SEK (incl VAT)
+Self use: 497.06 kWh - valued at 158.30 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 49.81 SEK (incl VAT)
 
@@ -539,11 +540,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 0.92 kW @0.21 SEK/kWh. Peak: 4.09 kWh/h
 23-24  Low Avg: 1.82 kW @0.18 SEK/kWh. Peak: 4.17 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 34.4 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 221.754 kWh - valued at 45.764 SEK (incl VAT)
-Self use: 306.204 kWh - valued at 66.745 SEK (incl VAT)
+Export: 130.98 kWh - valued at 27.30 SEK (incl VAT)
+Self use: 403.95 kWh - valued at 86.22 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 40.05 SEK (incl VAT)
 
@@ -606,11 +607,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.24 kW @0.22 SEK/kWh. Peak: 3.76 kWh/h
 23-24  Low Avg: 1.11 kW @0.20 SEK/kWh. Peak: 3.70 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 22.9 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 98.993 kWh - valued at 36.696 SEK (incl VAT)
-Self use: 281.662 kWh - valued at 76.358 SEK (incl VAT)
+Export: 31.70 kWh - valued at 13.49 SEK (incl VAT)
+Self use: 354.93 kWh - valued at 109.66 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 58.61 SEK (incl VAT)
 
@@ -673,11 +674,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.31 kW @0.28 SEK/kWh. Peak: 3.47 kWh/h
 23-24  Low Avg: 1.42 kW @0.23 SEK/kWh. Peak: 4.20 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 9.6 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 16.031 kWh - valued at 8.921 SEK (incl VAT)
-Self use: 106.807 kWh - valued at 41.371 SEK (incl VAT)
+Export: 0.97 kWh - valued at 0.76 SEK (incl VAT)
+Self use: 123.33 kWh - valued at 58.68 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 92.97 SEK (incl VAT)
 
@@ -740,11 +741,11 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.55 kW @0.75 SEK/kWh. Peak: 4.00 kWh/h
 23-24  Low Avg: 1.54 kW @0.59 SEK/kWh. Peak: 4.25 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 1.4 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 0.075 kWh - valued at 0.054 SEK (incl VAT)
-Self use: 28.530 kWh - valued at 29.084 SEK (incl VAT)
+Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
+Self use: 28.60 kWh - valued at 24.03 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 219.44 SEK (incl VAT)
 
@@ -807,10 +808,10 @@ Power use distribution with EV charging excluded:
 22-23  Low Avg: 1.55 kW @0.53 SEK/kWh. Peak: 4.76 kWh/h
 23-24  Low Avg: 1.40 kW @0.42 SEK/kWh. Peak: 4.16 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 0.0 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 0.000 kWh - valued at 0.000 SEK (incl VAT)
-Self use: 0.636 kWh - valued at 0.796 SEK (incl VAT)
+Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
+Self use: 0.64 kWh - valued at 0.80 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 250.22 SEK (incl VAT)
