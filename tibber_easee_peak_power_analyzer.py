@@ -28,7 +28,7 @@ SECONDS_PER_HOUR = 3600
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
-ARBITRAGE_BATTERY_SIZE_KWH = 7.0
+ARBITRAGE_BATTERY_SIZE_KWH = 7.0  # None if no battery is installed
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
 IRRADIANCE_OBSERVATION = (
     None  # "smhi-opendata.csv" # Cleaned up with leading garbage removed
@@ -157,19 +157,20 @@ async def start():
     self_used_value = 0.0
     for power_sample in hourly_consumption_data:
         if len(curr_day_samples) == 24:
-            arbitrage_energy = ARBITRAGE_BATTERY_SIZE_KWH
-            arbitrage_savings -= (
-                ARBITRAGE_BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
-            )
-            for energy_price in sorted(curr_day_samples, reverse=True):
-                energy_use = curr_day_samples[energy_price]
-                if arbitrage_energy > energy_use:
-                    arbitrage_savings += energy_use * energy_price
-                    arbitrage_energy -= energy_use
-                else:
-                    arbitrage_savings += arbitrage_energy * energy_price
-                    break
-            curr_day_samples = {}
+            if ARBITRAGE_BATTERY_SIZE_KWH is not None:
+                arbitrage_energy = ARBITRAGE_BATTERY_SIZE_KWH
+                arbitrage_savings -= (
+                    ARBITRAGE_BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
+                )
+                for energy_price in sorted(curr_day_samples, reverse=True):
+                    energy_use = curr_day_samples[energy_price]
+                    if arbitrage_energy > energy_use:
+                        arbitrage_savings += energy_use * energy_price
+                        arbitrage_energy -= energy_use
+                    else:
+                        arbitrage_savings += arbitrage_energy * energy_price
+                        break
+            curr_day_samples = {}f
 
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
         curr_utc_time = curr_time.astimezone(pytz.utc)
@@ -197,12 +198,12 @@ async def start():
             if irr_power > IRRADIANCE_MIN:
                 solar_power = irr_power / IRRADIANCE_FULL * INSTALLED_PANEL_POWER
                 self_use = curr_power * irr_duration / SECONDS_PER_HOUR
-                solar_utilization = solar_power / curr_power
-                export = 0
-                if solar_utilization > 1:
-                    export = (solar_utilization - 1) * irr_duration / SECONDS_PER_HOUR
-                else:
-                    self_use *= solar_utilization
+                solar_factor = solar_power / curr_power
+                
+                if solar_factor < 1:
+                    self_use *= solar_factor
+                export = solar_power - self_use
+
                 exported_energy += export
                 exported_value += export * curr_hour_price
                 self_used_energy += self_use
