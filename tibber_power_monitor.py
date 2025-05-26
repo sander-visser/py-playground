@@ -9,6 +9,7 @@ export SSL_CERT_FILE=$(python -m certifi)
 
 import asyncio
 import datetime
+import logging
 import time
 
 import aiohttp
@@ -18,7 +19,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
-RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
+RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # H:00 - H:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 # fmt: off
 # kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
@@ -31,10 +32,11 @@ SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
 MINIMUM_LOAD_MINUTES_PER_H = 15  # Energy equivalent used in supervision
 ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
-# Ex: Wifi connected VVB (Raspberry Pico WH + servo): vvb_optimizer_connected.py
+# Ex: Wifi connected boiler (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
 # Shelly PRO relay with NC contactor cutting load current - None if not used
 RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="
+
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
 SEC_PER_MIN = 60
@@ -46,11 +48,11 @@ def pause_with_relay(sec_pause):
     try:
         resp = requests.get(RELAY_URL + f"{sec_pause}", timeout=API_TIMEOUT)
         if resp.status_code != requests.codes.ok:
-            print(f"Acting relay failed {resp.status_code}")
+            logging.warning(f"Acting relay failed {resp.status_code}")
     except requests.exceptions.ConnectionError:
-        print("Acting relay failed - connection error")
+        logging.warning("Acting relay failed - connection error")
     except requests.exceptions.Timeout:
-        print("Acting relay failed - timeout")
+        logging.warning("Acting relay failed - timeout")
 
 
 def _callback(pkg):
@@ -87,7 +89,7 @@ def _callback(pkg):
         )
 
     if main_fuse_protection_needed:
-        print(f"Protecting main fuse: {live_data}")
+        logging.info(f"Protecting main fuse: {live_data}")
         pause_with_relay(5 * SEC_PER_MIN)
     elif live_data["accumulatedConsumptionLastHour"] > (
         budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H
@@ -115,7 +117,7 @@ def _callback(pkg):
             / (MIN_PER_H * SEC_PER_MIN)
             / WATT_PER_KW
         )
-        print(
+        logging.info(
             f"Supervised load active at {live_data['timestamp']}: {supervised_load_maybe_active}\n"
             + f"Acted to reduce consumption: {acted_hour is not None}\n"
             + f"kWh/h estimate: {live_data['estimatedHourConsumption']} + "
@@ -128,7 +130,7 @@ def _callback(pkg):
             - controllable_energy
         ) > budget
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
-            print(f"Acting with relay to pause power use: {live_data}")
+            logging.info(f"Acting with relay to pause power use: {live_data}")
             sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
             sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
             pause_with_relay(sec_pause)
@@ -136,17 +138,17 @@ def _callback(pkg):
         if acting_needed and acted_hour is None and supervised_load_maybe_active:
             acted_hour = current_time.tm_hour
             if ACTION_URL is not None:
-                print(f"Acting with action to reduce power use: {live_data}")
+                logging.info(f"Acting with action to reduce power use: {live_data}")
                 try:
                     resp = requests.get(ACTION_URL, timeout=API_TIMEOUT)
                     if resp.status_code != requests.codes.ok:
-                        print(f"Acting failed {resp.status_code}")
+                        logging.warning(f"Acting failed {resp.status_code}")
                         acted_hour = None  # Retry...
                 except requests.exceptions.ConnectionError:
-                    print("Acting failed - connection error")
+                    logging.warning("Acting failed - connection error")
                     acted_hour = None  # Retry...
                 except requests.exceptions.Timeout:
-                    print("Acting failed - timeout")
+                    logging.warning("Acting failed - timeout")
                     acted_hour = None  # Retry...
 
 
@@ -164,7 +166,7 @@ async def start():
         home = tibber_connection.get_homes()[HOME_INDEX]
         await home.rt_subscribe(_callback)
     except Exception as e:
-        print(f"Setup error: {e}")
+        logging.error(f"Setup error: {e}")
 
     alive_timeout = MAX_RETRY_COUNT
     while home is not None:
@@ -179,10 +181,15 @@ async def start():
 
 #  Globals
 acted_hour = None
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("tibber_power_monitor.log"), logging.StreamHandler()],
+)
 
 while True:
     try:
         loop = asyncio.run(start())
     except tibber.exceptions.FatalHttpExceptionError:
-        print("Server issues detected...")
+        logging.error("Server issues detected...")
     time.sleep(60)
