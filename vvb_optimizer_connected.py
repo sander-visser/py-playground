@@ -1,14 +1,16 @@
 """
-Hot water scheduler to move electricity usage to hours that are usually cheap
-Runs on a Raspberry Pi PICO W(H) with a SG90 servo connected to PWM GP0
+Hot water system (HWS) scheduler to run resistive heating on cheap hours.
+Runs on a Raspberry Pi PICO(2) W(H) with a SG90 servo connected to PWM GP0
 Power takeout for servo possible from VBUS pin if USB powered.
 If USB only powered connect VBUS and VSYS for cleaner power (better WiFi)
 WiFi range improves with ground connection and good placement.
-Designed for WiFi use. Servo connected to theromostat of electric water heater.
-Upload to device using Thonny (as main.py).
+Designed for WiFi use. Servo connected to theromostat of the HWS.
+Upload to device from a PC using Thonny (as main.py).
+Logs are made available via built in webserver that also allows override.
 
 Power reset unit to get 1h extra hot water.
 vvb_optimizer_connected.png show price/target temperature behaviour.
+12 months savings in Sweden SE3 ammount to approx 150 EUR.
 
 Repo also contans a schedule based optimizer (that does not utilize WiFi)
 
