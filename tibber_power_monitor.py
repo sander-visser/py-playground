@@ -17,14 +17,14 @@ import requests
 import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
 # Get personal token from https://developer.tibber.com/settings/access-token
-TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
+TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # Demo token
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
-RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # H:00 - H:59
+RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # HH:00 - HH:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 # fmt: off
 # kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
-RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 2.7, 2.7, 2.7, 2.7, 2.7, 2.7, 3.0, 3.0, 3.5]
-UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 5.4, 5.4, 5.4, 6.0, 6.0, 7.0]
+RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 2.7, 2.7, 2.7, 2.2, 2.5, 2.7, 3.0, 3.0, 3.5]
+UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 6.0, 6.0, 7.0]
 # fmt: on
 MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
@@ -34,8 +34,12 @@ ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected boiler (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
-# Shelly PRO relay with NC contactor cutting load current - None if not used
-RELAY_URL = "http://192.168.1.191/rpc/switch.set?id=0&on=true&toggle_after="
+# Shelly PRO relay with contactor cutting load current - None if not used
+RELAY_MODE = true  # Set false if normally open (NO) relay is used
+RELAY_URL = "http://192.168.1.191/rpc/switch."
+RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
+RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
+MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
 
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
@@ -46,7 +50,25 @@ MAX_RETRY_COUNT = 6  # 10s apart
 
 def pause_with_relay(sec_pause):
     try:
-        resp = requests.get(RELAY_URL + f"{sec_pause}", timeout=API_TIMEOUT)
+        resp = requests.get(RELAY_GET_URL, timeout=API_TIMEOUT)
+        if resp.status_code != requests.codes.ok:
+            logging.warning(f"Polling relay failed {resp.status_code}")
+        else:
+            status_json = resp.json()
+            if status_json["output"] == RELAY_MODE:
+                if (
+                    "timer_duration" in status_json
+                    and status_json["timer_duration"] > MAX_AUTO_RELAY_TOGGLE_TIME
+                ):
+                    logging.info("Skipping relay pause since manually paused")
+                    return
+    except requests.exceptions.ConnectionError:
+        logging.warning("Polling relay failed - connection error")
+    except requests.exceptions.Timeout:
+        logging.warning("Polling relay failed - timeout")
+
+    try:
+        resp = requests.get(RELAY_SET_URL + f"{sec_pause}", timeout=API_TIMEOUT)
         if resp.status_code != requests.codes.ok:
             logging.warning(f"Acting relay failed {resp.status_code}")
     except requests.exceptions.ConnectionError:
@@ -55,7 +77,7 @@ def pause_with_relay(sec_pause):
         logging.warning("Acting relay failed - timeout")
 
 
-def _callback(pkg):
+def _rt_callback(pkg):
     global acted_hour
     data = pkg.get("data")
     if data is None:
@@ -68,12 +90,12 @@ def _callback(pkg):
         acted_hour = None
 
     budget = (
-        RESTRICTED_KW_BUDGET[datetime.datetime.today().month - 1]
+        RESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
         if (
             current_time.tm_wday in RESTRICTED_DAYS
             and current_time.tm_hour in RESTRICTED_HOURS
         )
-        else UNRESTRICTED_KW_BUDGET[datetime.datetime.today().month - 1]
+        else UNRESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
     )
 
     supervised_currents = []
@@ -164,7 +186,7 @@ async def start():
     try:
         await tibber_connection.update_info()
         home = tibber_connection.get_homes()[HOME_INDEX]
-        await home.rt_subscribe(_callback)
+        await home.rt_subscribe(_rt_callback)
     except Exception as e:
         logging.error(f"Setup error: {e}")
 
