@@ -35,7 +35,7 @@ ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected boiler (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
 # Shelly PRO relay with contactor cutting load current - None if not used
-RELAY_MODE = true  # Set false if normally open (NO) relay is used
+RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
 RELAY_URL = "http://192.168.1.191/rpc/switch."
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
@@ -55,7 +55,7 @@ def pause_with_relay(sec_pause):
             logging.warning(f"Polling relay failed {resp.status_code}")
         else:
             status_json = resp.json()
-            if status_json["output"] == RELAY_MODE:
+            if status_json["output"] == bool(RELAY_MODE):
                 if (
                     "timer_duration" in status_json
                     and status_json["timer_duration"] > MAX_AUTO_RELAY_TOGGLE_TIME
