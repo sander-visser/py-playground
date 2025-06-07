@@ -10,6 +10,8 @@ import csv
 import datetime
 import statistics
 import sys
+import matplotlib.pyplot as plt
+import numpy as np
 import pytz
 import requests
 import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
@@ -80,6 +82,55 @@ def get_irradiance_observation():
             )
         return solar_irr
     return None
+
+
+def render_visualization(
+    start_date, low_prices, low_avg_cons, high_prices, high_avg_cons
+):
+    low_p_color = "tab:red"
+    high_p_color = "tab:orange"
+    low_e_color = "tab:green"
+    high_e_color = "#ffff00"
+
+    x = np.arange(0, 24)
+    y1 = np.array(low_avg_cons)
+    y2 = np.array(high_avg_cons)
+    fig, axes = plt.subplots()
+    plt.xticks(x)
+    price_twin = axes.twinx()
+    price_twin.grid(linestyle="-")
+    price_twin.set_ylabel("price")
+    price_twin.plot(
+        x,
+        np.array(low_prices),
+        color=low_p_color,
+        label="low cost energy price",
+        drawstyle="steps-post",
+    )
+    price_twin.plot(
+        x,
+        np.array(high_prices),
+        color=high_p_color,
+        label="high cost energy price",
+        drawstyle="steps-post",
+    )
+    price_twin.set_ylabel("energy price (SEK incl VAT)")
+    price_twin.legend(loc="upper right")
+
+    axes.plot(
+        x, y1, color=low_e_color, label="low cost avg energy", drawstyle="steps-post"
+    )
+    axes.plot(
+        x, y2, color=high_e_color, label="high cost avg energy", drawstyle="steps-post"
+    )
+    axes.set_xlabel("start hour")
+    axes.set_ylabel("energy use (kWh)")
+    axes.grid(linestyle="--")
+    axes.legend(loc="upper left")
+
+    plt.title(f"Energy plot {start_date}")
+    plt.savefig(f"{start_date}.png")
+    #plt.show()
 
 
 async def start():
@@ -288,31 +339,50 @@ async def start():
     else:
         print("\nPower use distribution with EV charging excluded:")
 
+    high_prices = []
+    high_avg_cons = []
+    low_prices = []
+    low_avg_cons = []
     for hour in range(24):
         high_str = ""
         if hour in high_power_hour_samples:
             price_list = []
             consumption_list = []
-            for hour_sample in high_power_hour_samples[hour]:
-                price_list.append(list(hour_sample.values())[0])
-                consumption_list.append(list(hour_sample.keys())[0])
-            high_str = (
-                f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
-                + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
-                + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
-            )
-        price_list = []
-        consumption_list = []
-        for hour_sample in power_hour_samples[hour]:
-            price_list.append(list(hour_sample.values())[0])
-            consumption_list.append(list(hour_sample.keys())[0])
-        print(
-            f"{hour:2}-{(hour+1):2}  Low Avg: "
-            + f"{(statistics.fmean(consumption_list)):.2f} kW"
-            + f" @{(statistics.fmean(price_list)):.2f} SEK/kWh."
-            + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
-            + high_str
-        )
+             for hour_sample in high_power_hour_samples[hour]:
+                 price_list.append(list(hour_sample.values())[0])
+                 consumption_list.append(list(hour_sample.keys())[0])
+            high_prices.append(statistics.fmean(price_list))
+            high_avg_cons.append(statistics.fmean(consumption_list))
+             high_str = (
+                 f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
+                + f" @{high_prices[hour]:.2f} SEK/kWh."
+                 + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+             )
+        else:
+            high_prices.append(None)
+            high_avg_cons.append(None)
+         price_list = []
+         consumption_list = []
+         for hour_sample in power_hour_samples[hour]:
+             price_list.append(list(hour_sample.values())[0])
+             consumption_list.append(list(hour_sample.keys())[0])
+        low_prices.append(statistics.fmean(price_list))
+        low_avg_cons.append(statistics.fmean(consumption_list))
+         print(
+             f"{hour:2}-{(hour+1):2}  Low Avg: "
+            + f"{low_avg_cons[hour]:.2f} kW"
+            + f" @{low_prices[hour]:.2f} SEK/kWh."
+             + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+             + high_str
+         )
+
+    render_visualization(
+        f"{str(local_dt_from)[:10]}_{str(local_dt_to)[:10]}",
+        low_prices,
+        low_avg_cons,
+        high_prices,
+        high_avg_cons,
+    )
 
     if irradiance is not None:
         battery_str = ""
