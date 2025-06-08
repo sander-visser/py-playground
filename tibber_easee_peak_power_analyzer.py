@@ -21,7 +21,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = datetime.date.fromisoformat("2025-05-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2024-05-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -84,17 +84,27 @@ def get_irradiance_observation():
     return None
 
 
-def render_visualization(
-    start_date, low_prices, low_avg_cons, high_prices, high_avg_cons
-):
+def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
     low_p_color = "tab:red"
     high_p_color = "tab:orange"
     low_e_color = "tab:green"
     high_e_color = "#ffff00"
 
     x = np.arange(0, 24)
-    y1 = np.array(low_avg_cons)
-    y2 = np.array(high_avg_cons)
+    low_avg_cons = []
+    low_peak_cons = []
+    for cons in low_cons:
+        low_avg_cons.append(cons["avg"])
+        low_peak_cons.append(cons["max"])
+    high_avg_cons = []
+    high_peak_cons = []
+    for cons in high_cons:
+        high_avg_cons.append(cons["avg"])
+        high_peak_cons.append(cons["max"])
+    low_avg = np.array(low_avg_cons)
+    low_peak = np.array(low_peak_cons)
+    high_avg = np.array(high_avg_cons)
+    high_peak = np.array(high_peak_cons)
     fig, axes = plt.subplots()
     plt.xticks(x)
     price_twin = axes.twinx()
@@ -118,17 +128,41 @@ def render_visualization(
     price_twin.legend(loc="upper right")
 
     axes.plot(
-        x, y1, color=low_e_color, label="low cost avg energy", drawstyle="steps-post"
+        x,
+        low_avg,
+        color=low_e_color,
+        label="low cost avg energy",
+        drawstyle="steps-post",
     )
     axes.plot(
-        x, y2, color=high_e_color, label="high cost avg energy", drawstyle="steps-post"
+        x,
+        low_peak,
+        color=low_e_color,
+        label="low cost peak energy",
+        drawstyle="steps-post",
+        linestyle="--",
+    )
+    axes.plot(
+        x,
+        high_avg,
+        color=high_e_color,
+        label="high cost avg energy",
+        drawstyle="steps-post",
+    )
+    axes.plot(
+        x,
+        high_peak,
+        color=high_e_color,
+        label="high cost peak energy",
+        drawstyle="steps-post",
+        linestyle="--",
     )
     axes.set_xlabel("start hour")
     axes.set_ylabel("energy use (kWh)")
     axes.grid(linestyle="--")
     axes.legend(loc="upper left")
 
-    plt.title(f"Energy plot {start_date}")
+    plt.title(f"Energy use pattern {start_date}")
     plt.savefig(f"{start_date}.png")
     # plt.show()
 
@@ -340,9 +374,9 @@ async def start():
         print("\nPower use distribution with EV charging excluded:")
 
     high_prices = []
-    high_avg_cons = []
+    high_cons = []
     low_prices = []
-    low_avg_cons = []
+    low_cons = []
     for hour in range(24):
         high_str = ""
         if hour in high_power_hour_samples:
@@ -352,36 +386,46 @@ async def start():
                 price_list.append(list(hour_sample.values())[0])
                 consumption_list.append(list(hour_sample.keys())[0])
             high_prices.append(statistics.fmean(price_list))
-            high_avg_cons.append(statistics.fmean(consumption_list))
+            high_cons.append(
+                {
+                    "avg": statistics.fmean(consumption_list),
+                    "max": sorted(consumption_list)[-1],
+                }
+            )
             high_str = (
-                f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
+                f".  High Avg: {high_cons[hour]['avg']:.2f} kW"
                 + f" @{high_prices[hour]:.2f} SEK/kWh."
-                + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+                + f" Peak: {high_cons[hour]['max']:.2f} kWh/h"
             )
         else:
             high_prices.append(None)
-            high_avg_cons.append(None)
+            high_cons.append({"avg": None, "max": None})
         price_list = []
         consumption_list = []
         for hour_sample in power_hour_samples[hour]:
             price_list.append(list(hour_sample.values())[0])
             consumption_list.append(list(hour_sample.keys())[0])
         low_prices.append(statistics.fmean(price_list))
-        low_avg_cons.append(statistics.fmean(consumption_list))
+        low_cons.append(
+            {
+                "avg": statistics.fmean(consumption_list),
+                "max": sorted(consumption_list)[-1],
+            }
+        )
         print(
             f"{hour:2}-{(hour+1):2}  Low Avg: "
-            + f"{low_avg_cons[hour]:.2f} kW"
+            + f"{low_cons[hour]['avg']:.2f} kW"
             + f" @{low_prices[hour]:.2f} SEK/kWh."
-            + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+            + f" Peak: {low_cons[hour]['max']:.2f} kWh/h"
             + high_str
         )
 
     render_visualization(
         f"{str(local_dt_from)[:10]}_{str(local_dt_to)[:10]}",
         low_prices,
-        low_avg_cons,
+        low_cons,
         high_prices,
-        high_avg_cons,
+        high_cons,
     )
 
     if irradiance is not None:

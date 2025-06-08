@@ -7,6 +7,13 @@ Data collection with EV charging excluded (since easy to move in time and restri
 
 Data logging and saving calculations at https://github.com/sander-visser/py-playground/blob/main/tibber_easee_peak_power_analyzer.log
 
+---
+One year ago:
+<img src="2024-05-01_2024-05-31.png">
+
+---
+
+Last 12 months
 <img src="2025-05-01_2025-05-31.png">
 <img src="2025-04-01_2025-04-30.png">
 <img src="2025-03-01_2025-03-31.png">
