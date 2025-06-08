@@ -21,7 +21,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = None  # datetime.date.fromisoformat("2024-11-01") # None for one month back
+START_DATE = datetime.date.fromisoformat("2025-05-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -130,7 +130,7 @@ def render_visualization(
 
     plt.title(f"Energy plot {start_date}")
     plt.savefig(f"{start_date}.png")
-    #plt.show()
+    # plt.show()
 
 
 async def start():
@@ -348,33 +348,33 @@ async def start():
         if hour in high_power_hour_samples:
             price_list = []
             consumption_list = []
-             for hour_sample in high_power_hour_samples[hour]:
-                 price_list.append(list(hour_sample.values())[0])
-                 consumption_list.append(list(hour_sample.keys())[0])
+            for hour_sample in high_power_hour_samples[hour]:
+                price_list.append(list(hour_sample.values())[0])
+                consumption_list.append(list(hour_sample.keys())[0])
             high_prices.append(statistics.fmean(price_list))
             high_avg_cons.append(statistics.fmean(consumption_list))
-             high_str = (
-                 f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
+            high_str = (
+                f".  High Avg: {(statistics.fmean(consumption_list)):.2f} kW"
                 + f" @{high_prices[hour]:.2f} SEK/kWh."
-                 + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
-             )
+                + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+            )
         else:
             high_prices.append(None)
             high_avg_cons.append(None)
-         price_list = []
-         consumption_list = []
-         for hour_sample in power_hour_samples[hour]:
-             price_list.append(list(hour_sample.values())[0])
-             consumption_list.append(list(hour_sample.keys())[0])
+        price_list = []
+        consumption_list = []
+        for hour_sample in power_hour_samples[hour]:
+            price_list.append(list(hour_sample.values())[0])
+            consumption_list.append(list(hour_sample.keys())[0])
         low_prices.append(statistics.fmean(price_list))
         low_avg_cons.append(statistics.fmean(consumption_list))
-         print(
-             f"{hour:2}-{(hour+1):2}  Low Avg: "
+        print(
+            f"{hour:2}-{(hour+1):2}  Low Avg: "
             + f"{low_avg_cons[hour]:.2f} kW"
             + f" @{low_prices[hour]:.2f} SEK/kWh."
-             + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
-             + high_str
-         )
+            + f" Peak: {sorted(consumption_list)[-1]:.2f} kWh/h"
+            + high_str
+        )
 
     render_visualization(
         f"{str(local_dt_from)[:10]}_{str(local_dt_to)[:10]}",

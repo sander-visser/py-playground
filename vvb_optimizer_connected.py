@@ -963,4 +963,3 @@ if __name__ == "__main__":
         log_print("Error occured: ", e)
     except KeyboardInterrupt:
         log_print("Program Interrupted by the user")
-
