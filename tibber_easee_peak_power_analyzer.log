@@ -1,6 +1,11 @@
 Rolling 12 months log created with tibber_easee_peak_power_analyzer.py
 for a freestanding house with 5 occupants outside Gothenburg (without PV installed).
-Household that optimizes pure electric hot water heating using vvb_optimizer_connected.py
+Household that optimizes pure electric hot water heating using vvb_optimizer_connected.py,
+and reverse cycle heating optimization controlled by sensibo_optimizer.py
+Peak power usage is managed by tibber_power_monitor.py
+Data collection with EV charging excluded (since easy to move in time and restrict peak power)
+
+Visual renderings at https://github.com/sander-visser/py-playground/blob/main/power_plots/README.md
 
 Script uses SMHI solar data to estimate value of a small (4.5kWp) PV setup. Incl VAT:
 - 1759 kWh/year self use without battery storage system (or changed consumption pattern)
@@ -13,6 +18,7 @@ Script uses SMHI solar data to estimate value of a small (4.5kWp) PV setup. Incl
 Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2024 - April 2025 is 1673 SEK incl VAT.
 
 Yearly saving from VVB optimizer and sensibo optimizer (excl EV) when compared to Vattenfall flat monthly rate is 2022 SEK May 2024 - April 2025 (highest saving Dec - Feb)
+
 
 Scanning home of Sander Visser
 Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
