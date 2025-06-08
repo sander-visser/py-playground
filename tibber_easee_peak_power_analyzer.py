@@ -21,7 +21,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = datetime.date.fromisoformat("2024-05-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2025-05-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -90,17 +90,26 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
     low_e_color = "tab:green"
     high_e_color = "#ffff00"
 
-    x = np.arange(0, 24)
+    x = np.arange(0, 25)  # Render line til 24:00
+    high_prices.append(None)  # Render line til 24:00
+    low_prices.append(None)  # Render line til 24:00
+
     low_avg_cons = []
     low_peak_cons = []
     for cons in low_cons:
         low_avg_cons.append(cons["avg"])
         low_peak_cons.append(cons["max"])
+    low_avg_cons.append(None)  # Render line til 24:00
+    low_peak_cons.append(None)  # Render line til 24:00
+
     high_avg_cons = []
     high_peak_cons = []
     for cons in high_cons:
         high_avg_cons.append(cons["avg"])
         high_peak_cons.append(cons["max"])
+    high_avg_cons.append(None)  # Render line til 24:00
+    high_peak_cons.append(None)  # Render line til 24:00
+
     low_avg = np.array(low_avg_cons)
     low_peak = np.array(low_peak_cons)
     high_avg = np.array(high_avg_cons)
@@ -109,7 +118,6 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
     plt.xticks(x)
     price_twin = axes.twinx()
     price_twin.grid(linestyle="-")
-    price_twin.set_ylabel("price")
     price_twin.plot(
         x,
         np.array(low_prices),
@@ -124,7 +132,7 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
         label="high cost energy price",
         drawstyle="steps-post",
     )
-    price_twin.set_ylabel("energy price (SEK incl VAT)")
+    price_twin.set_ylabel("Energy price avg (SEK incl VAT and surcharges)")
     price_twin.legend(loc="upper right")
 
     axes.plot(
@@ -158,11 +166,11 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
         linestyle="--",
     )
     axes.set_xlabel("start hour")
-    axes.set_ylabel("energy use (kWh)")
+    axes.set_ylabel("Energy use (kWh/h)")
     axes.grid(linestyle="--")
     axes.legend(loc="upper left")
 
-    plt.title(f"Energy use pattern {start_date}")
+    plt.title(f"Energy usage pattern {start_date}")
     plt.savefig(f"{start_date}.png")
     # plt.show()
 
