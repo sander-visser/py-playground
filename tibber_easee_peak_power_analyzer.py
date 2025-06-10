@@ -88,7 +88,7 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
     low_p_color = "tab:red"
     high_p_color = "tab:orange"
     low_e_color = "tab:green"
-    high_e_color = "#ffff00"
+    high_e_color = "#7600bc"
 
     x = np.arange(0, 25)  # Render line til 24:00
     high_prices.append(None)  # Render line til 24:00
