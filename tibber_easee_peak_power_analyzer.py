@@ -33,7 +33,7 @@ WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
 BATTERY_SIZE_KWH = 7.0
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
 IRRADIANCE_OBSERVATION = (
-    "smhi.csv"  # None  # "smhi-opendata.csv" # Cleaned up with leading garbage removed
+    None  # "smhi-opendata.csv" # Cleaned up with leading garbage removed
 )
 INSTALLED_PANEL_POWER = (
     10 * 0.45
