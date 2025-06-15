@@ -84,6 +84,21 @@ def get_irradiance_observation():
     return None
 
 
+def get_arbitrage_profit(curr_day_samples):
+    arbitrage_savings = 0.0
+    arbitrage_energy = BATTERY_SIZE_KWH
+    arbitrage_savings -= BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
+    for energy_price in sorted(curr_day_samples, reverse=True):
+        energy_use = curr_day_samples[energy_price]
+        if arbitrage_energy > energy_use:
+            arbitrage_savings += energy_use * energy_price
+            arbitrage_energy -= energy_use
+        else:
+            arbitrage_savings += arbitrage_energy * energy_price
+            break
+    return arbitrage_savings
+
+
 def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
     low_p_color = "tab:red"
     high_p_color = "tab:orange"
@@ -253,16 +268,8 @@ async def start():
     for power_sample in hourly_consumption_data:
         if len(curr_day_samples) == 24:
             if BATTERY_SIZE_KWH is not None:
-                arbitrage_energy = BATTERY_SIZE_KWH
-                arbitrage_savings -= BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
-                for energy_price in sorted(curr_day_samples, reverse=True):
-                    energy_use = curr_day_samples[energy_price]
-                    if arbitrage_energy > energy_use:
-                        arbitrage_savings += energy_use * energy_price
-                        arbitrage_energy -= energy_use
-                    else:
-                        arbitrage_savings += arbitrage_energy * energy_price
-                        break
+                todays_arbitrage_savings = get_arbitrage_profit(curr_day_samples)
+                arbitrage_savings += todays_arbitrage_savings
             curr_day_samples = {}
 
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
@@ -299,13 +306,12 @@ async def start():
                     self_use *= solar_factor
                 export = solar_power - self_use
 
-                if BATTERY_SIZE_KWH is not None:
-                    if solar_battery_contents < BATTERY_SIZE_KWH:
-                        solar_battery_contents += export
-                        export = 0
-                        if solar_battery_contents > BATTERY_SIZE_KWH:
-                            export = solar_battery_contents - BATTERY_SIZE_KWH
-                            solar_battery_contents = BATTERY_SIZE_KWH
+                if BATTERY_SIZE_KWH is not None and solar_battery_contents < BATTERY_SIZE_KWH:
+                    solar_battery_contents += export
+                    export = 0
+                    if solar_battery_contents > BATTERY_SIZE_KWH:
+                        export = solar_battery_contents - BATTERY_SIZE_KWH
+                        solar_battery_contents = BATTERY_SIZE_KWH
             if BATTERY_SIZE_KWH is not None:
                 if (curr_power - self_use) > 0:
                     discharge = min(solar_battery_contents, (curr_power - self_use))
@@ -352,7 +358,7 @@ async def start():
         + f" at energy cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
         + f" (avg price: {other_cost/other_energy:.3f})"
     )
-    if charger_consumption is None:
+    if charger_consumption is None or ev_energy == 0.0:
         print("\nTop ten peak power hours:")
     else:
         print(
