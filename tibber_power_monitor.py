@@ -26,7 +26,7 @@ RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 2.7, 2.7, 2.7, 2.2, 2.5, 2.7, 3.0, 3.0, 3.5]
 UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 6.0, 6.0, 7.0]
 # fmt: on
-MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget
+MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget - requires RELAY_URL
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
 MINIMUM_LOAD_ACTIVE_SEC_TO_LOG = 30
@@ -37,7 +37,7 @@ ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
 # Shelly PRO relay with contactor cutting load current - None if not used
 RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
-RELAY_URL = "http://192.168.1.191/rpc/switch."
+RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is installed
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
@@ -134,13 +134,6 @@ def _rt_callback(pkg):
         supervised_load_maybe_active = True
         if load_activation_time is None:
             load_activation_time = current_time
-    elif load_activation_time is not None:
-        diff_time = datetime.datetime(*current_time[:6]) - datetime.datetime(
-            *load_activation_time[:6]
-        )
-        load_activation_time = None
-        if diff_time.seconds > MINIMUM_LOAD_ACTIVE_SEC_TO_LOG:
-            current_hour_load_active_sec += diff_time.seconds
 
     if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
         main_fuse_protection_needed = True
@@ -149,9 +142,10 @@ def _rt_callback(pkg):
             MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
         )
 
-    if main_fuse_protection_needed:
+    if main_fuse_protection_needed and RELAY_URL is not None:
         logging.info(f"Protecting main fuse: {live_data}")
         pause_with_relay(5 * SEC_PER_MIN)
+        supervised_load_maybe_active = False
     elif live_data["accumulatedConsumptionLastHour"] > (
         budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H
     ):
@@ -192,6 +186,7 @@ def _rt_callback(pkg):
             sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
             sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
             pause_with_relay(sec_pause)
+            supervised_load_maybe_active = False
 
         if acting_needed and acted_hour is None and supervised_load_maybe_active:
             acted_hour = current_time.tm_hour
@@ -208,6 +203,14 @@ def _rt_callback(pkg):
                 except requests.exceptions.Timeout:
                     logging.warning("Acting failed - timeout")
                     acted_hour = None  # Retry...
+
+    if not supervised_load_maybe_active and load_activation_time is not None:
+        diff_time = datetime.datetime(*current_time[:6]) - datetime.datetime(
+            *load_activation_time[:6]
+        )
+        load_activation_time = None
+        if diff_time.seconds > MINIMUM_LOAD_ACTIVE_SEC_TO_LOG:
+            current_hour_load_active_sec += diff_time.seconds
 
 
 async def start():
