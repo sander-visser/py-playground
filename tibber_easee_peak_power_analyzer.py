@@ -137,31 +137,30 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
         x,
         np.array(low_prices),
         color=low_p_color,
-        label="low cost energy price",
+        label="none congested",
         drawstyle="steps-post",
     )
     price_twin.plot(
         x,
         np.array(high_prices),
         color=high_p_color,
-        label="high cost energy price",
+        label="congested",
         drawstyle="steps-post",
     )
     price_twin.set_ylabel("Energy price avg (SEK incl VAT and surcharges)")
-    price_twin.legend(loc="upper right")
 
     axes.plot(
         x,
         low_avg,
         color=low_e_color,
-        label="low cost avg energy",
+        label="avg (none congested)",
         drawstyle="steps-post",
     )
     axes.plot(
         x,
         low_peak,
         color=low_e_color,
-        label="low cost peak energy",
+        label="peak (none congested)",
         drawstyle="steps-post",
         linestyle="--",
     )
@@ -169,21 +168,34 @@ def render_visualization(start_date, low_prices, low_cons, high_prices, high_con
         x,
         high_avg,
         color=high_e_color,
-        label="high cost avg energy",
+        label="avg (congested)",
         drawstyle="steps-post",
     )
     axes.plot(
         x,
         high_peak,
         color=high_e_color,
-        label="high cost peak energy",
+        label="peak (congested)",
         drawstyle="steps-post",
         linestyle="--",
     )
     axes.set_xlabel("start hour")
     axes.set_ylabel("Energy use (kWh/h)")
     axes.grid(linestyle="--")
-    axes.legend(loc="upper left")
+
+    # widen to make room for legends on the side
+    fig.set_figwidth(fig.get_figwidth() * 1.35)
+
+    # Shrink x axis
+    box = axes.get_position()
+    axes.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+
+    price_legend = price_twin.legend(
+        title="Avg energy price", loc="upper left", bbox_to_anchor=(1.13, 0.5)
+    )
+    energy_legend = axes.legend(
+        title="Energy use", loc="lower left", bbox_to_anchor=(1.13, 0.5)
+    )
 
     plt.title(f"Energy usage pattern {start_date}")
     plt.savefig(f"{start_date}.png")
