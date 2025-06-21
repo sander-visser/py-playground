@@ -331,10 +331,11 @@ async def start():
                     solar_battery_contents -= discharge
                     solar_battery_self_use_kwh += discharge
 
-            exported_energy += export
-            exported_value += export * curr_hour_price
             self_used_energy += self_use
             self_used_value += self_use * curr_hour_price
+            if curr_hour_price >= 0.0:
+                exported_energy += export
+                exported_value += export * curr_hour_price
 
         if charger_consumption is not None:
             for easee_power_sample in charger_consumption:
