@@ -29,6 +29,7 @@ UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 6.0, 6.0,
 MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
+MINIMUM_LOAD_ACTIVE_SEC_TO_LOG = 30
 MINIMUM_LOAD_MINUTES_PER_H = 15  # Energy equivalent used in supervision
 ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
@@ -79,6 +80,11 @@ def pause_with_relay(sec_pause):
 
 def _rt_callback(pkg):
     global acted_hour
+    global last_load_report_hour
+    global total_load_active_sec
+    global current_hour_load_active_sec
+    global load_activation_time
+
     data = pkg.get("data")
     if data is None:
         return
@@ -98,11 +104,44 @@ def _rt_callback(pkg):
         else UNRESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
     )
 
+    volt_sum = 0
     supervised_currents = []
     for circuit in SUPERVISED_CIRCUITS:
         supervised_currents.append(live_data[f"currentL{circuit}"])
+        volt_sum += live_data[f"voltagePhase{circuit}"]
+
+    if last_load_report_hour is None:
+        last_load_report_hour = current_time.tm_hour
+    if last_load_report_hour != current_time.tm_hour:
+        current_datetime = datetime.datetime(*current_time[:6])
+        if load_activation_time is not None:
+            diff_time = current_datetime - datetime.datetime(*load_activation_time[:6])
+            current_hour_load_active_sec += diff_time.seconds
+            load_activation_time = current_time
+        total_load_active_sec += current_hour_load_active_sec
+        hourly_energy_used_by_load = (
+            (volt_sum * MIN_SUPERVISED_CURRENT) / WATT_PER_KW
+        ) * (current_hour_load_active_sec / (SEC_PER_MIN * MIN_PER_H))
+        logging.info(
+            f"Load active during the hour before {current_datetime}: "
+            + f"{current_hour_load_active_sec} sec (min {hourly_energy_used_by_load:.3f} kWh)."
+            + f" Total load active time this execution: {total_load_active_sec} sec."
+        )
+        current_hour_load_active_sec = 0
+        last_load_report_hour = current_time.tm_hour
+
     if min(supervised_currents) > MIN_SUPERVISED_CURRENT:
         supervised_load_maybe_active = True
+        if load_activation_time is None:
+            load_activation_time = current_time
+    elif load_activation_time is not None:
+        diff_time = datetime.datetime(*current_time[:6]) - datetime.datetime(
+            *load_activation_time[:6]
+        )
+        load_activation_time = None
+        if diff_time.seconds > MINIMUM_LOAD_ACTIVE_SEC_TO_LOG:
+            current_hour_load_active_sec += diff_time.seconds
+
     if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
         main_fuse_protection_needed = True
     elif not supervised_load_maybe_active:
@@ -126,9 +165,6 @@ def _rt_callback(pkg):
             / (MIN_PER_H * SEC_PER_MIN)
         )
 
-        volt_sum = 0
-        for circuit in SUPERVISED_CIRCUITS:
-            volt_sum += live_data[f"voltagePhase{circuit}"]
         controllable_energy = (
             MIN_SUPERVISED_CURRENT
             * volt_sum
@@ -203,6 +239,10 @@ async def start():
 
 #  Globals
 acted_hour = None
+last_load_report_hour = None
+total_load_active_sec = 0
+current_hour_load_active_sec = 0
+load_activation_time = None
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
