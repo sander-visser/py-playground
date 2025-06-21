@@ -80,6 +80,7 @@ def pause_with_relay(sec_pause):
 
 def _rt_callback(pkg):
     global acted_hour
+    global budget_warning
     global last_load_report_hour
     global total_load_active_sec
     global current_hour_load_active_sec
@@ -103,6 +104,14 @@ def _rt_callback(pkg):
         )
         else UNRESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
     )
+
+    if live_data["accumulatedConsumptionLastHour"] > budget:
+         budget_warning = (
+            f"budget {budget} kWh exceeded. L1 {live_data['currentL1']}"
+            + f" L2 {live_data['currentL2']} L3 {live_data['currentL3']}"
+        )
+    else:
+        budget_warning = None
 
     volt_sum = 0
     supervised_currents = []
@@ -230,7 +239,13 @@ async def start():
         logging.error(f"Setup error: {e}")
 
     alive_timeout = MAX_RETRY_COUNT
+    budget_warn_hour = time.localtime().tm_hour - 1
     while home is not None:
+        if budget_warning is not None and budget_warn_hour != time.localtime().tm_hour:
+            budget_warn_hour = time.localtime().tm_hour
+            await tibber_connection.send_notification(
+                "power budget exceeded!", budget_warning
+            )
         if home.rt_subscription_running:
             alive_timeout = MAX_RETRY_COUNT
         else:
@@ -242,6 +257,7 @@ async def start():
 
 #  Globals
 acted_hour = None
+budget_warning = None
 last_load_report_hour = None
 total_load_active_sec = 0
 current_hour_load_active_sec = 0
