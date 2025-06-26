@@ -26,7 +26,7 @@ RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 3.0, 3.0, 3.5]
 UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 6.0, 6.0, 7.0]
 # fmt: on
-MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget - requires RELAY_URL
+MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget. Depends on RELAY_URL
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
 MINIMUM_LOAD_ACTIVE_SEC_TO_LOG = 30
@@ -106,9 +106,10 @@ def _rt_callback(pkg):
     )
 
     if live_data["accumulatedConsumptionLastHour"] > budget:
-         budget_warning = (
-            f"budget {budget} kWh exceeded. L1 {live_data['currentL1']}"
-            + f" L2 {live_data['currentL2']} L3 {live_data['currentL3']}"
+        budget_warning = (
+            f"{budget} kWh power budget exceeded",
+            f"L1 {live_data['currentL1']}"
+            + f" L2 {live_data['currentL2']} L3 {live_data['currentL3']}",
         )
     else:
         budget_warning = None
@@ -244,7 +245,7 @@ async def start():
         if budget_warning is not None and budget_warn_hour != time.localtime().tm_hour:
             budget_warn_hour = time.localtime().tm_hour
             await tibber_connection.send_notification(
-                "power budget exceeded!", budget_warning
+                budget_warning[0], budget_warning[1]
             )
         if home.rt_subscription_running:
             alive_timeout = MAX_RETRY_COUNT
