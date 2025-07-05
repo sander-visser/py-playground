@@ -668,8 +668,6 @@ def get_wanted_temp(
         if local_hour <= LAST_MORNING_HEATING_H:
             wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
 
-    if alarm_fully_armed:
-        wanted_temp = min(wanted_temp, MIN_LEGIONELLA_TEMP)
     return wanted_temp
 
 
@@ -712,6 +710,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     tomorrow_cost = None
     tomorrow_final = False
     days_since_legionella = 0
+    days_with_alarm_armed = 0
     peak_temp_today = 0
     pending_legionella_reset = False
     temperature_provider = SimpleTemperatureProvider()
@@ -723,6 +722,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
     while True:
         await asyncio.sleep(0.1)
+        alarm_fully_armed = alarm_status is not None and alarm_status.is_fully_armed()
         new_today, local_hour = get_local_date_and_hour(
             time_provider.get_utc_unix_timestamp()
         )
@@ -733,12 +733,15 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 days_since_legionella = 0
                 pending_legionella_reset = False
             days_since_legionella += 1
+            days_with_alarm_armed += 1
             today_cost = tomorrow_cost
             if today_cost is None:
                 today_final, today_cost = await get_cost(today)
                 if today_final is None:
                     raise RuntimeError("Optimization not possible")
             tomorrow_final, tomorrow_cost = (False, None)
+        if not alarm_fully_armed:
+            days_with_alarm_armed = 0
 
         current_minute = time.localtime()[4]
         if not tomorrow_final and (
@@ -762,9 +765,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             today_cost,
             tomorrow_cost,
             outside_temp,
-            alarm_status is not None and alarm_status.is_fully_armed(),
+            alarm_fully_armed,
             True,
         )
+        if alarm_fully_armed:
+            if days_with_alarm_armed > 3:
+                wanted_temp = min(wanted_temp, MIN_DAILY_TEMP)
+            wanted_temp = min(wanted_temp, MIN_LEGIONELLA_TEMP)
         if days_since_legionella > LEGIONELLA_INTERVAL and (
             (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
         ):  # Secure legionella temperature gets reached
