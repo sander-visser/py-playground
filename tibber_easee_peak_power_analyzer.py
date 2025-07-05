@@ -21,14 +21,14 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = datetime.date.fromisoformat("2025-05-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2025-06-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
 SECONDS_PER_HOUR = 3600
 # Get personal token from https://developer.tibber.com/settings/access-token
-TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # demo token
+TIBBER_API_ACCESS_TOKEN = "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
 WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
 BATTERY_SIZE_KWH = 7.0
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"

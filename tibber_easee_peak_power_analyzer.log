@@ -355,70 +355,70 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 
 
 Scanning home of Sander Visser
-Scanning peak power 2024-06-01 00:00:00+02:00 - 2024-06-30 23:00:00+02:00...
-Month peak power incl EV: 6.480000 at 2024-06-21 04:00:00+02:00
-Energy used 921.011 kWh at energy cost of 342.065 SEK (incl VAT and surcharges) (avg price: 0.371)
-Plus EV energy used 408.733 kWh at energy cost of 90.545 SEK (incl VAT and surcharges) (avg price: 0.222 (excl grid rewards))
+Scanning peak power 2025-06-01 00:00:00+02:00 - 2025-06-30 23:00:00+02:00...
+Month peak power incl EV: 6.816000 at 2025-06-14 15:00:00+02:00
+Energy used 726.501 kWh at energy cost of 213.924 SEK (incl VAT and surcharges) (avg price: 0.294)
+Plus EV energy used 437.919 kWh at energy cost of 156.732 SEK (incl VAT and surcharges) (avg price: 0.358 (excl grid rewards))
 
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 17, 18, 19, 20, 21] :00 - :59
-Peak of 4.712 kWh/h has occured at 2024-06-19 18:00:00+02:00
-Peak of 4.593 kWh/h has occured at 2024-06-06 21:00:00+02:00
-Peak of 4.377 kWh/h has occured at 2024-06-20 17:00:00+02:00
-Peak of 3.737 kWh/h has occured at 2024-06-05 17:00:00+02:00
-Peak of 3.407 kWh/h has occured at 2024-06-03 06:00:00+02:00
-Peak of 3.373 kWh/h has occured at 2024-06-14 06:00:00+02:00
-Peak of 3.150 kWh/h has occured at 2024-06-06 17:00:00+02:00
-Peak of 3.120 kWh/h has occured at 2024-06-20 19:00:00+02:00
-Peak of 2.883 kWh/h has occured at 2024-06-19 21:00:00+02:00
-Peak of 2.855 kWh/h has occured at 2024-06-10 18:00:00+02:00
+Peak of 3.444 kWh/h has occured at 2025-06-19 17:00:00+02:00
+Peak of 3.440 kWh/h has occured at 2025-06-09 17:00:00+02:00
+Peak of 2.497 kWh/h has occured at 2025-06-27 18:00:00+02:00
+Peak of 2.422 kWh/h has occured at 2025-06-27 19:00:00+02:00
+Peak of 2.412 kWh/h has occured at 2025-06-06 17:00:00+02:00
+Peak of 2.251 kWh/h has occured at 2025-06-02 17:00:00+02:00
+Peak of 2.207 kWh/h has occured at 2025-06-27 17:00:00+02:00
+Peak of 2.113 kWh/h has occured at 2025-06-20 18:00:00+02:00
+Peak of 2.075 kWh/h has occured at 2025-06-23 18:00:00+02:00
+Peak of 2.018 kWh/h has occured at 2025-06-06 10:00:00+02:00
 
 Low cost peaks:
-Peak of 6.260 kWh/h has occured at 2024-06-08 19:00:00+02:00
-Peak of 5.809 kWh/h has occured at 2024-06-08 17:00:00+02:00
-Peak of 5.632 kWh/h has occured at 2024-06-08 20:00:00+02:00
-Peak of 5.545 kWh/h has occured at 2024-06-08 13:00:00+02:00
-Peak of 5.493 kWh/h has occured at 2024-06-08 18:00:00+02:00
-Peak of 5.249 kWh/h has occured at 2024-06-08 14:00:00+02:00
-Peak of 5.049 kWh/h has occured at 2024-06-08 21:00:00+02:00
-Peak of 4.889 kWh/h has occured at 2024-06-08 15:00:00+02:00
-Peak of 4.677 kWh/h has occured at 2024-06-08 16:00:00+02:00
-Peak of 4.577 kWh/h has occured at 2024-06-06 00:00:00+02:00
+Peak of 4.967 kWh/h has occured at 2025-06-11 14:00:00+02:00
+Peak of 4.784 kWh/h has occured at 2025-06-01 18:00:00+02:00
+Peak of 4.495 kWh/h has occured at 2025-06-08 11:00:00+02:00
+Peak of 4.473 kWh/h has occured at 2025-06-19 14:00:00+02:00
+Peak of 4.301 kWh/h has occured at 2025-06-23 13:00:00+02:00
+Peak of 4.270 kWh/h has occured at 2025-06-02 01:00:00+02:00
+Peak of 4.258 kWh/h has occured at 2025-06-25 14:00:00+02:00
+Peak of 4.121 kWh/h has occured at 2025-06-10 12:00:00+02:00
+Peak of 4.067 kWh/h has occured at 2025-06-08 16:00:00+02:00
+Peak of 3.884 kWh/h has occured at 2025-06-01 19:00:00+02:00
 
 Power use distribution with EV charging excluded:
- 0- 1  Low Avg: 1.49 kW @0.38 SEK/kWh. Peak: 4.58 kWh/h
- 1- 2  Low Avg: 1.27 kW @0.36 SEK/kWh. Peak: 4.12 kWh/h
- 2- 3  Low Avg: 1.35 kW @0.35 SEK/kWh. Peak: 4.12 kWh/h
- 3- 4  Low Avg: 1.31 kW @0.35 SEK/kWh. Peak: 3.80 kWh/h
- 4- 5  Low Avg: 1.30 kW @0.35 SEK/kWh. Peak: 3.49 kWh/h
- 5- 6  Low Avg: 0.52 kW @0.38 SEK/kWh. Peak: 1.35 kWh/h
- 6- 7  Low Avg: 0.78 kW @0.30 SEK/kWh. Peak: 2.25 kWh/h.  High Avg: 0.97 kW @0.52 SEK/kWh. Peak: 3.41 kWh/h
- 7- 8  Low Avg: 0.72 kW @0.30 SEK/kWh. Peak: 1.48 kWh/h.  High Avg: 0.60 kW @0.80 SEK/kWh. Peak: 1.71 kWh/h
- 8- 9  Low Avg: 1.00 kW @0.27 SEK/kWh. Peak: 2.66 kWh/h.  High Avg: 0.53 kW @0.87 SEK/kWh. Peak: 1.53 kWh/h
- 9-10  Low Avg: 1.50 kW @0.21 SEK/kWh. Peak: 4.24 kWh/h.  High Avg: 0.59 kW @0.72 SEK/kWh. Peak: 2.48 kWh/h
-10-11  Low Avg: 1.55 kW @0.14 SEK/kWh. Peak: 4.08 kWh/h.  High Avg: 0.62 kW @0.60 SEK/kWh. Peak: 1.50 kWh/h
-11-12  Low Avg: 1.08 kW @0.38 SEK/kWh. Peak: 4.56 kWh/h
-12-13  Low Avg: 1.16 kW @0.35 SEK/kWh. Peak: 4.03 kWh/h
-13-14  Low Avg: 2.11 kW @0.31 SEK/kWh. Peak: 5.54 kWh/h
-14-15  Low Avg: 2.09 kW @0.30 SEK/kWh. Peak: 5.25 kWh/h
-15-16  Low Avg: 1.62 kW @0.31 SEK/kWh. Peak: 4.89 kWh/h
-16-17  Low Avg: 1.45 kW @0.37 SEK/kWh. Peak: 4.68 kWh/h
-17-18  Low Avg: 1.94 kW @0.33 SEK/kWh. Peak: 5.81 kWh/h.  High Avg: 1.62 kW @0.53 SEK/kWh. Peak: 4.38 kWh/h
-18-19  Low Avg: 1.57 kW @0.42 SEK/kWh. Peak: 5.49 kWh/h.  High Avg: 1.40 kW @0.62 SEK/kWh. Peak: 4.71 kWh/h
-19-20  Low Avg: 1.46 kW @0.49 SEK/kWh. Peak: 6.26 kWh/h.  High Avg: 1.38 kW @0.67 SEK/kWh. Peak: 3.12 kWh/h
-20-21  Low Avg: 1.34 kW @0.51 SEK/kWh. Peak: 5.63 kWh/h.  High Avg: 1.25 kW @0.61 SEK/kWh. Peak: 2.13 kWh/h
-21-22  Low Avg: 1.47 kW @0.50 SEK/kWh. Peak: 5.05 kWh/h.  High Avg: 1.27 kW @0.55 SEK/kWh. Peak: 4.59 kWh/h
-22-23  Low Avg: 1.09 kW @0.49 SEK/kWh. Peak: 4.39 kWh/h
-23-24  Low Avg: 1.59 kW @0.41 SEK/kWh. Peak: 3.85 kWh/h
+ 0- 1  Low Avg: 0.73 kW @0.43 SEK/kWh. Peak: 3.26 kWh/h
+ 1- 2  Low Avg: 0.94 kW @0.38 SEK/kWh. Peak: 4.27 kWh/h
+ 2- 3  Low Avg: 1.03 kW @0.36 SEK/kWh. Peak: 3.37 kWh/h
+ 3- 4  Low Avg: 0.95 kW @0.34 SEK/kWh. Peak: 2.84 kWh/h
+ 4- 5  Low Avg: 0.72 kW @0.33 SEK/kWh. Peak: 2.00 kWh/h
+ 5- 6  Low Avg: 0.67 kW @0.38 SEK/kWh. Peak: 2.89 kWh/h
+ 6- 7  Low Avg: 0.62 kW @0.22 SEK/kWh. Peak: 1.17 kWh/h.  High Avg: 0.58 kW @0.58 SEK/kWh. Peak: 1.92 kWh/h
+ 7- 8  Low Avg: 0.36 kW @0.14 SEK/kWh. Peak: 0.71 kWh/h.  High Avg: 0.46 kW @0.66 SEK/kWh. Peak: 1.59 kWh/h
+ 8- 9  Low Avg: 0.42 kW @0.12 SEK/kWh. Peak: 0.62 kWh/h.  High Avg: 0.60 kW @0.61 SEK/kWh. Peak: 1.36 kWh/h
+ 9-10  Low Avg: 1.17 kW @0.10 SEK/kWh. Peak: 3.13 kWh/h.  High Avg: 0.39 kW @0.48 SEK/kWh. Peak: 1.25 kWh/h
+10-11  Low Avg: 0.94 kW @0.08 SEK/kWh. Peak: 2.90 kWh/h.  High Avg: 0.70 kW @0.29 SEK/kWh. Peak: 2.02 kWh/h
+11-12  Low Avg: 1.27 kW @0.16 SEK/kWh. Peak: 4.50 kWh/h
+12-13  Low Avg: 1.63 kW @0.11 SEK/kWh. Peak: 4.12 kWh/h
+13-14  Low Avg: 2.34 kW @0.08 SEK/kWh. Peak: 4.30 kWh/h
+14-15  Low Avg: 1.86 kW @0.08 SEK/kWh. Peak: 4.97 kWh/h
+15-16  Low Avg: 1.56 kW @0.14 SEK/kWh. Peak: 3.83 kWh/h
+16-17  Low Avg: 1.31 kW @0.19 SEK/kWh. Peak: 4.07 kWh/h
+17-18  Low Avg: 1.46 kW @0.19 SEK/kWh. Peak: 3.68 kWh/h.  High Avg: 1.27 kW @0.38 SEK/kWh. Peak: 3.44 kWh/h
+18-19  Low Avg: 1.36 kW @0.34 SEK/kWh. Peak: 4.78 kWh/h.  High Avg: 1.07 kW @0.56 SEK/kWh. Peak: 2.50 kWh/h
+19-20  Low Avg: 1.24 kW @0.48 SEK/kWh. Peak: 3.88 kWh/h.  High Avg: 1.00 kW @0.65 SEK/kWh. Peak: 2.42 kWh/h
+20-21  Low Avg: 0.69 kW @0.57 SEK/kWh. Peak: 1.38 kWh/h.  High Avg: 0.96 kW @0.74 SEK/kWh. Peak: 1.97 kWh/h
+21-22  Low Avg: 0.59 kW @0.61 SEK/kWh. Peak: 1.06 kWh/h.  High Avg: 0.74 kW @0.70 SEK/kWh. Peak: 1.00 kWh/h
+22-23  Low Avg: 0.62 kW @0.61 SEK/kWh. Peak: 1.51 kWh/h
+23-24  Low Avg: 0.50 kW @0.51 SEK/kWh. Peak: 1.13 kWh/h
 
-Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 41.7 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy storage cycle count used 40.5 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
 Min solar power required for production: 140 W / m2
-Analysed with database until: 2025-05-23 20:00:00+00:00
-Export: 134.90 kWh - valued at 70.13 SEK (incl VAT)
-Self use: 546.13 kWh - valued at 220.77 SEK (incl VAT)
+Analysed with database until: 2025-07-05 11:00:00+00:00
+Export: 131.36 kWh - valued at 35.59 SEK (incl VAT)
+Self use: 605.59 kWh - valued at 158.14 SEK (incl VAT)
 
-Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 83.79 SEK (incl VAT)
+Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 112.84 SEK (incl VAT)
 
 
 Scanning home of Sander Visser

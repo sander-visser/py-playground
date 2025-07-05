@@ -17,7 +17,7 @@ import requests
 import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
 # Get personal token from https://developer.tibber.com/settings/access-token
-TIBBER_API_ACCESS_TOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE"  # Demo token
+TIBBER_API_ACCESS_TOKEN = "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
 RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # HH:00 - HH:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
