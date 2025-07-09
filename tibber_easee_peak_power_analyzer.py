@@ -28,13 +28,13 @@ HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
 SECONDS_PER_HOUR = 3600
 # Get personal token from https://developer.tibber.com/settings/access-token
-TIBBER_API_ACCESS_TOKEN = "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
+TIBBER_API_ACCESS_TOKEN = (
+    "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
+)
 WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
 BATTERY_SIZE_KWH = 7.0
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
-IRRADIANCE_OBSERVATION = (
-    None  # "smhi-opendata.csv" # Cleaned up with leading garbage removed
-)
+IRRADIANCE_OBSERVATION = None  # "smhi.csv" # Cleaned up with leading garbage removed
 INSTALLED_PANEL_POWER = (
     10 * 0.45
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
@@ -318,7 +318,10 @@ async def start():
                     self_use *= solar_factor
                 export = solar_power - self_use
 
-                if BATTERY_SIZE_KWH is not None and solar_battery_contents < BATTERY_SIZE_KWH:
+                if (
+                    BATTERY_SIZE_KWH is not None
+                    and solar_battery_contents < BATTERY_SIZE_KWH
+                ):
                     solar_battery_contents += export
                     export = 0
                     if solar_battery_contents > BATTERY_SIZE_KWH:
@@ -409,30 +412,37 @@ async def start():
         if hour in high_power_hour_samples:
             price_list = []
             consumption_list = []
+            price_sum = 0.0
             for hour_sample in high_power_hour_samples[hour]:
                 price_list.append(list(hour_sample.values())[0])
                 consumption_list.append(list(hour_sample.keys())[0])
-            high_prices.append(statistics.fmean(price_list))
+                price_sum += list(hour_sample.values())[0] * list(hour_sample.keys())[0]
+            high_prices.append(price_sum / sum(consumption_list))
             high_cons.append(
                 {
                     "avg": statistics.fmean(consumption_list),
                     "max": sorted(consumption_list)[-1],
                 }
             )
-            high_str = (
-                f".  High Avg: {high_cons[hour]['avg']:.2f} kW"
-                + f" @{high_prices[hour]:.2f} SEK/kWh."
+            print(
+                f"{hour:2}-{(hour+1):2} High Avg: "
+                + f"{high_cons[hour]['avg']:.2f} kW"
+                + f" @{high_prices[hour]:.2f}"
+                + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh)"
                 + f" Peak: {high_cons[hour]['max']:.2f} kWh/h"
             )
         else:
             high_prices.append(None)
             high_cons.append({"avg": None, "max": None})
+    for hour in range(24):
         price_list = []
         consumption_list = []
+        price_sum = 0.0
         for hour_sample in power_hour_samples[hour]:
             price_list.append(list(hour_sample.values())[0])
             consumption_list.append(list(hour_sample.keys())[0])
-        low_prices.append(statistics.fmean(price_list))
+            price_sum += list(hour_sample.values())[0] * list(hour_sample.keys())[0]
+        low_prices.append(price_sum / sum(consumption_list))
         low_cons.append(
             {
                 "avg": statistics.fmean(consumption_list),
@@ -442,9 +452,9 @@ async def start():
         print(
             f"{hour:2}-{(hour+1):2}  Low Avg: "
             + f"{low_cons[hour]['avg']:.2f} kW"
-            + f" @{low_prices[hour]:.2f} SEK/kWh."
+            + f" @{low_prices[hour]:.2f}"
+            + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh)"
             + f" Peak: {low_cons[hour]['max']:.2f} kWh/h"
-            + high_str
         )
 
     render_visualization(
