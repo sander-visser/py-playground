@@ -10,11 +10,12 @@ https://github.com/sander-visser/py-playground/blob/main/tibber_easee_peak_power
 
 ---
 ### One year ago
-<img src="2024-06-01_2024-06-30.png">
+<img src="2024-07-01_2024-07-31.png">
 
 ---
 
 ### Last 12 months
+<img src="2025-07-01_2025-07-31.png">
 <img src="2025-06-01_2025-06-30.png">
 <img src="2025-05-01_2025-05-31.png">
 <img src="2025-04-01_2025-04-30.png">
@@ -26,4 +27,3 @@ https://github.com/sander-visser/py-playground/blob/main/tibber_easee_peak_power
 <img src="2024-10-01_2024-10-31.png">
 <img src="2024-09-01_2024-09-30.png">
 <img src="2024-08-01_2024-08-31.png">
-<img src="2024-07-01_2024-07-31.png">
