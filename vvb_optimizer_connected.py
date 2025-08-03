@@ -78,7 +78,8 @@ HEAT_LOSS_PER_DAY_KWH = 2.8  # Leakage when not at home
 DEGREES_LOST_PER_H = round(
     ((HEAT_LOSS_PER_DAY_KWH / HEATER_KW) * DEGREES_PER_H) / 24, 2
 )
-LAST_MORNING_HEATING_H = 6
+LAST_MORNING_HEATING_H = 6  # :59
+LAST_WEEKEND_MORNING_HEATING_H = 8  # :59
 FIRST_EVENING_HIGH_TAKEOUT_H = 20  # : 00 - by which time re-heating should have ran
 DAILY_COMFORT_LAST_H = 21  # :59
 NEW_PRICE_EXPECTED_HOUR = 12
@@ -503,8 +504,8 @@ def next_night_is_cheaper(today_cost):
     return cheap_later_test(today_cost, 0, 24, DAILY_COMFORT_LAST_H)
 
 
-def is_the_cheapest_hour_during_daytime(today_cost):
-    return cheap_later_test(today_cost, 0, DAILY_COMFORT_LAST_H, LAST_MORNING_HEATING_H)
+def is_the_cheapest_hour_during_daytime(today_cost, last_morning_heating_h):
+    return cheap_later_test(today_cost, 0, DAILY_COMFORT_LAST_H, last_morning_heating_h)
 
 
 def is_now_significantly_cheaper(now_hour, today_cost, tomorrow_cost):
@@ -524,18 +525,25 @@ def is_now_significantly_cheaper(now_hour, today_cost, tomorrow_cost):
     return today_cost[now_hour]["avg"] * LOW_PRICE_VARIATION_PERCENT < max_price_ahead
 
 
+def get_last_morning_heating_h(weekday):
+    if weekday in (5, 6):
+        return LAST_WEEKEND_MORNING_HEATING_H
+    return LAST_MORNING_HEATING_H
+
+
 def add_scorebased_wanted_temperature(
     local_hour, weekday, today_cost, tomorrow_cost, outside_temp, wanted_temp, verbose
 ):
+    last_morning_heating_h = get_last_morning_heating_h(weekday)
     score_based_heating = 0
     max_temp_limit = MAX_TEMP
-    if local_hour <= LAST_MORNING_HEATING_H:
+    if local_hour <= last_morning_heating_h:
         score_based_heating = get_cheap_score_until(
-            local_hour, LAST_MORNING_HEATING_H, today_cost, verbose
+            local_hour, last_morning_heating_h, today_cost, verbose
         )
-        if is_the_cheapest_hour_during_daytime(today_cost):
+        if is_the_cheapest_hour_during_daytime(today_cost, last_morning_heating_h):
             # limit morning heating much if daytime heating is cheap
-            max_temp_limit = MIN_DAILY_TEMP + (LAST_MORNING_HEATING_H - local_hour)
+            max_temp_limit = MIN_DAILY_TEMP + (last_morning_heating_h - local_hour)
         elif next_night_is_cheaper(today_cost):
             max_temp_limit = MIN_DAILY_TEMP + DEGREES_PER_H
 
@@ -553,7 +561,7 @@ def add_scorebased_wanted_temperature(
     if tomorrow_cost is not None:
         preload_score = get_cheap_score_relative_future(
             today_cost[local_hour]["avg"],
-            today_cost[local_hour:23] + tomorrow_cost[0:LAST_MORNING_HEATING_H],
+            today_cost[local_hour:23] + tomorrow_cost[0:last_morning_heating_h],
         )
         if preload_score > 0:
             score_based_heating = max(score_based_heating, preload_score)
@@ -592,7 +600,7 @@ def get_wanted_temp_boost(local_hour, weekday, today_cost):
 
     if (
         weekday in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
-        and local_hour <= LAST_MORNING_HEATING_H
+        and local_hour <= get_last_morning_heating_h(weekday)
     ):
         wanted_temp_boost += 5
 
@@ -642,16 +650,18 @@ def get_wanted_temp(
         verbose,
     )
 
-    if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= LAST_MORNING_HEATING_H:
+    last_morning_heating_h = get_last_morning_heating_h(weekday)
+
+    if MAX_HOURS_NEEDED_TO_HEAT < local_hour <= last_morning_heating_h:
         if not cheap_later_test(
             today_cost, local_hour, FIRST_EVENING_HIGH_TAKEOUT_H, local_hour
         ):
             wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Maintain morning heating
-    if DAILY_COMFORT_LAST_H > local_hour > LAST_MORNING_HEATING_H and (
+    if DAILY_COMFORT_LAST_H > local_hour > last_morning_heating_h and (
         MAX_HOURS_NEEDED_TO_HEAT - 1
     ) <= get_cheap_score_relative_future(
         today_cost[local_hour]["avg"],
-        today_cost[LAST_MORNING_HEATING_H:DAILY_COMFORT_LAST_H],
+        today_cost[last_morning_heating_h:DAILY_COMFORT_LAST_H],
     ):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)  # Restore comfort once per day
 
@@ -665,7 +675,7 @@ def get_wanted_temp(
 
     if now_is_cheap_in_forecast(local_hour, today_cost, tomorrow_cost):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
-        if local_hour <= LAST_MORNING_HEATING_H:
+        if local_hour <= last_morning_heating_h:
             wanted_temp = max(wanted_temp, MIN_DAILY_TEMP + DEGREES_PER_H)
 
     return wanted_temp
@@ -768,12 +778,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             alarm_fully_armed,
             True,
         )
+        last_morning_heating_h = get_last_morning_heating_h(today.weekday())
         if alarm_fully_armed:
             if days_with_alarm_armed > 3:
                 wanted_temp = min(wanted_temp, MIN_DAILY_TEMP)
             wanted_temp = min(wanted_temp, MIN_LEGIONELLA_TEMP)
         if days_since_legionella > LEGIONELLA_INTERVAL and (
-            (LAST_MORNING_HEATING_H - 2) <= local_hour <= LAST_MORNING_HEATING_H
+            (last_morning_heating_h - 2) <= local_hour <= last_morning_heating_h
         ):  # Secure legionella temperature gets reached
             wanted_temp = max(wanted_temp, MIN_LEGIONELLA_TEMP + 1.0)
         if wanted_temp > MIN_LEGIONELLA_TEMP and peak_temp_today > MIN_LEGIONELLA_TEMP:
@@ -782,7 +793,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         peak_temp_today = max(peak_temp_today, wanted_temp)
         if (
             today.weekday() in WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT
-            and local_hour == (LAST_MORNING_HEATING_H - 1)
+            and local_hour == (last_morning_heating_h - 1)
             and get_cheap_score_until(
                 local_hour, FIRST_EVENING_HIGH_TAKEOUT_H, today_cost, False
             )
