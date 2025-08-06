@@ -957,7 +957,10 @@ async def main():
             tasks.pop(1)
             log_print("Starting fresh optimization")
             await asyncio.sleep(30)
-            setup_wifi()
+            try:
+                setup_wifi()
+            except Exception as e:
+                log_print(e)
             attemts_remaing_before_reset -= 1
     log_print("Resetting to recover")
     await asyncio.sleep(10)
