@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
 """
-Find peak power use based on Tibber 30 day historic consumption
-with Easee EV charging excluded.
+Visualize peak power and energy distribution based on Tibber
+historic consumption with Easee EV charging excluded.
+
+Can be used to confirm energy use (when EV is excluded) is
+cheaper on high resolution tariff.
+
+Can also use SHMI solar irradiation database to calculate value
+of future solar installation. Self use with current pattern and
+improvement of self use if home battery is also added.
 """
 
 import asyncio
