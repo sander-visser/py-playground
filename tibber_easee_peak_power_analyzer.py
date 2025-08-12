@@ -26,7 +26,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
 # Note: Easee access token expires after a few hours
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
-EASEE_CHARGER_ID = "EHVZ2792"
+EASEE_CHARGER_ID = "EHVZ2792"  # Note: must be configured with intervalInMinutes == 60 and alsoSendWhenNotCharging == true
 NORDPOOL_PRICE_CODE = "SEK"
 START_DATE = datetime.date.fromisoformat("2025-06-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
