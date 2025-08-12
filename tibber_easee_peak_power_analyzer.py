@@ -49,21 +49,33 @@ IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
 
 
-def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date):
-    hourly_energy_url = (
-        f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/hourly?"
-        + f"from={from_date}&to={to_date}"
+def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_after):
+    measurements_url = (
+        f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/all?"
+        + f"from={from_date}&to={to_date_after}"
     )
-    hourly_energy = requests.get(
-        hourly_energy_url, headers=api_header, timeout=API_TIMEOUT
+    measurements = requests.get(
+        measurements_url, headers=api_header, timeout=API_TIMEOUT
     )
-    if hourly_energy.status_code != HTTP_SUCCESS_CODE:
-        if hourly_energy.status_code == HTTP_UNAUTHORIZED_CODE:
+    if measurementsy.status_code != HTTP_SUCCESS_CODE:
+        if measurements.status_code == HTTP_UNAUTHORIZED_CODE:
             print("Error: Easee access token expired...")
         else:
-            print(f"{hourly_energy.status_code} Error: {hourly_energy.text}")
+            print(f"{measurementsy.status_code} Error: {measurements.text}")
         sys.exit(1)
-    return hourly_energy.json()
+    hourly_energy = []
+    prev_measurement = None
+    for measurement in measurements.json()["measurements"]:
+        if prev_measurement is None:
+            if ":00:00+00:00" not in measurement["measuredAt"]:
+                 print("Error: Easee from date not an hourly boundary...")
+            prev_measurement = measurement
+        else:
+            if ":00:00+00:00" in measurement["measuredAt"]:
+                hourly_energy.append({'consumption': measurement["value"] - prev_measurement["value"], 'date': prev_measurement["measuredAt"]})
+                prev_measurement = measurement
+
+    return hourly_energy
 
 
 def get_irradiance_observation():
@@ -248,8 +260,8 @@ async def start():
 
     utc_from = str(local_dt_from.astimezone(pytz.utc))
     zulu_from = utc_from.replace("+00:00", "Z")
-    utc_to_incl = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=1))
-    zulu_to_incl = utc_to_incl.replace("+00:00", "Z")
+    utc_to_next_h = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=2))
+    zulu_to_next_h = utc_to_next_h.replace("+00:00", "Z")
 
     print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
 
@@ -263,7 +275,7 @@ async def start():
             },
             EASEE_CHARGER_ID,
             zulu_from,
-            zulu_to_incl,
+            zulu_to_next_h,
         )
     )
     power_peak_incl_ev = {}
