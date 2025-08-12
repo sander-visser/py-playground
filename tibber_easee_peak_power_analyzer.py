@@ -57,7 +57,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
     measurements = requests.get(
         measurements_url, headers=api_header, timeout=API_TIMEOUT
     )
-    if measurementsy.status_code != HTTP_SUCCESS_CODE:
+    if measurements.status_code != HTTP_SUCCESS_CODE:
         if measurements.status_code == HTTP_UNAUTHORIZED_CODE:
             print("Error: Easee access token expired...")
         else:
@@ -68,11 +68,16 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
     for measurement in measurements.json()["measurements"]:
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
-                 print("Error: Easee from date not an hourly boundary...")
+                print("Error: Easee from date not an hourly boundary...")
             prev_measurement = measurement
         else:
             if ":00:00+00:00" in measurement["measuredAt"]:
-                hourly_energy.append({'consumption': measurement["value"] - prev_measurement["value"], 'date': prev_measurement["measuredAt"]})
+                hourly_energy.append(
+                    {
+                        "consumption": measurement["value"] - prev_measurement["value"],
+                        "date": prev_measurement["measuredAt"],
+                    }
+                )
                 prev_measurement = measurement
 
     return hourly_energy
