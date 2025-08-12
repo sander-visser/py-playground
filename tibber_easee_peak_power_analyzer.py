@@ -61,7 +61,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
         if measurements.status_code == HTTP_UNAUTHORIZED_CODE:
             print("Error: Easee access token expired...")
         else:
-            print(f"{measurementsy.status_code} Error: {measurements.text}")
+            print(f"{measurements.status_code} Error: {measurements.text}")
         sys.exit(1)
     hourly_energy = []
     prev_measurement = None
