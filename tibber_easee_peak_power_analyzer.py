@@ -28,7 +28,7 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = datetime.date.fromisoformat("2025-06-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2025-08-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -65,7 +65,12 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
         sys.exit(1)
     hourly_energy = []
     prev_measurement = None
-    for measurement in measurements.json()["measurements"]:
+    ranged_measurements = measurements.json()["measurements"]
+    if "5:00+00:00" not in ranged_measurements[-1]["measuredAt"]:
+        # Reconfigure with alsoSendWhenNotCharging == true at
+        # https://developer.easee.com/reference/lifetimeenergyreporting_configure
+        print(f"Warning: {charger_id} not configured for high res measurements")
+    for measurement in ranged_measurements:
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
                 print("Error: Easee from date not an hourly boundary...")
@@ -432,7 +437,6 @@ async def start():
     low_prices = []
     low_cons = []
     for hour in range(24):
-        high_str = ""
         if hour in high_power_hour_samples:
             price_list = []
             consumption_list = []
