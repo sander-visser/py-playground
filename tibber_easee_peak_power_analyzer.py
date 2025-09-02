@@ -466,6 +466,10 @@ async def start():
         price_list = []
         consumption_list = []
         price_sum = 0.0
+        if hour not in power_hour_samples:
+            low_prices.append(None)
+            low_cons.append({"avg": None, "max": None})
+            continue
         for hour_sample in power_hour_samples[hour]:
             price_list.append(list(hour_sample.values())[0])
             consumption_list.append(list(hour_sample.keys())[0])
