@@ -137,6 +137,7 @@ class EaseeCostAnalyzer:
     def print_cost_report(self, charger_id, cost_settings, date_range):
         total_kwh = 0.0
         peak_kwh_per_hour = 0.0
+        hours_with_charge = 0
         peak_contribution = None
         total_cost = 0.0
         one_kw_diff_price = 0.0
@@ -163,9 +164,12 @@ class EaseeCostAnalyzer:
                         f"Summing up charge session that lasted {session_duration_hours} hours"
                     )
                     if session_duration_hours <= CHARGE_SESSION_DURATION_THRES:
-                        print ("Short charge session...\n")
-                    
-                if charged_last_hour and session_duration_hours > CHARGE_SESSION_DURATION_THRES:
+                        print("Short charge session...\n")
+
+                if (
+                    charged_last_hour
+                    and session_duration_hours > CHARGE_SESSION_DURATION_THRES
+                ):
                     prolonged_hour_cost = hour_cost_before_charge_start
                     if hour_cost_after_charge_end < hour_cost_before_charge_start:
                         prolonged_hour_cost = hour_cost_after_charge_end
@@ -200,6 +204,7 @@ class EaseeCostAnalyzer:
                 session_duration_hours = 0.0
 
             else:
+                hours_with_charge += 1
                 if peak_kwh_per_hour < hour_data["consumption"]:
                     peak_kwh_per_hour = hour_data["consumption"]
                 if (
@@ -218,10 +223,12 @@ class EaseeCostAnalyzer:
                         curr_hour_price = (
                             day_spot_prices[curr_date.hour - 1]["value"] / KWH_PER_MWH
                         )
-                    elif len(day_spot_prices) == 25 and curr_date.hour > 3:  # DST adjust
+                    elif (
+                        len(day_spot_prices) == 25 and curr_date.hour > 3
+                    ):  # DST adjust
                         curr_hour_price = (
                             day_spot_prices[curr_date.hour + 1]["value"] / KWH_PER_MWH
-                        ) 
+                        )
                     else:
                         curr_hour_price = (
                             day_spot_prices[curr_date.hour]["value"] / KWH_PER_MWH
@@ -239,7 +246,9 @@ class EaseeCostAnalyzer:
                     hour_cost = hour_data["consumption"] * curr_hour_price
                     total_cost += hour_cost
                     # somewhat inexact if ending during last hour of the day
-                    hour_after_charge = curr_date.hour  + 1 if curr_date.hour != 23 else 0
+                    hour_after_charge = (
+                        curr_date.hour + 1 if curr_date.hour != 23 else 0
+                    )
                     if hour_data["consumption"] > 1.0:
                         hour_cost_after_charge_end = (
                             day_spot_prices[hour_after_charge]["value"] / KWH_PER_MWH
@@ -252,9 +261,14 @@ class EaseeCostAnalyzer:
                         + f" Cost was {hour_cost:.3f} @ {curr_hour_price:.3f} {NORDPOOL_PRICE_CODE}"
                     )
                     if not charged_last_hour:
-                        print ("Tiny charge not considdered part of a charge session...\n")
+                        print(
+                            "Tiny charge not considdered part of a charge session...\n"
+                        )
 
-        print(f"\nPeak kWh/h {peak_kwh_per_hour:.03f}")
+        print(f"\nPeak kWh/h: {peak_kwh_per_hour:.03f}")
+        if hours_with_charge == 0.0:
+            return
+        print(f"Avg kWh/h: {(total_kwh/hours_with_charge):.03f}")
         if peak_contribution is not None:
             print(f"Contribution to peak hour {peak_contribution:.03f} kWh/h")
         else:
@@ -308,7 +322,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "api_access_token",
         type=str,
-        help="API Access token from " + LOGIN_HELP + ". Note: expires in an hour unless refreshed",
+        help="API Access token from "
+        + LOGIN_HELP
+        + ". Note: expires in an hour unless refreshed",
     )
     parser.add_argument(
         "-rft",
