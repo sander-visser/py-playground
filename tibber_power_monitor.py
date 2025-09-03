@@ -23,8 +23,8 @@ RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # HH:00 - HH:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 # fmt: off
 # kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
-RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 3.0, 3.0, 3.5]
-UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.4, 5.4, 5.4, 4.5, 5.0, 5.4, 6.0, 6.0, 7.0]
+RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 5.5, 5.5, 5.0, 4.5, 5.0, 5.5, 3.0, 3.0, 3.5]
+UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.0, 5.5, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.0, 7.0]
 # fmt: on
 MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget. Depends on RELAY_URL
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
@@ -275,3 +275,4 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
