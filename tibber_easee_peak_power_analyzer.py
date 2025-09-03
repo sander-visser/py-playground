@@ -38,10 +38,10 @@ SECONDS_PER_HOUR = 3600
 TIBBER_API_ACCESS_TOKEN = (
     "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
 )
-WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
+WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # :00 - :59
 BATTERY_SIZE_KWH = 7.0
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
-IRRADIANCE_OBSERVATION = None  # "smhi.csv" # Cleaned up with leading garbage removed
+IRRADIANCE_OBSERVATION = None  # "smhi.csv"  # Cleaned up with leading garbage removed
 INSTALLED_PANEL_POWER = (
     10 * 0.45
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
@@ -299,12 +299,12 @@ async def start():
     solar_battery_contents = 0.0
     solar_battery_self_use_kwh = 0.0
     ev_cost = 0.0
-    ev_energy = 0.0
+    ev_energy = {"high": 0.0, "low": 0.0}
     other_cost = 0.0
-    other_energy = 0.0
+    other_energy = {"high": 0.0, "low": 0.0}
     exported_energy = 0.0
     exported_value = 0.0
-    self_used_energy = 0.0
+    self_used_energy = {"high": 0.0, "low": 0.0}
     self_used_value = 0.0
     for power_sample in hourly_consumption_data:
         if len(curr_day_samples) == 24:
@@ -328,6 +328,10 @@ async def start():
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
         curr_day_samples[curr_hour_price + (curr_time.hour * 0.000001)] = curr_power
+
+        high_cost_day = (
+            curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS
+        )
 
         if irradiance is not None and curr_utc_time in irradiance:
             curr_irr = irradiance[curr_utc_time]
@@ -362,8 +366,10 @@ async def start():
                     self_use += discharge
                     solar_battery_contents -= discharge
                     solar_battery_self_use_kwh += discharge
-
-            self_used_energy += self_use
+            if high_cost_day:
+                self_used_energy["high"] += self_use
+            else:
+                self_used_energy["low"] += self_use
             self_used_value += self_use * curr_hour_price
             if curr_hour_price >= 0.0:
                 exported_energy += export
@@ -373,43 +379,50 @@ async def start():
             for easee_power_sample in charger_consumption:
                 if easee_power_sample["date"] == curr_time_utc_str:
                     curr_power -= easee_power_sample["consumption"]
-                    ev_energy += easee_power_sample["consumption"]
+                    if high_cost_day:
+                        ev_energy["high"] += easee_power_sample["consumption"]
+                    else:
+                        ev_energy["low"] += easee_power_sample["consumption"]
                     ev_cost += curr_hour_price * easee_power_sample["consumption"]
                     # if easee_power_sample['consumption'] > 0:
                     #    print(f"power excl easee: {curr_power}")
                     break
 
-        if curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS:
+        if high_cost_day:
             power_map_high.setdefault(curr_power, []).append(curr_time)
             high_power_hour_samples.setdefault(curr_time.hour, []).append(
                 {curr_power: curr_hour_price}
             )
+            other_energy["high"] += curr_power
         else:
             power_map_low.setdefault(curr_power, []).append(curr_time)
             power_hour_samples.setdefault(curr_time.hour, []).append(
                 {curr_power: curr_hour_price}
             )
-
+            other_energy["low"] += curr_power
         other_cost += curr_power * curr_hour_price
-        other_energy += curr_power
 
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
             f"Month peak power incl EV: {peak_month_pwr:3f} at {time_peak_incl_ev[peak_month]}"
         )
 
+    other_energy_combined = other_energy["low"] + other_energy["high"]
     print(
-        f"Energy used {other_energy:.3f} kWh"
-        + f" at energy cost of {other_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
-        + f" (avg price: {other_cost/other_energy:.3f})"
+        f"Energy used {other_energy_combined:.2f}"
+        + f" (High: {other_energy['high']:.2f}, Low: {other_energy['low']:.2f}) kWh"
+        + f" at energy cost of {other_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+        + f" (avg price: {other_cost/other_energy_combined:.3f})"
     )
-    if charger_consumption is None or ev_energy == 0.0:
+    if charger_consumption is None or ev_energy["low"] == 0.0:
         print("\nTop ten peak power hours:")
     else:
+        ev_energy_combined = ev_energy["low"] + ev_energy["high"]
         print(
-            f"Plus EV energy used {ev_energy:.3f} kWh"
-            + f" at energy cost of {ev_cost:.3f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
-            + f" (avg price: {ev_cost/ev_energy:.3f} (excl grid rewards))"
+            f"Plus EV energy used {ev_energy_combined:.2f}"
+            + f" (High: {ev_energy['high']:.2f}, Low: {ev_energy['low']:.2f}) kWh"
+            + f" at energy cost of {ev_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+            + f" (avg price: {ev_cost/ev_energy_combined:.3f} (excl grid rewards))"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
@@ -515,8 +528,11 @@ async def start():
         print(
             f"Export: {exported_energy:.2f} kWh - valued at {exported_value:.2f} SEK (incl VAT)"
         )
+        self_used_energy_combined = self_used_energy["high"] + self_used_energy["low"]
         print(
-            f"Self use: {self_used_energy:.2f} kWh - valued at {self_used_value:.2f} SEK (incl VAT)"
+            f"Self use: {self_used_energy_combined:.2f}"
+            + f" (High: {self_used_energy['high']:.2f}, Low:  {self_used_energy['low']:.2f}) kWh"
+            + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
         )
     print(
         f"\nArbitrage savings possible with {BATTERY_SIZE_KWH} kWh battery:"
