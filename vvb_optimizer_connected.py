@@ -94,7 +94,7 @@ LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 KWN_PER_MWH = 1000
-OVERHEAD_BASE_PRICE = 0.747 / 11.6  # In EUR for tax and transfer costs (wo VAT)
+OVERHEAD_BASE_PRICE = 0.747 / 11.0  # In EUR for tax and transfer costs (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl OVERHEAD_BASE_PRICE)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
@@ -116,9 +116,6 @@ ROTATION_SECONDS = 2
 def log_print(*args, **kwargs):
     global last_log
 
-    log_str = io.StringIO()
-    print("".join(map(str, args)), file=log_str, **kwargs)
-    last_log.append(log_str.getvalue())
     if len(last_log) > 125:
         last_log.pop(0)
         last_log.pop(0)
@@ -126,6 +123,10 @@ def log_print(*args, **kwargs):
         last_log.pop(0)
         last_log.pop(0)
         gc.collect()
+
+    log_str = io.StringIO()
+    print("".join(map(str, args)), file=log_str, **kwargs)
+    last_log.append(log_str.getvalue())
     print(f"   {log_str.getvalue().rstrip()}")
 
 
@@ -959,8 +960,8 @@ async def main():
             await asyncio.sleep(30)
             try:
                 setup_wifi()
-            except Exception as e:
-                log_print(e)
+            except Exception as wifi_e:
+                log_print(wifi_e)
             attemts_remaing_before_reset -= 1
     log_print("Resetting to recover")
     await asyncio.sleep(10)
