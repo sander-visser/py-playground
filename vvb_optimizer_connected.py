@@ -10,7 +10,7 @@ Logs are made available via built in webserver that also allows override.
 
 Power reset unit to get 1h extra hot water.
 vvb_optimizer_connected.png show price/target temperature behaviour.
-12 months savings in Sweden SE3 ammount to approx 150 EUR.
+12 months savings in Sweden SE3 amounts to approx 150 EUR.
 
 Repo also contans a schedule based optimizer (that does not utilize WiFi)
 
@@ -86,7 +86,6 @@ NEW_PRICE_EXPECTED_HOUR = 12
 NEW_PRICE_EXPECTED_MIN = 45
 MAX_TEMP = 78
 MIN_TEMP = 25
-MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
 MIN_USABLE_TEMP = 35  # Good for hand washing, and one hour away from shower temp
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
@@ -102,7 +101,7 @@ PRICE_API_URL = (
     "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?"
     + "market=DayAhead&currency=EUR&resolutionInMinutes=15&indexNames="
 )
-# TEMPERATURE_URL should return a number "x.y" for degrees C
+# TEMPERATURE_URL should return a number "x.y" for outside degrees C
 TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
@@ -216,31 +215,6 @@ class Thermostat:
             time.sleep(ROTATION_SECONDS)
             self.pwm.duty_u16(0)
             self.prev_degrees = degrees
-
-    def nudge(self, nudge_degrees):
-        if self.prev_degrees is not None:
-            pwm_degrees = self.get_pwm_degrees(self.prev_degrees + nudge_degrees)
-            self.pwm.duty_u16(int(pwm_degrees))
-
-            time.sleep(1)
-
-            pwm_degrees = self.get_pwm_degrees(self.prev_degrees)
-            self.pwm.duty_u16(int(pwm_degrees))
-            time.sleep(
-                (2 * ROTATION_SECONDS)
-                if (self.prev_degrees == MIN_NUDGABLE_TEMP)
-                else 1
-            )
-            self.pwm.duty_u16(0)
-
-    def nudge_down(self):
-        # log_print("Nudging down")
-        if self.prev_degrees is not None and self.prev_degrees >= MIN_NUDGABLE_TEMP:
-            self.nudge(-5)
-
-    def nudge_up(self):
-        # log_print("Nudging up")
-        self.nudge(5)
 
 
 def setup_wifi():
@@ -672,7 +646,7 @@ def get_wanted_temp(
             "avg"
         ]
     ):
-        wanted_temp = MIN_NUDGABLE_TEMP  # Min temp during most expensive hours in day
+        wanted_temp = MIN_TEMP  # Min temp during most expensive hours in day
 
     if now_is_cheap_in_forecast(local_hour, today_cost, tomorrow_cost):
         wanted_temp = max(wanted_temp, MIN_DAILY_TEMP)
@@ -697,19 +671,6 @@ def get_local_date_and_hour(utc_unix_timestamp):
     adjusted_day = date(now[0], now[1], now[2])
 
     return (adjusted_day, now[3])
-
-
-async def delay_minor_temp_increase(wanted_temp, thermostat, local_hour):
-    diff_temp = wanted_temp - thermostat.prev_degrees
-    if 0 < diff_temp < DEGREES_PER_H and time.localtime()[4] < 45:
-        raise_delay = (45 * SEC_PER_MIN) - (
-            (diff_temp / DEGREES_PER_H) * 45 * SEC_PER_MIN
-        )
-        raise_delay_min = int(raise_delay / 60)
-        pretty_min = f"{'0' if (raise_delay_min<=9) else ''}{raise_delay_min}"
-        log_print(f"Delaying temp increase to {local_hour}:{pretty_min}")
-        if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            await asyncio.sleep(raise_delay)
 
 
 async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
@@ -808,52 +769,70 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             + f" Tomorrow {tomorrow_cost is not None}"
         )
 
-        pre_delay_override = thermostat.overridden
-        if local_hour <= NEW_PRICE_EXPECTED_HOUR or tomorrow_cost is not None:
-            await delay_minor_temp_increase(wanted_temp, thermostat, local_hour)
-
-        if pre_delay_override == thermostat.overridden:
-            thermostat.set_thermosat(wanted_temp)
-        else:
-            log_print("Skipping thermostat setting due to override during delay")
         curr_min = time.localtime()[4]
-        if curr_min <= 50 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+        if curr_min <= 58 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
-                if curr_min < NEW_PRICE_EXPECTED_MIN:
-                    await asyncio.sleep(
-                        (NEW_PRICE_EXPECTED_MIN - curr_min) * SEC_PER_MIN
-                    )
-                else:
+                if curr_min >= NEW_PRICE_EXPECTED_MIN:
                     await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
+                    continue
+        for q in range(0, 4):
+            if thermostat.overridden or curr_min / 15 > q:
                 continue
-            await asyncio.sleep(
-                (50 - curr_min) * SEC_PER_MIN
-            )  # Sleep slightly before next hour
-        if local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            next_hour_wanted_temp = get_wanted_temp(
-                local_hour + 1,
-                today.weekday(),
-                today_cost,
-                tomorrow_cost,
-                temperature_provider.get_outdoor_temp(),
-                alarm_status is not None and alarm_status.is_fully_armed(),
-                False,
-            )
-            if (
-                next_hour_wanted_temp >= thermostat.prev_degrees
-                and today_cost[local_hour + 1]["avg"] <= today_cost[local_hour]["avg"]
-            ):
-                thermostat.nudge_down()
-            if (
-                not thermostat.overridden
-                and next_hour_wanted_temp <= thermostat.prev_degrees
-                and today_cost[local_hour + 1]["avg"] > today_cost[local_hour]["avg"]
-            ):
-                thermostat.nudge_up()
+            last_q = q == 3
+            next_hour_wanted_temp = MIN_TEMP
+            if last_q and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+                if local_hour == NEW_PRICE_EXPECTED_HOUR:
+                    break
+                next_hour_wanted_temp = get_wanted_temp(
+                    local_hour + 1,
+                    today.weekday(),
+                    today_cost,
+                    tomorrow_cost,
+                    temperature_provider.get_outdoor_temp(),
+                    alarm_status is not None and alarm_status.is_fully_armed(),
+                    False,
+                )
+                if (
+                    next_hour_wanted_temp >= thermostat.prev_degrees
+                    and today_cost[local_hour + 1]["quartely"][0]
+                    <= today_cost[local_hour]["quartely"][3]
+                ):
+                    thermostat.set_thermostat(
+                        shared_thermostat.prev_degrees - DEGREES_PER_H / 4
+                    )
+                    continue
+                if (
+                    next_hour_wanted_temp <= thermostat.prev_degrees
+                    and today_cost[local_hour + 1]["quartely"][0]
+                    > today_cost[local_hour]["quartely"][3]
+                ):
+                    thermostat.set_thermostat(
+                        shared_thermostat.prev_degrees + DEGREES_PER_H / 4
+                    )
+                    continue
+            q_score = -q
+            for scan_q in range(0, 4):
+                if (
+                    today_cost[local_hour]["quartely"][q]
+                    > today_cost[local_hour]["quartely"][scan_q]
+                ):
+                    q_score += 1
+            q_temp = wanted_temp - (q_score / 4) * DEGREES_PER_H
+            if q == 0 or not thermostat.overridden:
+                thermostat.set_thermosat(q_temp)
 
+            if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
+                await asyncio.sleep(15 * SEC_PER_MIN)
+        if (
+            OVERRIDE_UTC_UNIX_TIMESTAMP is None
+            and local_hour != NEW_PRICE_EXPECTED_HOUR
+            and tomorrow_cost is not None
+        ):
+            curr_min = time.localtime()[4]
+            await asyncio.sleep(
+                (61 - curr_min) * SEC_PER_MIN
+            )  # Sleep slightly into next hour
         time_provider.hourly_timekeeping()
-        if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            await asyncio.sleep(11 * SEC_PER_MIN)  # Sleep slightly into next hour
 
 
 async def handle_client(reader, writer):
@@ -917,7 +896,7 @@ async def main():
     if " W " not in sys.implementation._machine:
         log_print("Unsupported board?")
     thermostat = shared_thermostat
-    thermostat.set_thermosat(MIN_NUDGABLE_TEMP)
+    thermostat.set_thermosat(MIN_TEMP)
     attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
     while attemts_remaing_before_reset > 0:
         try:
