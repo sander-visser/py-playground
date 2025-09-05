@@ -781,7 +781,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             last_q = q == 3
             next_hour_wanted_temp = MIN_TEMP
             if last_q and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-                if local_hour == NEW_PRICE_EXPECTED_HOUR:
+                if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
                     break
                 next_hour_wanted_temp = get_wanted_temp(
                     local_hour + 1,
@@ -823,11 +823,9 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
             if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
                 await asyncio.sleep(15 * SEC_PER_MIN)
-        if (
-            OVERRIDE_UTC_UNIX_TIMESTAMP is None
-            and local_hour != NEW_PRICE_EXPECTED_HOUR
-            and tomorrow_cost is not None
-        ):
+        if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
+            continue
+        if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             curr_min = time.localtime()[4]
             await asyncio.sleep(
                 (61 - curr_min) * SEC_PER_MIN
