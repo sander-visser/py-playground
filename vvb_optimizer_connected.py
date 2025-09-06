@@ -263,7 +263,7 @@ async def get_cost(end_date):
         )
         hourly_price["avg"] += curr_price / 4
         hourly_price["quartely"].append(
-            curr_price + random.choice([0.001, 0.002, 0, -0.003])
+            curr_price + random.choice([0.001, 0.0005, -0.0005, -0.001])
         )
         if len(hourly_price["quartely"]) == 4:
             cost_array.append(hourly_price)
@@ -779,7 +779,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
                     continue
         for q in range(0, 4):
-            if thermostat.overridden or curr_min / 15 > q:
+            if thermostat.overridden or int(curr_min / 15) > q:
                 continue
             last_q = q == 3
             next_hour_wanted_temp = MIN_TEMP
@@ -828,13 +828,14 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
                 )
                 thermostat.set_thermosat(q_temp)
-
+            sec_til_next_q = ((15 * (1 + q)) - curr_min) * SEC_PER_MIN
+            log_print(f"{curr_min}: sec til next q: {sec_til_next_q}")
             if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
-                await asyncio.sleep(15 * SEC_PER_MIN)
-        if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
-            continue
+                await asyncio.sleep(sec_til_next_q)
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            curr_min = time.localtime()[4]
+            if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
+                continue
+            curr_min = max(curr_min, time.localtime()[4])
             await asyncio.sleep(
                 (61 - curr_min) * SEC_PER_MIN
             )  # Sleep slightly into next hour
