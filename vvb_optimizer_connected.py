@@ -864,7 +864,7 @@ async def handle_client(reader, writer):
 
     try:
         if request == "/reduceload":
-            shared_thermostat.set_thermosat(
+            shared_thermostat.set_thermostat(
                 shared_thermostat.prev_degrees - DEGREES_PER_H, True
             )
             log_print(
@@ -889,7 +889,7 @@ async def handle_client(reader, writer):
                 f"-- {time.localtime()} Overriding thermostat to {override_temp} "
                 + "until next scheduling point"
             )
-            shared_thermostat.set_thermosat(override_temp, True)
+            shared_thermostat.set_thermostat(override_temp, True)
     except ValueError:
         log_print("Failed to parse target temp req as float")
 
