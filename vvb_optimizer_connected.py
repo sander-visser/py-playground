@@ -30,7 +30,7 @@ check referral.link in repo
 # import network
 # wlan = network.WLAN(network.STA_IF)
 # wlan.active(True)
-# wlan.connect("WLAN_SSID", "WLAN_PASS")
+# wlan.connect("WLAN_SSID", "WLAN_PASS")  # must not be pure WPA3
 # import mip
 # mip.install("requests")
 # mip.install("datetime")
@@ -53,7 +53,7 @@ import requests
 # https://www.raspberrypi.com/documentation/pico-sdk/networking.html#CYW43_COUNTRY_
 PR2_COUNTRY = "SE"
 WLAN_SSID = "your ssid"
-WLAN_PASS = "your pass"
+WLAN_PASS = "your pass"  # must not be pure WPA3
 NORDPOOL_REGION = "SE3"
 NTP_HOST = "se.pool.ntp.org"
 SEC_PER_MIN = 60
@@ -800,6 +800,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     and today_cost[local_hour + 1]["quartely"][0]
                     <= today_cost[local_hour]["quartely"][3]
                 ):
+                    log_print("lowering due to next is cheap")
                     thermostat.set_thermostat(
                         shared_thermostat.prev_degrees - DEGREES_PER_H / 4
                     )
@@ -809,6 +810,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     and today_cost[local_hour + 1]["quartely"][0]
                     > today_cost[local_hour]["quartely"][3]
                 ):
+                    log_print("boosting due to next is expensive")
                     thermostat.set_thermostat(
                         shared_thermostat.prev_degrees + DEGREES_PER_H / 4
                     )
@@ -822,6 +824,9 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     q_score += 1
             q_temp = wanted_temp - (q_score / 4) * DEGREES_PER_H
             if q == 0 or not thermostat.overridden:
+                log_print(
+                    f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
+                )
                 thermostat.set_thermosat(q_temp)
 
             if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
