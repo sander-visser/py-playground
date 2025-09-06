@@ -89,7 +89,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
             prev_h_measurement = measurement
         else:
             consumption_val = measurement["value"] - prev_measurement["value"]
-            if consumption_val != 0 and measurement_cnt is not None:
+            if consumption_val > 0.1 and measurement_cnt is not None:
                 measurement_cnt += 1
 
             if ":00:00+00:00" in measurement["measuredAt"]:
@@ -114,12 +114,13 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
                 measurement_cnt = None  # Mixed resolutions
             prev_measurement = measurement
 
-    print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
+    if measurement_cnt is None or measurement_min != 60:
+        print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
     if measurement_cnt is not None:
         print(
-            f"Peak EV energy: {max(peak_charge_measurements):.3f} kWh per {measurement_min} minutes. "
+            f"Peak EV energy: {max(peak_charge_measurements):.3f} kWh per {measurement_min} min."
             + f"\nCharged for {measurement_cnt * measurement_min} minutes. Avg rate: "
-            + f"{(sum(peak_charge_measurements) / ((measurement_cnt*measurement_min)/60)):.3f} kW"
+            + f"{(sum(peak_charge_measurements) / ((measurement_cnt*measurement_min)/60)):.3f} kW."
         )
 
     return hourly_energy
@@ -568,7 +569,7 @@ async def start():
         self_used_energy_combined = self_used_energy["high"] + self_used_energy["low"]
         print(
             f"Self use: {self_used_energy_combined:.2f}"
-            + f" (High: {self_used_energy['high']:.2f}, Low:  {self_used_energy['low']:.2f}) kWh"
+            + f" (High: {self_used_energy['high']:.2f}, Low: {self_used_energy['low']:.2f}) kWh"
             + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
         )
     print(
