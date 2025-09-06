@@ -56,6 +56,8 @@ WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"  # must not be pure WPA3
 NORDPOOL_REGION = "SE3"
 NTP_HOST = "se.pool.ntp.org"
+NTP_INTERVAL_H = 12
+MAX_CLOCK_DRIFT_S = 10
 SEC_PER_MIN = 60
 EXTRA_HOT_DURATION_S = 60 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after POR
 OVERRIDE_UTC_UNIX_TIMESTAMP = None  # -3600 to Simulate script behaviour from 1h ago
@@ -172,7 +174,7 @@ class TimeProvider:
         if OVERRIDE_UTC_UNIX_TIMESTAMP is not None:
             self.current_utc_time += 3600
         else:
-            if (time.time() - self.last_sync_time) > (12 * 3600):
+            if (time.time() - self.last_sync_time) > (NTP_INTERVAL_H * 3600):
                 self.sync_utc_time()  # Attempt sync time twice per day
                 self.last_sync_time = time.time()
 
@@ -778,8 +780,8 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 if curr_min >= NEW_PRICE_EXPECTED_MIN:
                     await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
                     continue
-        for q in range(0, 4):
-            if thermostat.overridden or int(curr_min / 15) > q:
+        for q in range(0, 4):  # loop the quarters and sub optimize
+            if (q != 0 and thermostat.overridden) or int(curr_min / 15) > q:
                 continue
             last_q = q == 3
             next_hour_wanted_temp = MIN_TEMP
@@ -828,16 +830,17 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                     f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
                 )
                 thermostat.set_thermosat(q_temp)
-            sec_til_next_q = ((15 * (1 + q)) - curr_min) * SEC_PER_MIN
-            log_print(f"{curr_min}: sec til next q: {sec_til_next_q}")
+            curr_min = max(curr_min, time.localtime()[4])
+            min_til_next_q = (15 * (1 + q)) - curr_min
+            log_print(f"{curr_min}: minutes til next quarter: {min_til_next_q}")
             if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
-                await asyncio.sleep(sec_til_next_q)
+                await asyncio.sleep(min_til_next_q * SEC_PER_MIN)
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
                 continue
             curr_min = max(curr_min, time.localtime()[4])
             await asyncio.sleep(
-                (61 - curr_min) * SEC_PER_MIN
+                ((60 - curr_min) * SEC_PER_MIN) + MAX_CLOCK_DRIFT_S
             )  # Sleep slightly into next hour
         time_provider.hourly_timekeeping()
 
