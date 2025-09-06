@@ -36,6 +36,7 @@ check referral.link in repo
 # mip.install("datetime")
 
 
+import random
 import asyncio
 import sys
 import time
@@ -261,7 +262,9 @@ async def get_cost(end_date):
             row["entryPerArea"][NORDPOOL_REGION] / KWN_PER_MWH + OVERHEAD_BASE_PRICE
         )
         hourly_price["avg"] += curr_price / 4
-        hourly_price["quartely"].append(curr_price)
+        hourly_price["quartely"].append(
+            curr_price + random.choice([0.001, 0.002, 0, -0.003])
+        )
         if len(hourly_price["quartely"]) == 4:
             cost_array.append(hourly_price)
             hourly_price = {"avg": 0.0, "quartely": []}
