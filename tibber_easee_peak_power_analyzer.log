@@ -34,6 +34,8 @@ Sept 2024 - Aug 2025: 2324,25 kWh High. 16749,69 kWh Low (4,5kWp solar avoids 28
 Scanning home of Sander Visser
 Scanning peak power 2025-01-01 00:00:00+01:00 - 2025-01-31 23:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 7.681 kWh per 60 min.
+Charged for 8700 minutes. Avg rate: 3.568 kW.
 Month peak power incl EV: 8.125000 at 2025-01-29 00:00:00+01:00
 Energy used 1549.12 (High: 444.97, Low: 1104.14) kWh at energy cost of 1226.71 SEK (incl VAT and surcharges) (avg price: 0.792)
 Plus EV energy used 517.35 (High: 19.11, Low: 498.24) kWh at energy cost of 171.53 SEK (incl VAT and surcharges) (avg price: 0.332 (excl grid rewards))
@@ -104,7 +106,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
-Self use: 5.92 (High: 0.00, Low:  5.92) kWh - valued at 9.33 SEK (incl VAT)
+Self use: 5.92 (High: 0.00, Low: 5.92) kWh - valued at 9.33 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 236.97 SEK (incl VAT)
 
@@ -112,6 +114,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-02-01 00:00:00+01:00 - 2025-02-28 23:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 6.764 kWh per 60 min.
+Charged for 9720 minutes. Avg rate: 2.915 kW.
 Month peak power incl EV: 7.501000 at 2025-02-20 05:00:00+01:00
 Energy used 1552.59 (High: 396.02, Low: 1156.57) kWh at energy cost of 1611.61 SEK (incl VAT and surcharges) (avg price: 1.038)
 Plus EV energy used 472.25 (High: 21.02, Low: 451.23) kWh at energy cost of 273.44 SEK (incl VAT and surcharges) (avg price: 0.579 (excl grid rewards))
@@ -182,7 +186,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
-Self use: 84.98 (High: 4.20, Low:  80.79) kWh - valued at 102.96 SEK (incl VAT)
+Self use: 84.98 (High: 4.20, Low: 80.79) kWh - valued at 102.96 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 195.75 SEK (incl VAT)
 
@@ -190,6 +194,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-03-01 00:00:00+01:00 - 2025-03-31 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 6.733 kWh per 60 min.
+Charged for 11040 minutes. Avg rate: 3.329 kW.
 Month peak power incl EV: 7.051000 at 2025-03-05 02:00:00+01:00
 Energy used 1275.00 (High: 305.41, Low: 969.60) kWh at energy cost of 889.58 SEK (incl VAT and surcharges) (avg price: 0.698)
 Plus EV energy used 612.44 (High: 19.70, Low: 592.75) kWh at energy cost of 241.04 SEK (incl VAT and surcharges) (avg price: 0.394 (excl grid rewards))
@@ -260,7 +266,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 6.65 kWh - valued at 7.79 SEK (incl VAT)
-Self use: 294.70 (High: 61.84, Low:  232.86) kWh - valued at 187.43 SEK (incl VAT)
+Self use: 294.70 (High: 61.84, Low: 232.86) kWh - valued at 187.43 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 204.73 SEK (incl VAT)
 
@@ -268,6 +274,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-04-01 00:00:00+02:00 - 2025-04-30 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 8.232 kWh per 60 min.
+Charged for 8280 minutes. Avg rate: 3.632 kW.
 Month peak power incl EV: 8.562000 at 2025-04-09 17:00:00+02:00
 Energy used 927.80 (High: 203.49, Low: 724.31) kWh at energy cost of 438.28 SEK (incl VAT and surcharges) (avg price: 0.472)
 Plus EV energy used 501.18 (High: 50.77, Low: 450.41) kWh at energy cost of 183.38 SEK (incl VAT and surcharges) (avg price: 0.366 (excl grid rewards))
@@ -338,7 +346,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 35.91 kWh - valued at 17.46 SEK (incl VAT)
-Self use: 485.36 (High: 102.55, Low:  382.81) kWh - valued at 189.78 SEK (incl VAT)
+Self use: 485.36 (High: 102.55, Low: 382.81) kWh - valued at 189.78 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 145.52 SEK (incl VAT)
 
@@ -346,6 +354,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-05-01 00:00:00+02:00 - 2025-05-31 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 6.623 kWh per 60 min.
+Charged for 7860 minutes. Avg rate: 3.063 kW.
 Month peak power incl EV: 6.992000 at 2025-05-29 04:00:00+02:00
 Energy used 880.44 (High: 173.74, Low: 706.69) kWh at energy cost of 430.51 SEK (incl VAT and surcharges) (avg price: 0.489)
 Plus EV energy used 401.23 (High: 30.25, Low: 370.98) kWh at energy cost of 196.94 SEK (incl VAT and surcharges) (avg price: 0.491 (excl grid rewards))
@@ -416,7 +426,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 119.87 kWh - valued at 67.03 SEK (incl VAT)
-Self use: 602.31 (High: 132.29, Low:  470.02) kWh - valued at 269.04 SEK (incl VAT)
+Self use: 602.31 (High: 132.29, Low: 470.02) kWh - valued at 269.04 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 164.19 SEK (incl VAT)
 
@@ -424,6 +434,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-06-01 00:00:00+02:00 - 2025-06-30 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 6.253 kWh per 60 min.
+Charged for 9180 minutes. Avg rate: 2.862 kW.
 Month peak power incl EV: 6.816000 at 2025-06-14 15:00:00+02:00
 Energy used 726.50 (High: 163.16, Low: 563.34) kWh at energy cost of 213.92 SEK (incl VAT and surcharges) (avg price: 0.294)
 Plus EV energy used 437.92 (High: 80.27, Low: 357.65) kWh at energy cost of 156.73 SEK (incl VAT and surcharges) (avg price: 0.358 (excl grid rewards))
@@ -494,7 +506,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 131.36 kWh - valued at 35.59 SEK (incl VAT)
-Self use: 605.59 (High: 160.50, Low:  445.09) kWh - valued at 158.14 SEK (incl VAT)
+Self use: 605.59 (High: 160.50, Low: 445.09) kWh - valued at 158.14 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 112.84 SEK (incl VAT)
 
@@ -502,6 +514,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-07-01 00:00:00+02:00 - 2025-07-31 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 4.102 kWh per 60 min.
+Charged for 7200 minutes. Avg rate: 2.106 kW.
 Month peak power incl EV: 4.497000 at 2025-07-29 05:00:00+02:00
 Energy used 546.01 (High: 117.61, Low: 428.40) kWh at energy cost of 271.95 SEK (incl VAT and surcharges) (avg price: 0.498)
 Plus EV energy used 252.76 (High: 56.34, Low: 196.42) kWh at energy cost of 105.12 SEK (incl VAT and surcharges) (avg price: 0.416 (excl grid rewards))
@@ -572,13 +586,14 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 307.32 kWh - valued at 150.02 SEK (incl VAT)
-Self use: 401.77 (High: 108.33, Low:  293.44) kWh - valued at 208.38 SEK (incl VAT)
+Self use: 401.77 (High: 108.33, Low: 293.44) kWh - valued at 208.38 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 93.94 SEK (incl VAT)
 
 
 Scanning home of Sander Visser
 Scanning peak power 2025-08-01 00:00:00+02:00 - 2025-08-31 23:00:00+02:00...
+Peak hourly EV charge rate: 4.608 kWh/h.
 Month peak power incl EV: 5.119000 at 2025-08-29 03:00:00+02:00
 Energy used 767.93 (High: 149.72, Low: 618.21) kWh at energy cost of 439.64 SEK (incl VAT and surcharges) (avg price: 0.572)
 Plus EV energy used 308.70 (High: 26.89, Low: 281.81) kWh at energy cost of 148.83 SEK (incl VAT and surcharges) (avg price: 0.482 (excl grid rewards))
@@ -649,7 +664,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 47.06 kWh - valued at 36.79 SEK (incl VAT)
-Self use: 538.70 (High: 100.17, Low:  438.52) kWh - valued at 270.90 SEK (incl VAT)
+Self use: 538.70 (High: 100.17, Low: 438.52) kWh - valued at 270.90 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 144.07 SEK (incl VAT)
 
@@ -657,6 +672,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2024-09-01 00:00:00+02:00 - 2024-09-30 23:00:00+02:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 7.162 kWh per 60 min.
+Charged for 6720 minutes. Avg rate: 3.946 kW.
 Month peak power incl EV: 7.495000 at 2024-09-16 01:00:00+02:00
 Energy used 809.95 (High: 204.39, Low: 605.56) kWh at energy cost of 211.62 SEK (incl VAT and surcharges) (avg price: 0.261)
 Plus EV energy used 441.92 (High: 23.41, Low: 418.50) kWh at energy cost of 65.93 SEK (incl VAT and surcharges) (avg price: 0.149 (excl grid rewards))
@@ -727,7 +744,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 31.70 kWh - valued at 13.49 SEK (incl VAT)
-Self use: 354.93 (High: 113.76, Low:  241.17) kWh - valued at 109.66 SEK (incl VAT)
+Self use: 354.93 (High: 113.76, Low: 241.17) kWh - valued at 109.66 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 58.61 SEK (incl VAT)
 
@@ -735,6 +752,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2024-10-01 00:00:00+02:00 - 2024-10-31 22:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 10.907 kWh per 60 min.
+Charged for 8340 minutes. Avg rate: 3.721 kW.
 Month peak power incl EV: 12.053000 at 2024-10-14 04:00:00+02:00
 Energy used 1058.83 (High: 294.82, Low: 764.01) kWh at energy cost of 342.78 SEK (incl VAT and surcharges) (avg price: 0.324)
 Plus EV energy used 517.23 (High: 39.96, Low: 477.27) kWh at energy cost of 96.01 SEK (incl VAT and surcharges) (avg price: 0.186 (excl grid rewards))
@@ -805,7 +824,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 0.97 kWh - valued at 0.76 SEK (incl VAT)
-Self use: 123.33 (High: 33.18, Low:  90.15) kWh - valued at 58.68 SEK (incl VAT)
+Self use: 123.33 (High: 33.18, Low: 90.15) kWh - valued at 58.68 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 92.97 SEK (incl VAT)
 
@@ -813,6 +832,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2024-11-01 00:00:00+01:00 - 2024-11-30 23:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 7.130 kWh per 60 min.
+Charged for 8760 minutes. Avg rate: 3.415 kW.
 Month peak power incl EV: 7.609000 at 2024-11-12 01:00:00+01:00
 Energy used 1243.99 (High: 349.24, Low: 894.75) kWh at energy cost of 1095.79 SEK (incl VAT and surcharges) (avg price: 0.881)
 Plus EV energy used 498.55 (High: 22.52, Low: 476.03) kWh at energy cost of 172.33 SEK (incl VAT and surcharges) (avg price: 0.346 (excl grid rewards))
@@ -883,7 +904,7 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
-Self use: 28.60 (High: 0.00, Low:  28.60) kWh - valued at 24.03 SEK (incl VAT)
+Self use: 28.60 (High: 0.00, Low: 28.60) kWh - valued at 24.03 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 219.44 SEK (incl VAT)
 
@@ -891,6 +912,8 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2024-12-01 00:00:00+01:00 - 2024-12-31 23:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Peak EV energy: 7.455 kWh per 60 min.
+Charged for 8040 minutes. Avg rate: 3.927 kW.
 Month peak power incl EV: 8.495000 at 2024-12-17 03:00:00+01:00
 Energy used 1327.39 (High: 352.03, Low: 975.37) kWh at energy cost of 1017.98 SEK (incl VAT and surcharges) (avg price: 0.767)
 Plus EV energy used 526.21 (High: 12.90, Low: 513.31) kWh at energy cost of 179.03 SEK (incl VAT and surcharges) (avg price: 0.340 (excl grid rewards))
@@ -961,6 +984,6 @@ Estimated value from 4.5 kW solar installation when combined with 7.0 kWh energy
 Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-09-01 19:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
-Self use: 0.64 (High: 0.00, Low:  0.64) kWh - valued at 0.80 SEK (incl VAT)
+Self use: 0.64 (High: 0.00, Low: 0.64) kWh - valued at 0.80 SEK (incl VAT)
 
 Arbitrage savings possible with 7.0 kWh battery: (not relevant during months when battery is used for solar storage) 250.22 SEK (incl VAT)

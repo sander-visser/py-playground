@@ -26,7 +26,9 @@ import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or la
 # curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
 # Note: Easee access token expires after a few hours
 EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
-EASEE_CHARGER_ID = "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
+EASEE_CHARGER_ID = (
+    "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
+)
 NORDPOOL_PRICE_CODE = "SEK"
 START_DATE = datetime.date.fromisoformat("2025-08-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
@@ -65,25 +67,60 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
         sys.exit(1)
     hourly_energy = []
     prev_measurement = None
+    prev_h_measurement = None
     ranged_measurements = measurements.json()["measurements"]
+    peak_charge_h = 0.0
+    peak_charge_measurements = []
+    measurement_cnt = 0
+    measurement_min = 15
+    if "55:00+00:00" in ranged_measurements[-1]["measuredAt"]:
+        measurement_min = 5
     if "5:00+00:00" not in ranged_measurements[-1]["measuredAt"]:
+        measurement_min = 60
         # Reconfigure with alsoSendWhenNotCharging == true at
         # https://developer.easee.com/reference/lifetimeenergyreporting_configure
         print(f"Warning: {charger_id} not configured for high res measurements")
     for measurement in ranged_measurements:
+        # print(f"scanning {measurement} vs {prev_measurement}")
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
                 print("Error: Easee from date not an hourly boundary...")
             prev_measurement = measurement
+            prev_h_measurement = measurement
         else:
+            consumption_val = measurement["value"] - prev_measurement["value"]
+            if consumption_val != 0 and measurement_cnt is not None:
+                measurement_cnt += 1
+
             if ":00:00+00:00" in measurement["measuredAt"]:
+                peak_charge_h = max(
+                    peak_charge_h, measurement["value"] - prev_h_measurement["value"]
+                )
                 hourly_energy.append(
                     {
-                        "consumption": measurement["value"] - prev_measurement["value"],
-                        "date": prev_measurement["measuredAt"],
+                        "consumption": measurement["value"]
+                        - prev_h_measurement["value"],
+                        "date": prev_h_measurement["measuredAt"],
                     }
                 )
-                prev_measurement = measurement
+                prev_h_measurement = measurement
+
+            if measurement_min == 60 or (
+                ":00:00+00:00" not in measurement["measuredAt"]
+                or ":00:00+00:00" not in prev_measurement["measuredAt"]
+            ):
+                peak_charge_measurements.append(consumption_val)
+            else:
+                measurement_cnt = None  # Mixed resolutions
+            prev_measurement = measurement
+
+    print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
+    if measurement_cnt is not None:
+        print(
+            f"Peak EV energy: {max(peak_charge_measurements):.3f} kWh per {measurement_min} minutes. "
+            + f"\nCharged for {measurement_cnt * measurement_min} minutes. Avg rate: "
+            + f"{(sum(peak_charge_measurements) / ((measurement_cnt*measurement_min)/60)):.3f} kW"
+        )
 
     return hourly_energy
 
