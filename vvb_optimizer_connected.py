@@ -210,7 +210,7 @@ class Thermostat:
             pwm_degrees += (degrees - MIN_TEMP) * PWM_PER_DEGREE
         return min(pwm_degrees, PWM_78_DEGREES)
 
-    def set_thermosat(self, degrees, override=False):
+    def set_thermostat(self, degrees, override=False):
         self.overridden = override
         if self.prev_degrees != degrees:
             pwm_degrees = self.get_pwm_degrees(degrees)
@@ -694,7 +694,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
     if boost_req:
         log_print("Boosting...")
-        thermostat.set_thermosat(MIN_LEGIONELLA_TEMP)
+        thermostat.set_thermostat(MIN_LEGIONELLA_TEMP)
         await asyncio.sleep(EXTRA_HOT_DURATION_S)
 
     while True:
@@ -829,7 +829,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 log_print(
                     f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
                 )
-                thermostat.set_thermosat(q_temp)
+                thermostat.set_thermostat(q_temp)
             curr_min = max(curr_min, time.localtime()[4])
             min_til_next_q = (15 * (1 + q)) - curr_min
             log_print(f"{curr_min}: minutes til next quarter: {min_til_next_q}")
@@ -906,7 +906,7 @@ async def main():
     if " W " not in sys.implementation._machine:
         log_print("Unsupported board?")
     thermostat = shared_thermostat
-    thermostat.set_thermosat(MIN_TEMP)
+    thermostat.set_thermostat(MIN_TEMP)
     attemts_remaing_before_reset = MAX_NETWORK_ATTEMPTS
     while attemts_remaing_before_reset > 0:
         try:
