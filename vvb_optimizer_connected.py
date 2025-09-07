@@ -679,6 +679,70 @@ def get_local_date_and_hour(utc_unix_timestamp):
     return (adjusted_day, now[3])
 
 
+async def quarterly_optimization(
+    today,
+    local_hour,
+    curr_min,
+    wanted_temp,
+    today_cost,
+    tomorrow_cost,
+    temperature_provider,
+    alarm_status,
+    thermostat,
+):
+    for q in range(0, 4):  # loop the quarters and sub optimize
+        if (q != 0 and thermostat.overridden) or int(curr_min / 15) > q:
+            continue
+        last_q = q == 3
+        next_hour_wanted_temp = MIN_TEMP
+        if last_q and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+            if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
+                break
+            next_hour_wanted_temp = get_wanted_temp(
+                local_hour + 1,
+                today.weekday(),
+                today_cost,
+                tomorrow_cost,
+                temperature_provider.get_outdoor_temp(),
+                alarm_status is not None and alarm_status.is_fully_armed(),
+                False,
+            )
+            if (
+                next_hour_wanted_temp >= wanted_temp
+                and today_cost[local_hour + 1]["quartely"][0]
+                <= today_cost[local_hour]["quartely"][3]
+            ):
+                log_print("Lowering due to next is cheap")
+                thermostat.set_thermostat(wanted_temp - DEGREES_PER_H / 4)
+                continue
+            if (
+                next_hour_wanted_temp <= wanted_temp
+                and today_cost[local_hour + 1]["quartely"][0]
+                > today_cost[local_hour]["quartely"][3]
+            ):
+                log_print("Boosting due to next is expensive")
+                thermostat.set_thermostat(wanted_temp + DEGREES_PER_H / 4)
+                continue
+        if q == 0 or not thermostat.overridden:
+            q_holdoff = 0
+            for scan_q in range(q, 4):
+                if (
+                    today_cost[local_hour]["quartely"][q]
+                    > today_cost[local_hour]["quartely"][scan_q]
+                ):
+                    q_holdoff += 1
+            q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+            q_temp = max(q_temp, MIN_TEMP)
+            log_print(
+                f"{q_temp} C @ :{q * 15} Prices {today_cost[local_hour]['quartely']}"
+            )
+            thermostat.set_thermostat(q_temp)
+        if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
+            curr_min = max(curr_min, time.localtime()[4])
+            min_til_next_q = (15 * (1 + q)) - curr_min
+            await asyncio.sleep(min_til_next_q * SEC_PER_MIN)
+
+
 async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
@@ -781,62 +845,17 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                 if curr_min >= NEW_PRICE_EXPECTED_MIN:
                     await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
                     continue
-        for q in range(0, 4):  # loop the quarters and sub optimize
-            if (q != 0 and thermostat.overridden) or int(curr_min / 15) > q:
-                continue
-            last_q = q == 3
-            next_hour_wanted_temp = MIN_TEMP
-            if last_q and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-                if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
-                    break
-                next_hour_wanted_temp = get_wanted_temp(
-                    local_hour + 1,
-                    today.weekday(),
-                    today_cost,
-                    tomorrow_cost,
-                    temperature_provider.get_outdoor_temp(),
-                    alarm_status is not None and alarm_status.is_fully_armed(),
-                    False,
-                )
-                if (
-                    next_hour_wanted_temp >= thermostat.prev_degrees
-                    and today_cost[local_hour + 1]["quartely"][0]
-                    <= today_cost[local_hour]["quartely"][3]
-                ):
-                    log_print("lowering due to next is cheap")
-                    thermostat.set_thermostat(
-                        shared_thermostat.prev_degrees - DEGREES_PER_H / 4
-                    )
-                    continue
-                if (
-                    next_hour_wanted_temp <= thermostat.prev_degrees
-                    and today_cost[local_hour + 1]["quartely"][0]
-                    > today_cost[local_hour]["quartely"][3]
-                ):
-                    log_print("boosting due to next is expensive")
-                    thermostat.set_thermostat(
-                        shared_thermostat.prev_degrees + DEGREES_PER_H / 4
-                    )
-                    continue
-            if q == 0 or not thermostat.overridden:
-                q_holdoff = 0
-                for scan_q in range(q, 4):
-                    if (
-                        today_cost[local_hour]["quartely"][q]
-                        > today_cost[local_hour]["quartely"][scan_q]
-                    ):
-                        q_holdoff += 1
-                q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
-                q_temp = max(q_temp, MIN_TEMP)
-                log_print(
-                    f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
-                )
-                thermostat.set_thermostat(q_temp)
-            if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
-                curr_min = max(curr_min, time.localtime()[4])
-                min_til_next_q = (15 * (1 + q)) - curr_min
-                log_print(f"{curr_min}: minutes til next quarter: {min_til_next_q}")
-                await asyncio.sleep(min_til_next_q * SEC_PER_MIN)
+        await quarterly_optimization(
+            today,
+            local_hour,
+            curr_min,
+            wanted_temp,
+            today_cost,
+            tomorrow_cost,
+            temperature_provider,
+            alarm_status,
+            thermostat,
+        )
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
                 continue
@@ -976,3 +995,4 @@ if __name__ == "__main__":
         log_print("Error occured: ", e)
     except KeyboardInterrupt:
         log_print("Program Interrupted by the user")
+
