@@ -88,7 +88,7 @@ DAILY_COMFORT_LAST_H = 21  # :59
 NEW_PRICE_EXPECTED_HOUR = 12
 NEW_PRICE_EXPECTED_MIN = 45
 MAX_TEMP = 78
-MIN_TEMP = 25
+MIN_TEMP = 28
 MIN_USABLE_TEMP = 35  # Good for hand washing, and one hour away from shower temp
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
@@ -109,9 +109,9 @@ TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
 
-PWM_25_DEGREES = 1172  # Min rotation (@MIN_TEMP)
+PWM_28_DEGREES = 1575  # Min rotation (@MIN_TEMP)
 PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
-PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_25_DEGREES) / 53
+PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_28_DEGREES) / 50
 ROTATION_SECONDS = 2
 
 
@@ -205,19 +205,20 @@ class Thermostat:
 
     @staticmethod
     def get_pwm_degrees(degrees):
-        pwm_degrees = PWM_25_DEGREES
+        pwm_degrees = PWM_28_DEGREES
         if degrees > MIN_TEMP:
             pwm_degrees += (degrees - MIN_TEMP) * PWM_PER_DEGREE
         return min(pwm_degrees, PWM_78_DEGREES)
 
     def set_thermostat(self, degrees, override=False):
         self.overridden = override
+        degrees = max(degrees, MIN_TEMP)
+        degrees = min(degrees, MAX_TEMP)
         if self.prev_degrees != degrees:
-            pwm_degrees = self.get_pwm_degrees(degrees)
-            self.pwm.duty_u16(int(pwm_degrees))
+            self.prev_degrees = degrees
+            self.pwm.duty_u16(int(self.get_pwm_degrees(degrees)))
             time.sleep(ROTATION_SECONDS)
             self.pwm.duty_u16(0)
-            self.prev_degrees = degrees
 
 
 def setup_wifi():
@@ -817,23 +818,24 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
                         shared_thermostat.prev_degrees + DEGREES_PER_H / 4
                     )
                     continue
-            q_score = -q
-            for scan_q in range(0, 4):
-                if (
-                    today_cost[local_hour]["quartely"][q]
-                    > today_cost[local_hour]["quartely"][scan_q]
-                ):
-                    q_score += 1
-            q_temp = wanted_temp - (q_score / 4) * DEGREES_PER_H
             if q == 0 or not thermostat.overridden:
+                q_holdoff = 0
+                for scan_q in range(q, 4):
+                    if (
+                        today_cost[local_hour]["quartely"][q]
+                        > today_cost[local_hour]["quartely"][scan_q]
+                    ):
+                        q_holdoff += 1
+                q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+                q_temp = max(q_temp, MIN_TEMP)
                 log_print(
                     f"quaterly temp {q_temp}. Prices {today_cost[local_hour]['quartely']}"
                 )
                 thermostat.set_thermostat(q_temp)
-            curr_min = max(curr_min, time.localtime()[4])
-            min_til_next_q = (15 * (1 + q)) - curr_min
-            log_print(f"{curr_min}: minutes til next quarter: {min_til_next_q}")
             if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
+                curr_min = max(curr_min, time.localtime()[4])
+                min_til_next_q = (15 * (1 + q)) - curr_min
+                log_print(f"{curr_min}: minutes til next quarter: {min_til_next_q}")
                 await asyncio.sleep(min_til_next_q * SEC_PER_MIN)
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and tomorrow_cost is None:
