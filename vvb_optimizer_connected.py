@@ -690,8 +690,8 @@ async def quarterly_optimization(
     alarm_status,
     thermostat,
 ):
-    for q in range(0, 4):  # loop the quarters and sub optimize
-        if (q != 0 and thermostat.overridden) or int(curr_min / 15) > q:
+    for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
+        if (q != 0 and thermostat.overridden):
             continue
         last_q = q == 3
         next_hour_wanted_temp = MIN_TEMP
