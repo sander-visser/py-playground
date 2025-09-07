@@ -2,13 +2,15 @@
 Hot water system (HWS) scheduler to run resistive heating on cheap hours.
 Runs on a Raspberry Pi PICO(2) W(H) with a SG90 servo connected to PWM GP0
 Power takeout for servo possible from VBUS pin if USB powered.
-If USB only powered connect VBUS and VSYS for cleaner power (better WiFi)
-WiFi range improves with ground connection and good placement.
 Designed for WiFi use. Servo connected to theromostat of the HWS.
 Upload to device from a PC using Thonny (as main.py).
 Logs are made available via built in webserver that also allows override.
 
-Power reset unit to get 1h extra hot water.
+If USB only powered connect VBUS and VSYS for cleaner power (better WiFi),
+WiFi range improves with ground connection and good placement.
+First SG90 micro servo 9g lasted for 30 months before gears siezed.
+
+Power reset unit to easily get 1h extra hot water.
 vvb_optimizer_connected.png show price/target temperature behaviour.
 12 months savings in Sweden SE3 ammount to approx 150 EUR.
 
@@ -18,7 +20,7 @@ MIT license (as the rest of the repo)
 
 If you plan to migrate to Tibber electricity broker I can provide a referral
 giving us both ~500 SEK to shop gadgets with. Contact: github[a]visser.se or
-check referral.link in repo
+check referral.link in this repo.
 """
 
 # Install micropyton (hold BOOTSEL while connecting USB to get drive mounted),
@@ -85,7 +87,7 @@ DAILY_COMFORT_LAST_H = 21  # :59
 NEW_PRICE_EXPECTED_HOUR = 12
 NEW_PRICE_EXPECTED_MIN = 45
 MAX_TEMP = 78
-MIN_TEMP = 25
+MIN_TEMP = 28
 MIN_NUDGABLE_TEMP = 28.6  # Setting it any lower will just make it MIN stuck
 MIN_USABLE_TEMP = 35  # Good for hand washing, and one hour away from shower temp
 MIN_DAILY_TEMP = 50
@@ -107,9 +109,9 @@ TEMPERATURE_URL = (
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille&what=temp"
 )
 
-PWM_25_DEGREES = 1172  # Min rotation (@MIN_TEMP)
-PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
-PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_25_DEGREES) / 53
+PWM_28_DEGREES = 1575  # Min rotation (@MIN_TEMP)
+PWM_78_DEGREES = 9000  # Max rotation (@MAX_TEMP)
+PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_28_DEGREES) / 50
 ROTATION_SECONDS = 2
 
 
@@ -203,7 +205,7 @@ class Thermostat:
 
     @staticmethod
     def get_pwm_degrees(degrees):
-        pwm_degrees = PWM_25_DEGREES
+        pwm_degrees = PWM_28_DEGREES
         if degrees > MIN_TEMP:
             pwm_degrees += (degrees - MIN_TEMP) * PWM_PER_DEGREE
         return min(pwm_degrees, PWM_78_DEGREES)
