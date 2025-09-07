@@ -112,7 +112,7 @@ TEMPERATURE_URL = (
 PWM_28_DEGREES = 1575  # Min rotation (@MIN_TEMP)
 PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
 PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_28_DEGREES) / 50
-ROTATION_SECONDS = 2
+ROTATION_SECONDS = 1.5
 
 
 def log_print(*args, **kwargs):
