@@ -56,8 +56,6 @@ WLAN_SSID = "your ssid"
 WLAN_PASS = "your pass"  # must not be pure WPA3
 NORDPOOL_REGION = "SE3"
 NTP_HOST = "se.pool.ntp.org"
-NORDPOOL_REGION = "SE3"
-NTP_HOST = "se.pool.ntp.org"
 NTP_INTERVAL_H = 12
 MAX_CLOCK_DRIFT_S = 10
 SEC_PER_MIN = 60
@@ -112,9 +110,9 @@ TEMPERATURE_URL = (
 )
 
 PWM_28_DEGREES = 1575  # Min rotation (@MIN_TEMP)
-PWM_78_DEGREES = 8300  # Max rotation (@MAX_TEMP)
+PWM_78_DEGREES = 9000  # Max rotation (@MAX_TEMP)
 PWM_PER_DEGREE = (PWM_78_DEGREES - PWM_28_DEGREES) / 50
-ROTATION_SECONDS = 2
+ROTATION_SECONDS = 1.5
 
 
 def log_print(*args, **kwargs):
@@ -180,8 +178,23 @@ class TimeProvider:
                 self.sync_utc_time()  # Attempt sync time twice per day
                 self.last_sync_time = time.time()
 
-    def get_utc_unix_timestamp(self):
-        return time.time() if self.current_utc_time is None else self.current_utc_time
+    def get_local_date_and_hour(self):
+        local_unix_timestamp = UTC_OFFSET_IN_S + (
+            time.time() if self.current_utc_time is None else self.current_utc_time
+        )
+        now = time.gmtime(local_unix_timestamp)
+        year = now[0]
+        dst_start = time.mktime(
+            (year, 3, (31 - (int(5 * year / 4 + 4)) % 7), 1, 0, 0, 0, 0, 0)
+        )
+        dst_end = time.mktime(
+            (year, 10, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
+        )
+        if dst_start < local_unix_timestamp < dst_end:
+            now = time.gmtime(local_unix_timestamp + 3600)
+        adjusted_day = date(now[0], now[1], now[2])
+
+        return (adjusted_day, now[3])
 
     @staticmethod
     def sync_utc_time():
@@ -269,11 +282,13 @@ class CostProvider:
             return None
         if len(cost_array) == 23:
             cost_array.append(cost_array[0])  # DST hack - off by one in adjust days
+        price_is_final = the_json_result["areaStates"][0]["state"] == "Final"
         if as_today:
             self.today = cost_array
         else:
             self.tomorrow = cost_array
-        price_is_final = the_json_result["areaStates"][0]["state"] == "Final"
+            if not price_is_final:
+                await asyncio.sleep(1 * SEC_PER_MIN)  # Delay retry
         gc.collect()
         return price_is_final
 
@@ -370,14 +385,7 @@ def summarize_cost(hours_to_summarize):
     return cost_sum
 
 
-def get_cheap_score_until(now_hour, until_hour, cost, verbose):
-    """
-    Give the cheapest MAX_HOURS_NEEDED_TO_HEAT a decreasing score
-    that can be used to calculate heating curve.
-    Scoring considders ramping vs aggressive heating to cheapest, as well as
-    moving completion hour if needed and heating for total of MAX_HOURS_NEEDED_TO_HEAT
-    """
-    now_price = cost.today[now_hour]["avg"]
+def get_delay_score(until_hour, cost, now_price):
     cheap_hours = cost.today[0:NORMAL_HOURS_NEEDED_TO_HEAT]
     heat_end_hour = NORMAL_HOURS_NEEDED_TO_HEAT
     cheapest_price_sum = summarize_cost(cheap_hours)
@@ -402,6 +410,21 @@ def get_cheap_score_until(now_hour, until_hour, cost, verbose):
                     (scan_hour - NORMAL_HOURS_NEEDED_TO_HEAT) : scan_hour
                 ]
                 heat_end_hour = scan_hour
+    return (score, delay_msg, cheap_hours, heat_end_hour)
+
+
+def get_cheap_score_until(now_hour, until_hour, cost, verbose):
+    """
+    Give the cheapest MAX_HOURS_NEEDED_TO_HEAT a decreasing score
+    that can be used to calculate heating curve.
+    Scoring considders ramping vs aggressive heating to cheapest, as well as
+    moving completion hour if needed and heating for total of MAX_HOURS_NEEDED_TO_HEAT
+    """
+    now_price = cost.today[now_hour]["avg"]
+
+    score, delay_msg, cheap_hours, heat_end_hour = get_delay_score(
+        until_hour, cost, now_price
+    )
 
     if (now_price + ACCEPTABLE_PRICING_ERROR) <= sorted(
         cheap_hours, key=lambda h: h["avg"]
@@ -611,8 +634,8 @@ def get_wanted_temp_boost(local_hour, weekday, cost):
             local_hour < 23
             and cost.today[local_hour]["avg"] < cost.today[local_hour + 1]["avg"]
         ):
-            hours_to_bridge = hours_to_next_lower_price(cost.today, local_hour)
-            if is_now_cheapest_remaining_during_comfort(cost.today, local_hour):
+            hours_to_bridge = hours_to_next_lower_price(cost, local_hour)
+            if is_now_cheapest_remaining_during_comfort(cost, local_hour):
                 hours_to_bridge = 1 + (DAILY_COMFORT_LAST_H - local_hour)
             # Better heat now rather than later
             wanted_temp_boost += DEGREES_LOST_PER_H * hours_to_bridge
@@ -679,44 +702,28 @@ def get_wanted_temp(
     return wanted_temp
 
 
-def get_local_date_and_hour(utc_unix_timestamp):
-    local_unix_timestamp = utc_unix_timestamp + UTC_OFFSET_IN_S
-    now = time.gmtime(local_unix_timestamp)
-    year = now[0]
-    dst_start = time.mktime(
-        (year, 3, (31 - (int(5 * year / 4 + 4)) % 7), 1, 0, 0, 0, 0, 0)
-    )
-    dst_end = time.mktime(
-        (year, 10, (31 - (int(5 * year / 4 + 1)) % 7), 1, 0, 0, 0, 0, 0)
-    )
-    if dst_start < local_unix_timestamp < dst_end:
-        now = time.gmtime(local_unix_timestamp + 3600)
-    adjusted_day = date(now[0], now[1], now[2])
-
-    return (adjusted_day, now[3])
-
-
 async def quarterly_optimization(
     today,
     local_hour,
-    curr_min,
     wanted_temp,
     cost,
     temperature_provider,
     alarm_status,
     thermostat,
 ):
-    for q in range(0, 4):  # loop the quarters and sub optimize
-        if (q != 0 and thermostat.overridden) or int(curr_min / 15) > q:
+    curr_min = time.localtime()[4]
+    for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
+        curr_min = max(curr_min, time.localtime()[4])
+        if q != 0 and thermostat.overridden and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+            await asyncio.sleep(((15 * (1 + q)) - curr_min) * SEC_PER_MIN)
             continue
         last_q = q == 3
         next_hour_wanted_temp = MIN_TEMP
         if last_q and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and cost.tomorrow is None:
                 break
-            optimization_date = {"hour": local_hour + 1, "weekday": today.weekday()}
             next_hour_wanted_temp = get_wanted_temp(
-                optimization_date,
+                {"hour": local_hour + 1, "weekday": today.weekday()},
                 cost,
                 temperature_provider.get_outdoor_temp(),
                 alarm_status is not None and alarm_status.is_fully_armed(),
@@ -754,26 +761,27 @@ async def quarterly_optimization(
             q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
             q_temp = max(q_temp, MIN_TEMP)
             log_print(
-                f"{q_temp} C @ :{q * 15} Prices {cost['today'][local_hour]['quartely']}"
+                f"{q_temp} C @ :{q * 15} Prices {cost.today[local_hour]['quartely']}"
             )
             thermostat.set_thermostat(q_temp)
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
-            curr_min = max(curr_min, time.localtime()[4])
-            min_til_next_q = (15 * (1 + q)) - curr_min
-            await asyncio.sleep(min_til_next_q * SEC_PER_MIN)
+            await asyncio.sleep(((15 * (1 + q)) - curr_min) * SEC_PER_MIN)
 
 
 async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
+    cost = CostProvider()
+    temperature_provider = SimpleTemperatureProvider()
     time_provider = TimeProvider()
     time_provider.sync_utc_time()
+    today, local_hour = time_provider.get_local_date_and_hour()
 
-    today = None
-    cost = CostProvider()
     days_since_legionella = 0
     days_with_alarm_armed = 0
     peak_temp_today = 0
     pending_legionella_reset = False
-    temperature_provider = SimpleTemperatureProvider()
+    today_final = await cost.get_cost(today, True)
+    if today_final is None or not today_final:
+        raise RuntimeError("Optimization not possible")
 
     if boost_req:
         log_print("Boosting...")
@@ -783,10 +791,8 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     while True:
         await asyncio.sleep(0.1)
         alarm_fully_armed = alarm_status is not None and alarm_status.is_fully_armed()
-        new_today, local_hour = get_local_date_and_hour(
-            time_provider.get_utc_unix_timestamp()
-        )
-        if cost.today is None or new_today != today:
+        new_today, local_hour = time_provider.get_local_date_and_hour()
+        if new_today != today:
             peak_temp_today = 0
             today = new_today
             if pending_legionella_reset:
@@ -795,10 +801,6 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             days_since_legionella += 1
             days_with_alarm_armed += 1
             cost.transition_day()
-            if cost.today is None:
-                today_final, cost.today = await cost.get_cost(today, True)
-                if today_final is None or not today_final:
-                    raise RuntimeError("Optimization not possible")
         if not alarm_fully_armed:
             days_with_alarm_armed = 0
 
@@ -812,14 +814,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         ):
             cost.tomorrow_final = await cost.get_cost(today + timedelta(days=1), False)
 
-        log_print(
-            f"Cost optimizing for {today.day} / {today.month} {today.year} {local_hour}:00 @"
-            + f" {cost.today[local_hour]["avg"]} EUR / kWh"
-        )
         outside_temp = temperature_provider.get_outdoor_temp()
-        optimization_date = {"hour": local_hour, "weekday": today.weekday()}
+        log_print(
+            f"Cost optimizing {today.day} / {today.month} {local_hour}:00 @"
+            + f" {cost.today[local_hour]["avg"]:.6f} EUR / kWh. Outside is {outside_temp} C."
+        )
         wanted_temp = get_wanted_temp(
-            optimization_date,
+            {"hour": local_hour, "weekday": today.weekday()},
             cost,
             outside_temp,
             alarm_fully_armed,
@@ -850,20 +851,17 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
 
         log_print(
             f"-- {local_hour}:{'0' if (current_minute<=9) else ''}{current_minute}"
-            + f" thermostat @ {wanted_temp}. Outside is {outside_temp}."
-            + f" Tomorrow {cost.tomorrow is not None}"
+            + f" thermostat @ {wanted_temp}. Tomorrow {cost.tomorrow is not None}."
         )
 
         curr_min = time.localtime()[4]
         if curr_min <= 58 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and cost.tomorrow is None:
                 if curr_min >= NEW_PRICE_EXPECTED_MIN:
-                    await asyncio.sleep(1 * SEC_PER_MIN)  # Retry price fetching
-                    continue
+                    continue  # Retry price fetching
         await quarterly_optimization(
             today,
             local_hour,
-            curr_min,
             wanted_temp,
             cost,
             temperature_provider,
@@ -872,7 +870,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
         )
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and cost.tomorrow is None:
-                continue
+                continue  # Retry price fetching
             curr_min = max(curr_min, time.localtime()[4])
             await asyncio.sleep(
                 ((60 - curr_min) * SEC_PER_MIN) + MAX_CLOCK_DRIFT_S
@@ -895,38 +893,37 @@ async def handle_client(reader, writer):
         await writer.drain()
         await writer.wait_closed()
         return
-    log_print("Request: ", request)
 
-    try:
-        if request == "/reduceload":
-            shared_thermostat.set_thermostat(
-                shared_thermostat.prev_degrees - DEGREES_PER_H, True
-            )
-            log_print(
-                f"-- {time.localtime()} Lowering thermostat until next schedule point"
-                + f" {shared_thermostat.prev_degrees}"
-            )
-            writer.write("HTTP/1.0 200 OK\r\n")
-            await writer.drain()
-            await writer.wait_closed()
-            return
-        if request == "/postponedload":
-            writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
-            writer.write(
-                "True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False"
-            )
-            await writer.drain()
-            await writer.wait_closed()
-            return
-        if request != "/log":
+    if request == "/reduceload":
+        shared_thermostat.set_thermostat(
+            shared_thermostat.prev_degrees - DEGREES_PER_H, True
+        )
+        log_print(
+            f"-- {time.localtime()} Lowering thermostat until next hour"
+            + f" {shared_thermostat.prev_degrees}"
+        )
+        writer.write("HTTP/1.0 200 OK\r\n")
+        await writer.drain()
+        await writer.wait_closed()
+        return
+    if request == "/postponedload":
+        writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
+        writer.write(
+            "True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False"
+        )
+        await writer.drain()
+        await writer.wait_closed()
+        return
+    if request != "/log":
+        try:
             override_temp = float(request[1:])
             log_print(
                 f"-- {time.localtime()} Overriding thermostat to {override_temp} "
                 + "until next scheduling point"
             )
             shared_thermostat.set_thermostat(override_temp, True)
-    except ValueError:
-        log_print("Failed to parse target temp req as float")
+        except ValueError:
+            log_print("Failed to parse target temp req as float")
 
     writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
     log_cpy = last_log.copy()
