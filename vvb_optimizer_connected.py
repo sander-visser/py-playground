@@ -722,12 +722,14 @@ async def quarterly_optimization(
                 == cost.today[local_hour]["quartely"][scan_q]
             ):
                 q_holdoff += 0.5
-            q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
-            q_temps.append(max(q_temp, MIN_TEMP))
-        
+        q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+        q_temps.append(max(q_temp, MIN_TEMP))
+
     curr_min = time.localtime()[4]
-    log_print(f"{curr_min}: Quaterly temps {q_temps} C @ "
-              + "{cost.today[local_hour]["quartely"]} EUR")
+    log_print(
+        f"{curr_min}: Quaterly temps {q_temps} C @ "
+        + f"{cost.today[local_hour]['quartely']} EUR"
+    )
     for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
         curr_min = max(curr_min, time.localtime()[4])
         if q != 0 and thermostat.overridden and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
