@@ -708,7 +708,26 @@ async def quarterly_optimization(
     alarm_status,
     thermostat,
 ):
+    q_temps = []
+    for q in range(0, 4):
+        q_holdoff = 0
+        for scan_q in range(q, 4):
+            if (
+                cost.today[local_hour]["quartely"][q]
+                > cost.today[local_hour]["quartely"][scan_q]
+            ):
+                q_holdoff += 1
+            if q != scan_q and (
+                cost.today[local_hour]["quartely"][q]
+                == cost.today[local_hour]["quartely"][scan_q]
+            ):
+                q_holdoff += 0.5
+            q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+            q_temps.append(max(q_temp, MIN_TEMP))
+        
     curr_min = time.localtime()[4]
+    log_print(f"{curr_min}: Quaterly temps {q_temps} C @ "
+              + "{cost.today[local_hour]["quartely"]} EUR")
     for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
         curr_min = max(curr_min, time.localtime()[4])
         if q != 0 and thermostat.overridden and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
@@ -743,24 +762,7 @@ async def quarterly_optimization(
                 thermostat.set_thermostat(wanted_temp + DEGREES_PER_H / 4)
                 continue
         if q == 0 or not thermostat.overridden:
-            q_holdoff = 0
-            for scan_q in range(q, 4):
-                if (
-                    cost.today[local_hour]["quartely"][q]
-                    > cost.today[local_hour]["quartely"][scan_q]
-                ):
-                    q_holdoff += 1
-                if q != scan_q and (
-                    cost.today[local_hour]["quartely"][q]
-                    == cost.today[local_hour]["quartely"][scan_q]
-                ):
-                    q_holdoff += 0.5
-            q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
-            q_temp = max(q_temp, MIN_TEMP)
-            log_print(
-                f"{q_temp} C @ :{q * 15} Prices {cost.today[local_hour]['quartely']}"
-            )
-            thermostat.set_thermostat(q_temp)
+            thermostat.set_thermostat(q_temps[q])
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None and not last_q:
             await asyncio.sleep(((15 * (1 + q)) - curr_min) * SEC_PER_MIN)
 
@@ -969,8 +971,12 @@ async def main():
             log_print("Unexpected success termination...")
             break
         except Exception as e:
+            sio = io.StringIO()
+            sys.print_exception(e, sio)
+            traceback_str = sio.getvalue()
             log_print(f"Delaying due to exception... {attemts_remaing_before_reset}")
             log_print(e)
+            log_print(traceback_str)
             wlan = network.WLAN(network.STA_IF)
             log_print(f"rssi = {wlan.status('rssi')}")
             tasks.pop(1)
