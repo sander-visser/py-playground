@@ -29,6 +29,7 @@ EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = (
     "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
 )
+MAX_CHARGE_PWR = 12  # Warn if observing higher in kW
 NORDPOOL_PRICE_CODE = "SEK"
 START_DATE = datetime.date.fromisoformat("2025-08-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
@@ -89,6 +90,8 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
             prev_h_measurement = measurement
         else:
             consumption_val = measurement["value"] - prev_measurement["value"]
+            if (consumption_val > (MAX_CHARGE_PWR * measurement_min / 60)):
+                print(f"Warn: Unreasonable consumption jump {prev_measurement} -> {measurement}")
             if consumption_val > 0.1 and measurement_cnt is not None:
                 measurement_cnt += 1
 
