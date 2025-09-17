@@ -13,6 +13,7 @@ improvement of self use if home battery is also added.
 """
 
 import asyncio
+import copy
 import csv
 import datetime
 import statistics
@@ -29,7 +30,6 @@ EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
 EASEE_CHARGER_ID = (
     "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
 )
-MAX_CHARGE_PWR = 12  # Warn if observing higher in kW
 NORDPOOL_PRICE_CODE = "SEK"
 START_DATE = datetime.date.fromisoformat("2025-08-01")  # None for one month back
 API_TIMEOUT = 10.0  # seconds
@@ -89,30 +89,54 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
             prev_measurement = measurement
             prev_h_measurement = measurement
         else:
-            consumption_val = measurement["value"] - prev_measurement["value"]
-            if (consumption_val > (MAX_CHARGE_PWR * measurement_min / 60)):
-                print(f"Warn: Unreasonable consumption jump {prev_measurement} -> {measurement}")
-            if consumption_val > 0.1 and measurement_cnt is not None:
-                measurement_cnt += 1
+            curr_date = datetime.datetime.fromisoformat(measurement["measuredAt"])
+            last_date = datetime.datetime.fromisoformat(prev_measurement["measuredAt"])
+            nbr_measurements = 1
 
-            if ":00:00+00:00" in measurement["measuredAt"]:
-                peak_charge_h = max(
-                    peak_charge_h, measurement["value"] - prev_h_measurement["value"]
+            if curr_date - last_date > datetime.timedelta(minutes=measurement_min):
+                nbr_measurements = (
+                    (curr_date - last_date).seconds / 60 / measurement_min
                 )
-                hourly_energy.append(
-                    {
-                        "consumption": measurement["value"]
-                        - prev_h_measurement["value"],
-                        "date": prev_h_measurement["measuredAt"],
-                    }
+                print(
+                    f"Warn: Lost {nbr_measurements} EV measurements during at {curr_date}"
                 )
-                prev_h_measurement = measurement
+
+            consumption_val = measurement["value"] - prev_measurement["value"]
+            if consumption_val > 0.1 and measurement_cnt is not None:
+                measurement_cnt += nbr_measurements
+
+            delta_consumption = (
+                measurement["value"] - prev_measurement["value"]
+            ) / nbr_measurements
+            cons_sum = prev_measurement["value"] - prev_h_measurement["value"]
+            measurement = copy.deepcopy(prev_measurement)
+            while last_date < curr_date:
+                last_date += datetime.timedelta(minutes=measurement_min)
+                measurement["measuredAt"] = str(last_date.astimezone(pytz.utc)).replace(
+                    " ", "T"
+                )
+                measurement["value"] += delta_consumption
+                if last_date < curr_date:
+                    prev_measurement = measurement
+
+                cons_sum += delta_consumption
+                if last_date.minute == 0:
+                    peak_charge_h = max(peak_charge_h, cons_sum)
+                    hourly_energy.append(
+                        {
+                            "consumption": cons_sum,
+                            "date": prev_h_measurement["measuredAt"],
+                        }
+                    )
+                    cons_sum = 0
+                    prev_h_measurement = measurement
 
             if measurement_min == 60 or (
                 ":00:00+00:00" not in measurement["measuredAt"]
                 or ":00:00+00:00" not in prev_measurement["measuredAt"]
             ):
-                peak_charge_measurements.append(consumption_val)
+                for i in range(int(nbr_measurements)):
+                    peak_charge_measurements.append(delta_consumption)
             else:
                 measurement_cnt = None  # Mixed resolutions
             prev_measurement = measurement
