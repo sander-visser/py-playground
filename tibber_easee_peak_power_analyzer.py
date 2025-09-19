@@ -371,16 +371,24 @@ async def start():
     exported_value = 0.0
     self_used_energy = {"high": 0.0, "low": 0.0}
     self_used_value = 0.0
+    daily_energy_excl_ev = 0.0
+    peak_daily_excl_ev = 0.0
+    peak_energy_day = "None"
+
     for power_sample in hourly_consumption_data:
+        curr_time = datetime.datetime.fromisoformat(power_sample["from"])
+        curr_utc_time = curr_time.astimezone(pytz.utc)
+        curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
         if len(curr_day_samples) == 24:
             if BATTERY_SIZE_KWH is not None:
                 todays_arbitrage_savings = get_arbitrage_profit(curr_day_samples)
                 arbitrage_savings += todays_arbitrage_savings
             curr_day_samples = {}
+            if peak_daily_excl_ev < daily_energy_excl_ev:
+                peak_energy_day = curr_time_utc_str
+                peak_daily_excl_ev = daily_energy_excl_ev
+            daily_energy_excl_ev = 0.0
 
-        curr_time = datetime.datetime.fromisoformat(power_sample["from"])
-        curr_utc_time = curr_time.astimezone(pytz.utc)
-        curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
@@ -466,6 +474,7 @@ async def start():
             )
             other_energy["low"] += curr_power
         other_cost += curr_power * curr_hour_price
+        daily_energy_excl_ev += curr_power
 
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
@@ -478,6 +487,9 @@ async def start():
         + f" (High: {other_energy['high']:.2f}, Low: {other_energy['low']:.2f}) kWh"
         + f" at energy cost of {other_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
         + f" (avg price: {other_cost/other_energy_combined:.3f})"
+    )
+    print(
+        f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}"
     )
     if charger_consumption is None or ev_energy["low"] == 0.0:
         print("\nTop ten peak power hours:")
