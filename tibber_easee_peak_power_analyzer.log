@@ -115,11 +115,12 @@ Arbitrage savings possible with 7.0 kWh battery: (not relevant during months whe
 Scanning home of Sander Visser
 Scanning peak power 2025-02-01 00:00:00+01:00 - 2025-02-28 23:00:00+01:00...
 Warning: EHVZ2792 not configured for high res measurements
+Warn: Lost 2.0 EV measurements during at 2025-02-21 11:00:00+00:00
 Peak EV energy: 6.764 kWh per 60 min.
 Charged for 9720 minutes. Avg rate: 2.915 kW.
 Month peak power incl EV: 7.501000 at 2025-02-20 05:00:00+01:00
 Energy used 1552.59 (High: 396.02, Low: 1156.57) kWh at energy cost of 1611.61 SEK (incl VAT and surcharges) (avg price: 1.038)
-Max energy per day excl EV: 75.546 kWh @ 2025-01-12T23:00:00+00:00
+Max energy per day excl EV: 86.487 kWh @ 2025-02-16T23:00:00+00:00
 Plus EV energy used 472.25 (High: 21.02, Low: 451.23) kWh at energy cost of 273.44 SEK (incl VAT and surcharges) (avg price: 0.579 (excl grid rewards))
 
 Top ten peak power hours with EV charging excluded:
