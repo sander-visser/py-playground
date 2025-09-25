@@ -76,7 +76,7 @@ SCHOOL_DAYS = [1, 2, 3, 4, 5]  # 1=monday
 AT_HOME_DAYS = [6, 7]  # 7=sunday
 
 # Price info (excl VAT)
-TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 751,8  # incl 68.8 broker and 244 transfer fee
+TRANSFER_AND_TAX_COST_PER_MWH_EXCL_VAT = 751.8  # incl 68.8 broker and 244 transfer fee
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_REASONABLE = 777.7  # excl transfer and tax
 RELATIVE_SEK_PER_MWH_TO_CONSIDER_REASONABLE_WHEN_COMPARED_TO_CHEAPEST = 654.3
 ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP = 350.0
@@ -1418,5 +1418,5 @@ if __name__ == "__main__":
                 sys.exit(1)
             print(f"Resetting optimizer due to error 6 {e.response.status_code}")
         except requests.exceptions.RequestException as e:
-            print(f"Resetting optimizer due to error 4: {e}")
+            print(f"Resetting optimizer due to error 4: {e}. Check nordpool (maintained py version)")
         sleep(300)
