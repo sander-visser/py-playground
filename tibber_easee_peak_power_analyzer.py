@@ -50,6 +50,9 @@ INSTALLED_PANEL_POWER = (
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
+EV_PLUGIN_HOUR = 22  # :00
+EV_PLUGOUT_HOUR = 5  # :59
+SPARE_MARGIN_KWH = 0.5
 
 
 def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_after):
@@ -94,7 +97,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
             nbr_measurements = 1
 
             if curr_date - last_date > datetime.timedelta(minutes=measurement_min):
-                nbr_measurements = (
+                nbr_measurements = int(
                     (curr_date - last_date).seconds / 60 / measurement_min
                 )
                 print(
@@ -359,6 +362,7 @@ async def start():
     high_power_hour_samples = {}
     power_map_low = {}
     power_map_high = {}
+    power_use_map_during_night = {}
     curr_day_samples = {}
     arbitrage_savings = 0.0
     solar_battery_contents = 0.0
@@ -451,14 +455,20 @@ async def start():
         if charger_consumption is not None:
             for easee_power_sample in charger_consumption:
                 if easee_power_sample["date"] == curr_time_utc_str:
+                    # easee_power_sample["consumption"] <= 0.1 and
+                    if (
+                        curr_time.hour >= EV_PLUGIN_HOUR
+                        or curr_time.hour <= EV_PLUGOUT_HOUR
+                    ):
+                        power_use_map_during_night.setdefault(
+                            curr_hour_price, []
+                        ).append(curr_power)
                     curr_power -= easee_power_sample["consumption"]
                     if high_cost_day:
                         ev_energy["high"] += easee_power_sample["consumption"]
                     else:
                         ev_energy["low"] += easee_power_sample["consumption"]
                     ev_cost += curr_hour_price * easee_power_sample["consumption"]
-                    # if easee_power_sample['consumption'] > 0:
-                    #    print(f"power excl easee: {curr_power}")
                     break
 
         if high_cost_day:
@@ -495,11 +505,26 @@ async def start():
         print("\nTop ten peak power hours:")
     else:
         ev_energy_combined = ev_energy["low"] + ev_energy["high"]
+        avg_ev_price = ev_cost / ev_energy_combined
         print(
             f"Plus EV energy used {ev_energy_combined:.2f}"
             + f" (High: {ev_energy['high']:.2f}, Low: {ev_energy['low']:.2f}) kWh"
             + f" at energy cost of {ev_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
             + f" (avg price: {ev_cost/ev_energy_combined:.3f} (excl grid rewards))"
+        )
+        spare_charging_capacity = 0.0
+        for pwr_use_price in sorted(power_use_map_during_night):
+            if pwr_use_price > avg_ev_price:
+                break
+            for pwr_use_energy in power_use_map_during_night[pwr_use_price]:
+                if (peak_month_pwr - pwr_use_energy) > SPARE_MARGIN_KWH:
+                    spare_charging_capacity += (
+                        peak_month_pwr - pwr_use_energy
+                    ) - SPARE_MARGIN_KWH
+
+        print(
+            f"Under utilized charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59 is "
+            + f"{spare_charging_capacity:.1f} kWh (with lower than avg EV price)"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
