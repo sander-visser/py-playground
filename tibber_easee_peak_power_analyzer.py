@@ -50,8 +50,8 @@ INSTALLED_PANEL_POWER = (
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
-EV_PLUGIN_HOUR = 22  # :00
-EV_PLUGOUT_HOUR = 5  # :59
+EV_PLUGIN_HOUR = 21  # :00
+EV_PLUGOUT_HOUR = 6  # :59
 SPARE_MARGIN_KWH = 0.5
 
 
@@ -513,18 +513,20 @@ async def start():
             + f" (avg price: {ev_cost/ev_energy_combined:.3f} (excl grid rewards))"
         )
         spare_charging_capacity = 0.0
+        spare_charging_cost = 0.0
         for pwr_use_price in sorted(power_use_map_during_night):
             if pwr_use_price > avg_ev_price:
                 break
             for pwr_use_energy in power_use_map_during_night[pwr_use_price]:
                 if (peak_month_pwr - pwr_use_energy) > SPARE_MARGIN_KWH:
-                    spare_charging_capacity += (
-                        peak_month_pwr - pwr_use_energy
-                    ) - SPARE_MARGIN_KWH
+                    spare_energy = (peak_month_pwr - pwr_use_energy) - SPARE_MARGIN_KWH
+                    spare_charging_capacity += spare_energy
+                    spare_charging_cost += spare_energy * pwr_use_price
 
         print(
             f"Under utilized charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59 is "
-            + f"{spare_charging_capacity:.1f} kWh (with lower than avg EV price)"
+            + f"{spare_charging_capacity:.2f} kWh at "
+            + f"{(spare_charging_cost/spare_charging_capacity):.2f} SEK/kWh avg price"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
