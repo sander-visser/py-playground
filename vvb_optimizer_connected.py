@@ -120,11 +120,7 @@ def log_print(*args, **kwargs):
     global last_log
 
     if len(last_log) > 125:
-        last_log.pop(0)
-        last_log.pop(0)
-        last_log.pop(0)
-        last_log.pop(0)
-        last_log.pop(0)
+        last_log.del(0:5)
         gc.collect()
 
     log_str = io.StringIO()
@@ -898,7 +894,9 @@ async def handle_client(reader, writer):
         return
     if request == "/postponedload":
         writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
-        writer.write("True" if shared_ < MIN_USABLE_TEMP else "False")
+        writer.write(
+            "True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False"
+        )
         await writer.drain()
         await writer.wait_closed()
         return
