@@ -695,6 +695,7 @@ async def quarterly_optimization(
     today,
     local_hour,
     wanted_temp,
+    last_h_wanted_temp,
     cost,
     temperature_provider,
     alarm_status,
@@ -715,6 +716,12 @@ async def quarterly_optimization(
             ):
                 q_holdoff += 0.5
         q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+        if (
+            local_hour > 0
+            and min(cost.today[local_hour - 1]["quartely"])
+            >= cost.today[local_hour]["quartely"][q]
+        ):
+            q_temp = max(q_temp, last_h_wanted_temp)
         q_temps.append(max(q_temp, MIN_TEMP))
 
     curr_min = time.localtime()[4]
@@ -762,6 +769,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
     days_since_legionella = 0
     days_with_alarm_armed = 0
     peak_temp_today = 0
+    last_h_wanted_temp = 0
     pending_legionella_reset = False
     today_final = await cost.get_cost(today, True)
     if today_final is None or not today_final:
@@ -846,11 +854,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             today,
             local_hour,
             wanted_temp,
+            last_h_wanted_temp,
             cost,
             temperature_provider,
             alarm_status,
             thermostat,
         )
+        last_h_wanted_temp = wanted_temp
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and cost.tomorrow is None:
                 continue  # Retry price fetching
@@ -877,12 +887,10 @@ async def handle_client(reader, writer):
         return
 
     if request == "/reduceload":
-        shared_thermostat.set_thermostat(
-            shared_thermostat.prev_degrees - DEGREES_PER_H, True
-        )
+        reduced_temp = shared_thermostat.prev_degrees - DEGREES_PER_H
+        shared_thermostat.set_thermostat(reduced_temp, True)
         log_print(
-            f"-- {time.localtime()} Lowering thermostat until next hour"
-            + f" {shared_thermostat.prev_degrees}"
+            f"-- {time.localtime()} Lowering thermostat until next hour {reduced_temp}"
         )
         writer.write("HTTP/1.0 200 OK\r\n")
         await writer.drain()
@@ -890,9 +898,7 @@ async def handle_client(reader, writer):
         return
     if request == "/postponedload":
         writer.write("HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n")
-        writer.write(
-            "True" if shared_thermostat.prev_degrees < MIN_USABLE_TEMP else "False"
-        )
+        writer.write("True" if shared_ < MIN_USABLE_TEMP else "False")
         await writer.drain()
         await writer.wait_closed()
         return
