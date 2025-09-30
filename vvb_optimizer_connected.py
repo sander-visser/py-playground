@@ -276,7 +276,8 @@ class CostProvider:
                 cost_array.append(hourly_price)
                 hourly_price = {"avg": 0.0, "quartely": []}
         if len(json_result["areaStates"]) == 0 or len(cost_array) == 0:
-            await asyncio.sleep(1 * SEC_PER_MIN)  # Delay retry
+            if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
+                await asyncio.sleep(1 * SEC_PER_MIN)  # Delay retry
             return None
         if len(cost_array) == 23:
             cost_array.append(cost_array[0])  # DST hack - off by one in adjust days
