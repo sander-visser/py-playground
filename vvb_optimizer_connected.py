@@ -856,13 +856,13 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             alarm_status,
             thermostat,
         )
-        last_h_wanted_temp = wanted_temp
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None:
             if local_hour == NEW_PRICE_EXPECTED_HOUR and cost.tomorrow is None:
                 continue  # Retry price fetching
             curr_min = max(curr_min, time.localtime()[4])
             # Sleep slightly into next hour
             await asyncio.sleep(((60 - curr_min) * SEC_PER_MIN) + MAX_CLOCK_DRIFT_S)
+        last_h_wanted_temp = wanted_temp
         time_provider.hourly_timekeeping()
 
 
