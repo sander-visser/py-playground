@@ -120,7 +120,7 @@ def log_print(*args, **kwargs):
     global last_log
 
     if len(last_log) > 125:
-        last_log.del(0:5)
+        del last_log[0:5]
         gc.collect()
 
     log_str = io.StringIO()
