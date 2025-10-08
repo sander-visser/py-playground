@@ -700,55 +700,53 @@ async def quarterly_optimization(
     q_temps = []
     for q in range(0, 4):
         q_holdoff = 0
-        for scan_q in range(q, 4):
+        for scan_q in range(q + 1, 4):
             if (
                 cost.today[local_hour]["quartely"][q]
                 > cost.today[local_hour]["quartely"][scan_q]
             ):
                 q_holdoff += 1
-            if q != scan_q and (
+            if (
                 cost.today[local_hour]["quartely"][q]
                 == cost.today[local_hour]["quartely"][scan_q]
             ):
                 q_holdoff += 0.5
-        q_temp = wanted_temp - (q_holdoff / 4) * DEGREES_PER_H
+        q_temps.append(max(wanted_temp - (q_holdoff / 4) * DEGREES_PER_H, MIN_TEMP))
+
+    if (  # Maintain last hour temp during first quarter
+        local_hour > 0
+        and min(cost.today[local_hour - 1]["quartely"])
+        >= cost.today[local_hour]["quartely"][0]
+    ):
+        q_temps[0] = max(q_temps[0], last_h_wanted_temp)
+
+    if local_hour < 23:  # optimize last quarter compared to next hour.
+        next_hour_wanted_temp = get_wanted_temp(
+            {"hour": local_hour + 1, "weekday": today.weekday()},
+            cost,
+            temperature_provider.get_outdoor_temp(),
+            alarm_status is not None and alarm_status.is_fully_armed(),
+            False,
+        )
         if (
-            local_hour > 0
-            and min(cost.today[local_hour - 1]["quartely"])
-            >= cost.today[local_hour]["quartely"][q]
+            next_hour_wanted_temp >= wanted_temp
+            and cost.today[local_hour + 1]["quartely"][0]
+            <= cost.today[local_hour]["quartely"][3]
         ):
-            q_temp = max(q_temp, last_h_wanted_temp)
-        q_temps.append(max(q_temp, MIN_TEMP))
+            q_temps[3] = wanted_temp - DEGREES_PER_H / 4
+        if (
+            next_hour_wanted_temp <= wanted_temp
+            and cost.today[local_hour + 1]["quartely"][0]
+            > cost.today[local_hour]["quartely"][3]
+        ):
+            q_temps[3] = wanted_temp + DEGREES_PER_H / 4
 
     curr_min = time.localtime()[4]
     log_print(
-        f"{curr_min}: Quarterly temps {q_temps} C @ "
-        + f"{cost.today[local_hour]['quartely']} EUR"
+        f"{curr_min}: Quarterly temps {q_temps} C @ {cost.today[local_hour]['quartely']} EUR"
     )
     for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
         curr_min = max(curr_min, time.localtime()[4])
-        if q == 3 and local_hour < 23 and OVERRIDE_UTC_UNIX_TIMESTAMP is None:
-            next_hour_wanted_temp = get_wanted_temp(
-                {"hour": local_hour + 1, "weekday": today.weekday()},
-                cost,
-                temperature_provider.get_outdoor_temp(),
-                alarm_status is not None and alarm_status.is_fully_armed(),
-                False,
-            )
-            if (
-                next_hour_wanted_temp >= wanted_temp
-                and cost.today[local_hour + 1]["quartely"][0]
-                <= cost.today[local_hour]["quartely"][3]
-            ):
-                log_print("Lowering due to next is cheap")
-                q_temps[q] = wanted_temp - DEGREES_PER_H / 4
-            if (
-                next_hour_wanted_temp <= wanted_temp
-                and cost.today[local_hour + 1]["quartely"][0]
-                > cost.today[local_hour]["quartely"][3]
-            ):
-                log_print("Boosting due to next is expensive")
-                q_temps[q] = wanted_temp + DEGREES_PER_H / 4
         if q == 0 or not thermostat.overridden:
             thermostat.set_thermostat(q_temps[q])
         if OVERRIDE_UTC_UNIX_TIMESTAMP is None and q != 3:
