@@ -698,25 +698,18 @@ async def quarterly_optimization(
     thermostat,
 ):
     q_temps = []
+    curr_cost = cost.today[local_hour]["quartely"]
     for q in range(0, 4):
         q_holdoff = 0
         for scan_q in range(q + 1, 4):
-            if (
-                cost.today[local_hour]["quartely"][q]
-                > cost.today[local_hour]["quartely"][scan_q]
-            ):
+            if curr_cost[q] > curr_cost[scan_q]:
                 q_holdoff += 1
-            if (
-                cost.today[local_hour]["quartely"][q]
-                == cost.today[local_hour]["quartely"][scan_q]
-            ):
+            if curr_cost[q] == curr_cost[scan_q]:
                 q_holdoff += 0.5
         q_temps.append(max(wanted_temp - (q_holdoff / 4) * DEGREES_PER_H, MIN_TEMP))
 
     if (  # Maintain last hour temp during first quarter
-        local_hour > 0
-        and min(cost.today[local_hour - 1]["quartely"])
-        >= cost.today[local_hour]["quartely"][0]
+        local_hour > 0 and min(cost.today[local_hour - 1]["quartely"]) >= curr_cost[0]
     ):
         q_temps[0] = max(q_temps[0], last_h_wanted_temp)
 
@@ -730,21 +723,17 @@ async def quarterly_optimization(
         )
         if (
             next_hour_wanted_temp >= wanted_temp
-            and cost.today[local_hour + 1]["quartely"][0]
-            <= cost.today[local_hour]["quartely"][3]
+            and cost.today[local_hour + 1]["quartely"][0] <= curr_cost[3]
         ):
             q_temps[3] = wanted_temp - DEGREES_PER_H / 4
         if (
             next_hour_wanted_temp <= wanted_temp
-            and cost.today[local_hour + 1]["quartely"][0]
-            > cost.today[local_hour]["quartely"][3]
+            and cost.today[local_hour + 1]["quartely"][0] > curr_cost[3]
         ):
             q_temps[3] = wanted_temp + DEGREES_PER_H / 4
 
     curr_min = time.localtime()[4]
-    log_print(
-        f"{curr_min}: Quarterly temps {q_temps} C @ {cost.today[local_hour]['quartely']} EUR"
-    )
+    log_print(f"{curr_min}: Quarterly temps {q_temps} C @ {curr_cost} EUR")
     for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
         curr_min = max(curr_min, time.localtime()[4])
         if q == 0 or not thermostat.overridden:
