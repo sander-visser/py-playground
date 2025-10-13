@@ -458,7 +458,7 @@ def get_cheap_score_until(now_hour, until_hour, cost, verbose):
     if now_hour > until_hour:
         score = 0
 
-    if verbose:
+    if verbose and score >= 0:
         log_print(
             f"Score for {now_hour}-{now_hour+1} is {score} (until {until_hour}:59)"
         )
