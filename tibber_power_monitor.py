@@ -26,7 +26,9 @@ RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.25, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 3.25, 3.5]
 UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.5,  6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5,  7.0]
 # fmt: on
-MAIN_FUSE_MAX_CURRENT = 30.0  # Will be protected regardless of budget. Depends on RELAY_URL
+# Diazed tolerates 20% overload current for 15 minutes:
+# https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
+MAIN_FUSE_MAX_CURRENT = 30.5  # Will be protected regardless of budget. Depends on RELAY_URL
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
 MINIMUM_LOAD_ACTIVE_SEC_TO_LOG = 30
@@ -275,6 +277,7 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
 
 
 
