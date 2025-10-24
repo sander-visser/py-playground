@@ -332,6 +332,11 @@ async def start():
         await home.fetch_consumption_data()
         hourly_consumption_data = home.hourly_consumption_data
 
+    if(len(hourly_consumption_data) == 0):
+        print("Missing data. Future date?")
+        await tibber_connection.close_connection()
+        return
+
     local_dt_from = datetime.datetime.fromisoformat(hourly_consumption_data[0]["from"])
 
     local_dt_to = datetime.datetime.fromisoformat(hourly_consumption_data[-1]["from"])
