@@ -383,6 +383,7 @@ async def start():
     daily_energy_excl_ev = 0.0
     peak_daily_excl_ev = 0.0
     peak_energy_day = "None"
+    hourly_energy_samples = []
 
     for power_sample in hourly_consumption_data:
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
@@ -401,6 +402,7 @@ async def start():
         if power_sample["consumption"] is None:
             continue
         curr_power = float(power_sample["consumption"])
+        hourly_energy_samples.append(curr_power)
         if (
             curr_time.month not in power_peak_incl_ev
             or curr_power > power_peak_incl_ev[curr_time.month]
@@ -506,6 +508,7 @@ async def start():
     print(
         f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}"
     )
+    print(f"Min hourly energy {(sum(sorted(hourly_energy_samples)[0:10])/10):.3f} kWh (avg of 10)")
     if charger_consumption is None or ev_energy["low"] == 0.0:
         print("\nTop ten peak power hours:")
     else:
