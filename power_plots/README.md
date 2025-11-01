@@ -11,11 +11,12 @@ This log includes estimated benefit from future PV and home battery storage inst
 
 ---
 ### One year ago
-<img src="2024-09-01_2024-09-30.png">
+<img src="2024-10-01_2024-10-31.png">
 
 ---
 
 ### Last 12 months
+<img src="2025-10-01_2025-10-31.png">
 <img src="2025-09-01_2025-09-30.png">
 <img src="2025-08-01_2025-08-31.png">
 <img src="2025-07-01_2025-07-31.png">
@@ -27,5 +28,3 @@ This log includes estimated benefit from future PV and home battery storage inst
 <img src="2025-01-01_2025-01-31.png">
 <img src="2024-12-01_2024-12-31.png">
 <img src="2024-11-01_2024-11-30.png">
-<img src="2024-10-01_2024-10-31.png">
-
