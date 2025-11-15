@@ -87,6 +87,8 @@ def _rt_callback(pkg):
     global total_load_active_sec
     global current_hour_load_active_sec
     global load_activation_time
+    global last_load_report_month
+    global adaptive_unrestricted_budget
 
     data = pkg.get("data")
     if data is None:
@@ -98,18 +100,29 @@ def _rt_callback(pkg):
     if acted_hour is not None and acted_hour != current_time.tm_hour:
         acted_hour = None
 
+    restricted_time = (
+        current_time.tm_wday in RESTRICTED_DAYS
+        and current_time.tm_hour in RESTRICTED_HOURS
+    )
+
     budget = (
         RESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
-        if (
-            current_time.tm_wday in RESTRICTED_DAYS
-            and current_time.tm_hour in RESTRICTED_HOURS
-        )
+        if restricted_time
         else UNRESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
     )
 
-    if live_data["accumulatedConsumptionLastHour"] > budget:
-        budget_warning = (
-            f"{budget} kWh power budget exceeded",
+    if current_time.tm_mon != last_load_report_month:
+        adaptive_unrestricted_buget = 0.0
+        last_load_report_month = current_time.tm_mon
+    if not restricted_time:
+        budget = max(budget, adaptive_unrestricted_budget)
+        adaptive_unrestricted_budget = max(
+            adaptive_unrestricted_budget, live_data["accumulatedConsumptionLastHour"]
+        )
+
+    if live_data["accumulatedConsumptionLastHour"] >= budget:
+         budget_warning = (
+            f"@:{current_time.tm_min} {budget} kWh power budget exceeded",
             f"L1 {live_data['currentL1']}"
             + f" L2 {live_data['currentL2']} L3 {live_data['currentL3']}",
         )
@@ -265,6 +278,8 @@ last_load_report_hour = None
 total_load_active_sec = 0
 current_hour_load_active_sec = 0
 load_activation_time = None
+last_load_report_month = None
+adaptive_unrestricted_budget = 0.0
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -277,6 +292,7 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
 
 
 
