@@ -237,6 +237,8 @@ def _rt_callback(pkg):
 
 
 async def start():
+    global budget_warning
+
     session = aiohttp.ClientSession()
     tibber_connection = tibber.Tibber(
         TIBBER_API_ACCESS_TOKEN,
@@ -291,10 +293,3 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
-
-
-
-
-
-
-
