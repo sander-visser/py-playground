@@ -99,7 +99,7 @@ def _rt_callback(pkg):
     live_data = data.get("liveMeasurement")
     supervised_load_maybe_active = False
     main_fuse_protection_needed = False
-        current_time = datetime.datetime.fromisoformat(live_data["timestamp"])
+    current_time = datetime.datetime.fromisoformat(live_data["timestamp"])
     if acted_hour is not None and acted_hour != current_time.hour:
         acted_hour = None
 
@@ -291,6 +291,7 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
 
 
 
