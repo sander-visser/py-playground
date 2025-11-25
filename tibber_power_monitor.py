@@ -2,6 +2,7 @@
 
 """
 Monitor power usage via Tibber and if too high act by controlling load.
+Load controlled via reduce request and/or via a controlling relay.
 
 If getting issues with certificate verification run on windows:
 export SSL_CERT_FILE=$(python -m certifi)
@@ -28,7 +29,9 @@ UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.5,  6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5
 # fmt: on
 # Diazed tolerates 20% overload current for 15 minutes:
 # https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
-MAIN_FUSE_MAX_CURRENT = 30.5  # Will be protected regardless of budget. Depends on RELAY_URL
+MAIN_FUSE_MAX_CURRENT = (
+    30.5  # Will be protected regardless of budget. Depends on RELAY_URL
+)
 MIN_SUPERVISED_CURRENT = 6.45  # Current that the script can control
 SUPERVISED_CIRCUITS = [1, 2]  # Main lines that monitored load is using
 MINIMUM_LOAD_ACTIVE_SEC_TO_LOG = 30
@@ -96,24 +99,22 @@ def _rt_callback(pkg):
     live_data = data.get("liveMeasurement")
     supervised_load_maybe_active = False
     main_fuse_protection_needed = False
-    current_time = time.localtime()
-    if acted_hour is not None and acted_hour != current_time.tm_hour:
+        current_time = datetime.datetime.fromisoformat(live_data["timestamp"])
+    if acted_hour is not None and acted_hour != current_time.hour:
         acted_hour = None
 
     restricted_time = (
-        current_time.tm_wday in RESTRICTED_DAYS
-        and current_time.tm_hour in RESTRICTED_HOURS
+        current_time.weekday() in RESTRICTED_DAYS
+        and current_time.hour in RESTRICTED_HOURS
     )
-
     budget = (
-        RESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
+        RESTRICTED_KW_BUDGET[current_time.month - 1]
         if restricted_time
-        else UNRESTRICTED_KW_BUDGET[current_time.tm_mon - 1]
+        else UNRESTRICTED_KW_BUDGET[current_time.month - 1]
     )
-
-    if current_time.tm_mon != last_load_report_month:
-        adaptive_unrestricted_buget = 0.0
-        last_load_report_month = current_time.tm_mon
+    if current_time.month != last_load_report_month:
+        adaptive_unrestricted_budget = 0.0
+        last_load_report_month = current_time.month
     if not restricted_time:
         budget = max(budget, adaptive_unrestricted_budget)
         adaptive_unrestricted_budget = max(
@@ -121,8 +122,8 @@ def _rt_callback(pkg):
         )
 
     if live_data["accumulatedConsumptionLastHour"] >= budget:
-         budget_warning = (
-            f"@:{current_time.tm_min} {budget} kWh power budget exceeded",
+        budget_warning = (
+            f"@:{current_time.minute} {budget} kWh power budget exceeded",
             f"L1 {live_data['currentL1']}"
             + f" L2 {live_data['currentL2']} L3 {live_data['currentL3']}",
         )
@@ -136,11 +137,10 @@ def _rt_callback(pkg):
         volt_sum += live_data[f"voltagePhase{circuit}"]
 
     if last_load_report_hour is None:
-        last_load_report_hour = current_time.tm_hour
-    if last_load_report_hour != current_time.tm_hour:
-        current_datetime = datetime.datetime(*current_time[:6])
+        last_load_report_hour = current_time.hour
+    if last_load_report_hour != current_time.hour:
         if load_activation_time is not None:
-            diff_time = current_datetime - datetime.datetime(*load_activation_time[:6])
+            diff_time = current_time - load_activation_time
             current_hour_load_active_sec += diff_time.seconds
             load_activation_time = current_time
         total_load_active_sec += current_hour_load_active_sec
@@ -148,12 +148,12 @@ def _rt_callback(pkg):
             (volt_sum * MIN_SUPERVISED_CURRENT) / WATT_PER_KW
         ) * (current_hour_load_active_sec / (SEC_PER_MIN * MIN_PER_H))
         logging.info(
-            f"Load active during the hour before {current_datetime}: "
+            f"Load active during the hour before {current_time}: "
             + f"{current_hour_load_active_sec} sec (min {hourly_energy_used_by_load:.3f} kWh)."
             + f" Total load active time this execution: {total_load_active_sec} sec."
         )
         current_hour_load_active_sec = 0
-        last_load_report_hour = current_time.tm_hour
+        last_load_report_hour = current_time.hour
 
     if min(supervised_currents) > MIN_SUPERVISED_CURRENT:
         supervised_load_maybe_active = True
@@ -178,8 +178,8 @@ def _rt_callback(pkg):
             ADDED_LOAD_MARGIN_KW
             * min(
                 ADDED_LOAD_MARGIN_DURATION_MINS * SEC_PER_MIN,
-                (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
-                + (SEC_PER_MIN - current_time.tm_sec),
+                (MIN_PER_H - current_time.minute) * SEC_PER_MIN
+                + (SEC_PER_MIN - current_time.second),
             )
             / (MIN_PER_H * SEC_PER_MIN)
         )
@@ -188,8 +188,8 @@ def _rt_callback(pkg):
             MIN_SUPERVISED_CURRENT
             * volt_sum
             * (
-                ((MIN_PER_H - current_time.tm_min) * SEC_PER_MIN)
-                + (SEC_PER_MIN - current_time.tm_sec)
+                ((MIN_PER_H - current_time.minute) * SEC_PER_MIN)
+                + (SEC_PER_MIN - current_time.second)
             )
             / (MIN_PER_H * SEC_PER_MIN)
             / WATT_PER_KW
@@ -208,13 +208,13 @@ def _rt_callback(pkg):
         ) > budget
         if acting_needed and acted_hour is not None and RELAY_URL is not None:
             logging.info(f"Acting with relay to pause power use: {live_data}")
-            sec_pause = (MIN_PER_H - current_time.tm_min) * SEC_PER_MIN
+            sec_pause = (MIN_PER_H - current_time.minute) * SEC_PER_MIN
             sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
             pause_with_relay(sec_pause)
             supervised_load_maybe_active = False
 
         if acting_needed and acted_hour is None and supervised_load_maybe_active:
-            acted_hour = current_time.tm_hour
+            acted_hour = current_time.hour
             if ACTION_URL is not None:
                 logging.info(f"Acting with action to reduce power use: {live_data}")
                 try:
@@ -230,9 +230,7 @@ def _rt_callback(pkg):
                     acted_hour = None  # Retry...
 
     if not supervised_load_maybe_active and load_activation_time is not None:
-        diff_time = datetime.datetime(*current_time[:6]) - datetime.datetime(
-            *load_activation_time[:6]
-        )
+        diff_time = current_time - load_activation_time
         load_activation_time = None
         if diff_time.seconds > MINIMUM_LOAD_ACTIVE_SEC_TO_LOG:
             current_hour_load_active_sec += diff_time.seconds
@@ -262,6 +260,7 @@ async def start():
             await tibber_connection.send_notification(
                 budget_warning[0], budget_warning[1]
             )
+            budget_warning = None
         if home.rt_subscription_running:
             alive_timeout = MAX_RETRY_COUNT
         else:
@@ -292,6 +291,7 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
 
 
 
