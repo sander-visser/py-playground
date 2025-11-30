@@ -43,6 +43,7 @@ TIBBER_API_ACCESS_TOKEN = (
 )
 WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # :00 - :59
 BATTERY_SIZE_KWH = 7.0
+HEAT_PUMP_MAX_CURRENT = 1.9
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
 IRRADIANCE_OBSERVATION = None  # "smhi.csv"  # Cleaned up with leading garbage removed
 INSTALLED_PANEL_POWER = (
@@ -332,7 +333,7 @@ async def start():
         await home.fetch_consumption_data()
         hourly_consumption_data = home.hourly_consumption_data
 
-    if(len(hourly_consumption_data) == 0):
+    if len(hourly_consumption_data) == 0:
         print("Missing data. Future date?")
         await tibber_connection.close_connection()
         return
@@ -382,6 +383,7 @@ async def start():
     self_used_value = 0.0
     daily_energy_excl_ev = 0.0
     peak_daily_excl_ev = 0.0
+    heat_pump_uncovered = 0.0
     peak_energy_day = "None"
     hourly_energy_samples = []
 
@@ -397,6 +399,10 @@ async def start():
             if peak_daily_excl_ev < daily_energy_excl_ev:
                 peak_energy_day = curr_time_utc_str
                 peak_daily_excl_ev = daily_energy_excl_ev
+            if (24 * HEAT_PUMP_MAX_CURRENT) < daily_energy_excl_ev:
+                heat_pump_uncovered += daily_energy_excl_ev - (
+                    24 * HEAT_PUMP_MAX_CURRENT
+                )
             daily_energy_excl_ev = 0.0
 
         if power_sample["consumption"] is None:
@@ -493,6 +499,12 @@ async def start():
         other_cost += curr_power * curr_hour_price
         daily_energy_excl_ev += curr_power
 
+    if peak_daily_excl_ev < daily_energy_excl_ev:
+        peak_energy_day = "last day in period"
+        peak_daily_excl_ev = daily_energy_excl_ev
+    if (24 * HEAT_PUMP_MAX_CURRENT) < daily_energy_excl_ev:
+        heat_pump_uncovered += daily_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
+
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
             f"Month peak power incl EV: {peak_month_pwr:3f} at {time_peak_incl_ev[peak_month]}"
@@ -506,9 +518,12 @@ async def start():
         + f" (avg price: {other_cost/other_energy_combined:.3f})"
     )
     print(
-        f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}"
+        f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}. "
+        + f"{heat_pump_uncovered:.3f} kWh used when energy need above {HEAT_PUMP_MAX_CURRENT} kWh/h"
     )
-    print(f"Min hourly energy {(sum(sorted(hourly_energy_samples)[0:10])/10):.3f} kWh (avg of 10)")
+    print(
+        f"Min hourly energy {(sum(sorted(hourly_energy_samples)[0:10])/10):.3f} kWh (avg of 10)"
+    )
     if charger_consumption is None or ev_energy["low"] == 0.0:
         print("\nTop ten peak power hours:")
     else:
