@@ -507,7 +507,7 @@ async def start():
 
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
-            f"Month peak power incl EV: {peak_month_pwr:3f} at {time_peak_incl_ev[peak_month]}"
+            f"Month peak power incl EV: {peak_month_pwr:.3f} at {time_peak_incl_ev[peak_month]}"
         )
 
     other_energy_combined = other_energy["low"] + other_energy["high"]
@@ -519,7 +519,8 @@ async def start():
     )
     print(
         f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}. "
-        + f"{heat_pump_uncovered:.3f} kWh used when energy need above {HEAT_PUMP_MAX_CURRENT} kWh/h"
+        + f"{heat_pump_uncovered:.3f} kWh used when daily average energy need is above "
+        + f"{HEAT_PUMP_MAX_CURRENT} kWh/h"
     )
     print(
         f"Min hourly energy {(sum(sorted(hourly_energy_samples)[0:10])/10):.3f} kWh (avg of 10)"
