@@ -569,9 +569,11 @@ async def start():
         print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
 
     if charger_consumption is None:
-        print("\nPower use distribution:")
+        print("\nPower use distribution. High is weekdays when power tariff is active:")
     else:
-        print("\nPower use distribution with EV charging excluded:")
+        print(
+            "\nPower use distribution with EV charging excluded. High is weekdays when power tariff is active:"
+        )
 
     high_prices = []
     high_cons = []
@@ -597,7 +599,7 @@ async def start():
                 f"{hour:2}-{(hour+1):2} High Avg: "
                 + f"{high_cons[hour]['avg']:.2f} kW"
                 + f" @{high_prices[hour]:.2f}"
-                + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh)"
+                + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh."
                 + f" Peak: {high_cons[hour]['max']:.2f} kWh/h"
             )
         else:
@@ -626,7 +628,7 @@ async def start():
             f"{hour:2}-{(hour+1):2}  Low Avg: "
             + f"{low_cons[hour]['avg']:.2f} kW"
             + f" @{low_prices[hour]:.2f}"
-            + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh)"
+            + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh."
             + f" Peak: {low_cons[hour]['max']:.2f} kWh/h"
         )
 
@@ -638,15 +640,17 @@ async def start():
         high_cons,
     )
 
+    battery_cycle_count = 0
     if irradiance is not None:
         battery_str = ""
         if BATTERY_SIZE_KWH is not None:
+            battery_cycle_count = solar_battery_self_use_kwh / BATTERY_SIZE_KWH
             battery_str = (
                 f" when combined with {BATTERY_SIZE_KWH} kWh energy storage"
-                + f" cycle count used {(solar_battery_self_use_kwh/BATTERY_SIZE_KWH):.1f}"
+                + f" cycle count used {battery_cycle_count:.1f}"
             )
         print(
-            f"\nEstimated value from {INSTALLED_PANEL_POWER} kW solar installation"
+            f"\nEstimated value from {INSTALLED_PANEL_POWER} kWp solar installation"
             + battery_str
             + " (excl energy tax and network transfer cost, incl VAT."
             + " Note: Assuming broker fee and network benefit cancel each other out)"
@@ -663,10 +667,12 @@ async def start():
             + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
         )
     print(
-        f"\nArbitrage savings possible with {BATTERY_SIZE_KWH} kWh battery:"
-        + " (not relevant during months when battery is used for solar storage)"
-        + f" {arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT)"
+        f"\nArbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery and one daily cycle:"
+        + f"\n{arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT) if 100% efficient."
     )
+    if battery_cycle_count > 10:
+        print("Note: Not relevant as month when battery is used for solar storage.")
+
     await tibber_connection.close_connection()
 
 
