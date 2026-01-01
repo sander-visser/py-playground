@@ -147,7 +147,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
 
     if measurement_cnt is None or measurement_min != 60:
         print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
-    if measurement_cnt is not None:
+    if measurement_cnt is not None and measurement_cnt != 0:
         print(
             f"Peak EV energy: {max(peak_charge_measurements):.3f} kWh per {measurement_min} min."
             + f"\nCharged for {measurement_cnt * measurement_min} minutes. Avg rate: "
