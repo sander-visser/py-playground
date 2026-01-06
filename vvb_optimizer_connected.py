@@ -314,11 +314,11 @@ def heat_leakage_loading_desired(local_hour, cost, outdoor_temp):
     now_price = cost.today[local_hour]["avg"]
     max_price = now_price
     min_price = now_price
-    while local_hour < 23:
-        local_hour += 1
+    while local_hour <= DAILY_COMFORT_LAST_H:
         max_price = max(max_price, cost.today[local_hour]["avg"])
         min_price = min(min_price, cost.today[local_hour]["avg"])
-    if cost.tomorrow is not None:
+        local_hour += 1
+    if cost.tomorrow is not None and local_hour >= FIRST_EVENING_HIGH_TAKEOUT_H:
         for tomorrow_hour_price in cost.tomorrow:
             max_price = max(max_price, tomorrow_hour_price["avg"])
     if (outdoor_temp <= EXTREME_COLD_THRESHOLD) or max_price > (min_price * COP_FACTOR):
