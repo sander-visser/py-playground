@@ -184,9 +184,22 @@ def _rt_callback(pkg):
             / (MIN_PER_H * SEC_PER_MIN)
         )
 
+        controllable_pwr = (
+            MIN_SUPERVISED_CURRENT * volt_sum if supervised_load_maybe_active else 0
+        )
         controllable_energy = (
-            MIN_SUPERVISED_CURRENT
-            * volt_sum
+            controllable_pwr
+            * (
+                ((MIN_PER_H - current_time.minute) * SEC_PER_MIN)
+                + (SEC_PER_MIN - current_time.second)
+            )
+            / (MIN_PER_H * SEC_PER_MIN)
+            / WATT_PER_KW
+        )
+        unfiltered_hourly_energy_estimate = live_data[
+            "accumulatedConsumptionLastHour"
+        ] + (
+            (live_data["power"] - controllable_pwr)
             * (
                 ((MIN_PER_H - current_time.minute) * SEC_PER_MIN)
                 + (SEC_PER_MIN - current_time.second)
@@ -199,9 +212,10 @@ def _rt_callback(pkg):
             + f"Acted to reduce consumption: {acted_hour is not None}\n"
             + f"kWh/h estimate: {live_data['estimatedHourConsumption']} + "
             + f"reserved: {reserved_energy:.3f} - "
-            + f"controllable {controllable_energy:.3f}"
+            + f"controllable: {controllable_energy:.3f}\n"
+            + f"unfiltered estimate {unfiltered_hourly_energy_estimate:.3f}"
         )
-        acting_needed = (
+        acting_needed = (unfiltered_hourly_energy_estimate > budget) or (
             live_data["estimatedHourConsumption"]
             + reserved_energy
             - controllable_energy
@@ -293,3 +307,4 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
+
