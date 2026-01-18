@@ -692,6 +692,7 @@ async def quarterly_optimization(
     local_hour,
     wanted_temp,
     last_h_wanted_temp,
+    peak_temp_today,
     cost,
     temperature_provider,
     alarm_status,
@@ -699,6 +700,7 @@ async def quarterly_optimization(
 ):
     q_temps = []
     curr_cost = cost.today[local_hour]["quartely"]
+    cheapest_q = 3
     for q in range(0, 4):
         q_holdoff = 0
         for scan_q in range(q + 1, 4):
@@ -706,6 +708,8 @@ async def quarterly_optimization(
                 q_holdoff += 1
             if curr_cost[q] == curr_cost[scan_q]:
                 q_holdoff += 0.5
+        if q_holdoff == 0:
+            cheapest_q = min(q, cheapest_q)
         q_temps.append(max(wanted_temp - (q_holdoff / 4) * DEGREES_PER_H, MIN_TEMP))
 
     if (  # Maintain last hour temp during first quarter
@@ -731,6 +735,29 @@ async def quarterly_optimization(
             and cost.today[local_hour + 1]["quartely"][0] > curr_cost[3]
         ):
             q_temps[3] = wanted_temp + DEGREES_PER_H / 4
+            if curr_cost[3] >= curr_cost[cheapest_q]:
+                q_temps[cheapest_q] = q_temps[3]
+
+    # Check if single q is cheapest before LAST_MORNING_HEATING_H
+    if local_hour <= LAST_MORNING_HEATING_H:
+        morning_qs = []
+        for scan_h in range(0, LAST_MORNING_HEATING_H):
+            morning_qs.extend(cost.today[scan_h]["quartely"])
+        for q in range(0, 4):
+            if curr_cost[q] <= sorted(morning_qs)[3]:
+                q_temps[q] = max(peak_temp_today, q_temps[cheapest_q])
+                q_temps[q] = max(MIN_DAILY_TEMP, q_temps[q])
+                
+    # Check if single q is cheapest before DAILY_COMFORT_LAST_H
+    if LAST_MORNING_HEATING_H < local_hour <= DAILY_COMFORT_LAST_H:
+        daily_qs = []
+        for scan_h in range(LAST_MORNING_HEATING_H + 1, DAILY_COMFORT_LAST_H):
+            daily_qs.extend(cost.today[scan_h]["quartely"])
+        for q in range(0, 4):
+            if curr_cost[q] <= sorted(daily_qs)[3]:
+                q_temps[q] = max(MIN_USABLE_TEMP, q_temps[cheapest_q])
+                if is_the_cheapest_hour_during_daytime(cost, LAST_MORNING_HEATING_H + 1):
+                    q_temps[q] = max(MIN_DAILY_TEMP, q_temps[q])
 
     curr_min = time.localtime()[4]
     log_print(f"{curr_min}: Quarterly temps {q_temps} C @ {curr_cost} EUR")
@@ -838,6 +865,7 @@ async def run_hotwater_optimization(thermostat, alarm_status, boost_req):
             local_hour,
             wanted_temp,
             last_h_wanted_temp,
+            peak_temp_today,
             cost,
             temperature_provider,
             alarm_status,
