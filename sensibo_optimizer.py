@@ -43,7 +43,6 @@ import sensibo_client  # https://github.com/sander-visser/sensibo-python-sdk
 # Location info
 REGION = "SE3"
 REGION_HOLIDAYS = holidays.country_holidays("SE")
-TIME_ZONE = "CET"
 # Each url in TEMPERATURE_URLS should return a number "x.y"
 TEMPERATURE_URLS = [
     "https://www.temperatur.nu/termo/gettemp.php?stadname=partille_furulund&what=temp",
@@ -159,6 +158,7 @@ class PriceAnalyzer:
         self._pre_heat_favorable_hours = None
         self._temperature_provider = temperature_provider
         self._heatpump_model = heatpump_model
+        self._next_q_cheaper = None
 
     def cheap_morning_hour(self):
         return self._cheap_hours["morning"]
@@ -169,20 +169,14 @@ class PriceAnalyzer:
     def is_hour_with_reduced_comfort(self, hour):
         return hour in self._reduced_comfort_hours
 
-    def is_next_hour_cheaper(self, hour):
-        if hour == 23:
-            return True
-        return (
-            self._day_spot_prices[hour]["value"]
-            > self._day_spot_prices[hour + 1]["value"]
-        )
+    def is_next_q_cheaper(self, hour, quarter):
+        return self._next_q_cheaper[(hour * 4) + quarter]
 
     def is_next_hour_significantly_cheaper(self, hour):
         if hour == 23:
             return False
-        return self._day_spot_prices[hour]["value"] > (
-            self._day_spot_prices[hour + 1]["value"]
-            + ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP
+        return self._day_spot_prices[hour] > (
+            self._day_spot_prices[hour + 1] + ABSOLUTE_SEK_PER_MWH_TO_CONSIDER_CHEAP
         )
 
     def is_hour_reasonably_priced(self, hour):
@@ -201,12 +195,12 @@ class PriceAnalyzer:
             return False
 
         current_hour_price = self.cost_of_early_consumed_mwh(
-            self._day_spot_prices[current_hour]["value"],
+            self._day_spot_prices[current_hour],
             target_hour - current_hour,
             timedelta(hours=int((target_hour - current_hour) / 2)),
         )
         target_hour_price = self.cost_of_consumed_mwh(
-            self._day_spot_prices[target_hour]["value"]
+            self._day_spot_prices[target_hour]
         )
         current_temperature = self._temperature_provider.get_outdoor_temperature()
         future_temperature = self._temperature_provider.get_forecasted_temperature(
@@ -230,20 +224,36 @@ class PriceAnalyzer:
 
     def prepare_day(self, lookup_date, dryrun=False):
         spot_prices = elspot.Prices("SEK")
-        day_spot_prices = spot_prices.hourly(end_date=lookup_date, areas=[REGION])[
-            "areas"
-        ][REGION]["values"]
+        day_spot_prices = []
+        q_day_spot_prices = spot_prices.fetch(
+            end_date=lookup_date, areas=[REGION], resolution=15
+        )["areas"][REGION]["values"]
+        self._next_q_cheaper = []
+        last_q_price = None
+        curr_q = 0
+        h_price = 0
+        for q_price in q_day_spot_prices:
+            if last_q_price is not None:
+                self._next_q_cheaper.append(q_price["value"] <= last_q_price)
+            last_q_price = q_price["value"]
+            curr_q = curr_q + 1
+            h_price += q_price["value"]
+            if curr_q % 4 == 0:
+                day_spot_prices.append(h_price / 4)
+                h_price = 0
+        day_spot_prices.append(h_price / 4)  ## 23:00
+        self._next_q_cheaper.append(False)  # 23:45
 
         significantly_more_expensive_after_midnight = False
         if self._day_spot_prices is not None:
             lowest_price_first_three_hours = min(
-                day_spot_prices[0]["value"],
-                day_spot_prices[1]["value"],
-                day_spot_prices[2]["value"],
+                day_spot_prices[0],
+                day_spot_prices[1],
+                day_spot_prices[2],
             )
             significantly_more_expensive_after_midnight = self.cost_of_consumed_mwh(
                 lowest_price_first_three_hours
-            ) > self.cost_of_early_consumed_mwh(self._day_spot_prices[23]["value"])
+            ) > self.cost_of_early_consumed_mwh(self._day_spot_prices[23])
             if significantly_more_expensive_after_midnight:
                 print("Prepared to boost before midnight..")
         if not dryrun:
@@ -301,26 +311,25 @@ class PriceAnalyzer:
             self._pre_heat_favorable_hours.append(previous_price_period_start_hour)
 
     def find_cheapest_hour_in_range(self, search_hours):
-        local_tz = pytz.timezone(TIME_ZONE)
         lowest_price = None
         cheapest_hour = None
+        price_period_start_hour = -1
         for hour_price in self._day_spot_prices:
-            price_period_start_hour = hour_price["start"].astimezone(local_tz).hour
+            price_period_start_hour = price_period_start_hour + 1
             if price_period_start_hour in search_hours:
-                if lowest_price is None or hour_price["value"] < lowest_price:
+                if lowest_price is None or hour_price < lowest_price:
                     cheapest_hour = price_period_start_hour
         return cheapest_hour
 
     def get_lowest_price_today(self):
         lowest_price = None
         for hour_price in self._day_spot_prices:
-            if lowest_price is None or hour_price["value"] < lowest_price:
-                lowest_price = hour_price["value"]
+            if lowest_price is None or hour_price < lowest_price:
+                lowest_price = hour_price
         return lowest_price
 
     def find_warmup_hours(self, first_comfort_range, second_comfort_range):
         self._cheap_hours = {}
-        local_tz = pytz.timezone(TIME_ZONE)
         lowest_price = self.get_lowest_price_today()
         previous_hour_price = None
         self._reasonably_priced_hours = []
@@ -328,11 +337,10 @@ class PriceAnalyzer:
 
         curr_hour_idx = 0
         comfort_hours = {}
-        for hour_price in self._day_spot_prices:
-            price_period_start_hour = hour_price["start"].astimezone(local_tz).hour
-            print(
-                f"{hour_price['start'].astimezone(local_tz)} @ {hour_price['value']} SEK/MWh"
-            )
+        price_period_start_hour = -1
+        for hour_price in self._day_spot_prices[:24]:
+            price_period_start_hour = price_period_start_hour + 1
+            print(f"{price_period_start_hour}:00 @ {hour_price} SEK/MWh")
             if (
                 price_period_start_hour in first_comfort_range
                 or price_period_start_hour == first_comfort_range.stop
@@ -343,26 +351,26 @@ class PriceAnalyzer:
                     or price_period_start_hour == second_comfort_range.stop
                 )
             ):  # Store as comfort hour
-                comfort_hours[hour_price["value"] + 0.000001 * len(comfort_hours)] = (
+                comfort_hours[hour_price + 0.000001 * len(comfort_hours)] = (
                     price_period_start_hour
                 )
 
             self.process_preheat_favourable_hour(
-                previous_hour_price, hour_price["value"], price_period_start_hour - 1
+                previous_hour_price, hour_price, price_period_start_hour - 1
             )
             self.update_reasonably_priced_hours(
-                hour_price["value"],
+                hour_price,
                 curr_hour_idx,
                 price_period_start_hour,
                 lowest_price,
             )
             self.update_cheap_boost_hours(
                 price_period_start_hour,
-                hour_price["value"],
+                hour_price,
                 price_period_start_hour < first_comfort_range.start,
             )
             curr_hour_idx += 1
-            previous_hour_price = hour_price["value"]
+            previous_hour_price = hour_price
         self.calculate_reduced_comfort_hours(comfort_hours)
 
     def update_reasonably_priced_hours(
@@ -378,7 +386,7 @@ class PriceAnalyzer:
             if (
                 (curr_hour_idx + 1) < len(self._day_spot_prices)
                 and (
-                    hour_price <= self._day_spot_prices[curr_hour_idx + 1]["value"]
+                    hour_price <= self._day_spot_prices[curr_hour_idx + 1]
                     or (price_period_start_hour - 1)
                     not in self._reasonably_priced_hours
                 )
@@ -1135,7 +1143,7 @@ class SensiboOptimizer:
         else:
             self._controller.apply(COMFORT_HEAT_SETTINGS, boost_level)
 
-    def get_temperature_offset(self, comfort_hour, last_period_in_hour):
+    def get_temperature_offset(self, comfort_hour, comfort_q):
         boost_level = NORMAL_TEMP_OFFSET
         if (
             (
@@ -1147,8 +1155,8 @@ class SensiboOptimizer:
             )
             or self._price_analyzer.is_hour_reasonably_priced(comfort_hour)
             or (
-                last_period_in_hour  # boost if price will rise (enougth)
-                and self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+                self._price_analyzer.is_hour_preheat_favorable(comfort_hour)
+                and not self._price_analyzer.is_next_q_cheaper(comfort_hour, comfort_q)
             )
         ):
             boost_level = EXTRA_TEMP_OFFSET
@@ -1158,8 +1166,7 @@ class SensiboOptimizer:
                 boost_level = COMFORT_PLUS_TEMP_DELTA
 
         if (
-            last_period_in_hour
-            and self._price_analyzer.is_next_hour_cheaper(comfort_hour)
+            self._price_analyzer.is_next_q_cheaper(comfort_hour, comfort_q)
         ) or self._price_analyzer.is_next_hour_significantly_cheaper(comfort_hour):
             boost_level += REDUCED_TEMP_OFFSET
         return boost_level
@@ -1174,9 +1181,9 @@ class SensiboOptimizer:
             )
         return False
 
-    def manage_comfort(self, comfort_hour, sample_minute, last_comfort_hour):
+    def manage_comfort(self, comfort_hour, sample_q, last_comfort_hour):
         current_floor_sensor_value = self.get_current_floor_temp()
-        boost_level = self.get_temperature_offset(comfort_hour, sample_minute == 59)
+        boost_level = self.get_temperature_offset(comfort_hour, sample_q)
 
         if current_floor_sensor_value < self.allowed_over_temperature():
             self._step_1_overtemperature_distribution_active = False
@@ -1209,15 +1216,15 @@ class SensiboOptimizer:
             self._controller.apply(
                 COMFORT_HEAT_SETTINGS, temp_offset=boost_level, valid_hour=comfort_hour
             )
-        self.wait_for_hour(comfort_hour, sample_minute)
+        self.wait_for_hour(comfort_hour, (sample_q * 15) + 14)
 
     def manage_comfort_hours(self, comfort_range, idle_after_comfort=True):
         for comfort_hour in comfort_range:
             self.wait_for_hour(comfort_hour)
-            for sample_minute in range(9, 60, 10):
+            for sample_q in range(0, 4):
                 self.manage_comfort(
                     comfort_hour,
-                    sample_minute,
+                    sample_q,
                     idle_after_comfort and comfort_hour == comfort_range[-1],
                 )
 
@@ -1418,5 +1425,7 @@ if __name__ == "__main__":
                 sys.exit(1)
             print(f"Resetting optimizer due to error 6 {e.response.status_code}")
         except requests.exceptions.RequestException as e:
-            print(f"Resetting optimizer due to error 4: {e}. Check nordpool (maintained py version)")
+            print(
+                f"Resetting optimizer due to error 4: {e}. Check nordpool (maintained py version)"
+            )
         sleep(300)
