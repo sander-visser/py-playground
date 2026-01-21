@@ -41,7 +41,7 @@ SECONDS_PER_HOUR = 3600
 TIBBER_API_ACCESS_TOKEN = (
     "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
 )
-WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # :00 - :59
+WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 16, 17, 18, 19, 20]  # :00 - :59
 BATTERY_SIZE_KWH = 7.0
 HEAT_PUMP_MAX_CURRENT = 1.9
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
@@ -51,8 +51,8 @@ INSTALLED_PANEL_POWER = (
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
-EV_PLUGIN_HOUR = 21  # :00
-EV_PLUGOUT_HOUR = 6  # :59
+EV_PLUGIN_HOUR = WEEKDAY_RESTRICTED_HOURS[-1] + 1  # :00
+EV_PLUGOUT_HOUR = WEEKDAY_RESTRICTED_HOURS[0] - 1  # :59
 SPARE_MARGIN_KWH = 0.5
 
 
