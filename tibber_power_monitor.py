@@ -46,6 +46,8 @@ RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is instal
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
+ACTED_HYSTERESIS_KWH = 0.2  # Once acted lower the budget for HYSTERESIS_MINUTES
+HYSTERESIS_MINUTES = 5
 
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
@@ -84,7 +86,7 @@ def pause_with_relay(sec_pause):
 
 
 def _rt_callback(pkg):
-    global acted_hour
+    global acted_time
     global budget_warning
     global last_load_report_hour
     global total_load_active_sec
@@ -100,8 +102,8 @@ def _rt_callback(pkg):
     supervised_load_maybe_active = False
     main_fuse_protection_needed = False
     current_time = datetime.datetime.fromisoformat(live_data["timestamp"])
-    if acted_hour is not None and acted_hour != current_time.hour:
-        acted_hour = None
+    if acted_time is not None and acted_time.hour != current_time.hour:
+        acted_time = None
 
     restricted_time = (
         current_time.weekday() in RESTRICTED_DAYS
@@ -121,7 +123,10 @@ def _rt_callback(pkg):
             adaptive_unrestricted_budget, live_data["accumulatedConsumptionLastHour"]
         )
 
-    if live_data["accumulatedConsumptionLastHour"] >= budget:
+    if (
+        live_data["accumulatedConsumptionLastHour"] >= budget
+        and current_time.minute < 59
+    ):
         budget_warning = (
             f"@:{current_time.minute} {budget} kWh power budget exceeded",
             f"L1 {live_data['currentL1']}"
@@ -167,6 +172,9 @@ def _rt_callback(pkg):
             MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
         )
 
+    if acted_time is not None and acted_time.minute is not None:
+        budget -= ACTED_HYSTERESIS_KWH
+
     if main_fuse_protection_needed and RELAY_URL is not None:
         logging.info(f"Protecting main fuse: {live_data}")
         pause_with_relay(5 * SEC_PER_MIN)
@@ -209,39 +217,53 @@ def _rt_callback(pkg):
         )
         logging.info(
             f"Supervised load active at {live_data['timestamp']}: {supervised_load_maybe_active}\n"
-            + f"Acted to reduce consumption: {acted_hour is not None}\n"
-            + f"kWh/h estimate: {live_data['estimatedHourConsumption']} + "
-            + f"reserved: {reserved_energy:.3f} - "
-            + f"controllable: {controllable_energy:.3f}\n"
-            + f"unfiltered estimate {unfiltered_hourly_energy_estimate:.3f}"
+            + f"Acted to reduce consumption: {acted_time is not None} to keep {budget} kWh budget\n"
+            + f"Unfiltered estimate (kWh/h): {unfiltered_hourly_energy_estimate:.3f}"
+            + f". Filtered estimate: {live_data['estimatedHourConsumption']} + "
+            + f"(reserved) {reserved_energy:.3f} - "
+            + f"(controllable) {controllable_energy:.3f}\n"
         )
         acting_needed = (unfiltered_hourly_energy_estimate > budget) or (
             live_data["estimatedHourConsumption"]
             + reserved_energy
             - controllable_energy
         ) > budget
-        if acting_needed and acted_hour is not None and RELAY_URL is not None:
-            logging.info(f"Acting with relay to pause power use: {live_data}")
-            sec_pause = (MIN_PER_H - current_time.minute) * SEC_PER_MIN
+        if acting_needed and acted_time is not None and RELAY_URL is not None:
+            logging.info(
+                f":{current_time.minute} Acting with relay to pause power use: {live_data}"
+            )
+            sec_pause = (
+                MIN_PER_H - current_time.minute
+            ) * SEC_PER_MIN - current_time.second
             sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
-            pause_with_relay(sec_pause)
-            supervised_load_maybe_active = False
+            if sec_pause > 15:
+                acted_time = current_time
+                pause_with_relay(sec_pause)
+                supervised_load_maybe_active = False
 
-        if acting_needed and acted_hour is None and supervised_load_maybe_active:
-            acted_hour = current_time.hour
+        if (
+            not acting_needed
+            and acted_time is not None
+            and acted_time.minute is not None
+            and ((current_time.minute - acted_time.minute) > HYSTERESIS_MINUTES)
+        ):
+            acted_time.minute = None  # Remove budget hysteresis
+
+        if acting_needed and acted_time is None and supervised_load_maybe_active:
+            acted_time = current_time
             if ACTION_URL is not None:
                 logging.info(f"Acting with action to reduce power use: {live_data}")
                 try:
                     resp = requests.get(ACTION_URL, timeout=API_TIMEOUT)
                     if resp.status_code != requests.codes.ok:
                         logging.warning(f"Acting failed {resp.status_code}")
-                        acted_hour = None  # Retry...
+                        acted_time = None  # Retry...
                 except requests.exceptions.ConnectionError:
                     logging.warning("Acting failed - connection error")
-                    acted_hour = None  # Retry...
+                    acted_time = None  # Retry...
                 except requests.exceptions.Timeout:
                     logging.warning("Acting failed - timeout")
-                    acted_hour = None  # Retry...
+                    acted_time = None  # Retry...
 
     if not supervised_load_maybe_active and load_activation_time is not None:
         diff_time = current_time - load_activation_time
@@ -287,7 +309,7 @@ async def start():
 
 
 #  Globals
-acted_hour = None
+acted_time = None
 budget_warning = None
 last_load_report_hour = None
 total_load_active_sec = 0
@@ -307,4 +329,3 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(60)
-
