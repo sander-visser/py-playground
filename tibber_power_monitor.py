@@ -47,7 +47,7 @@ RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
 ACTED_HYSTERESIS_KWH = 0.2  # Once acted lower the budget for HYSTERESIS_MINUTES
-HYSTERESIS_MINUTES = 5
+HYSTERESIS_MINUTES = 5  # Max MAX_AUTO_RELAY_TOGGLE_TIME
 
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
@@ -172,8 +172,10 @@ def _rt_callback(pkg):
             MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
         )
 
-    if acted_time is not None and acted_time.minute is not None:
-        budget -= ACTED_HYSTERESIS_KWH
+    if acted_time is not None:
+        time_since_acted = current_time - acted_time
+        if time_since_acted.seconds < ((HYSTERESIS_MINUTES - 1) * SEC_PER_MIN):
+            budget -= ACTED_HYSTERESIS_KWH
 
     if main_fuse_protection_needed and RELAY_URL is not None:
         logging.info(f"Protecting main fuse: {live_data}")
@@ -230,24 +232,16 @@ def _rt_callback(pkg):
         ) > budget
         if acting_needed and acted_time is not None and RELAY_URL is not None:
             logging.info(
-                f":{current_time.minute} Acting with relay to pause power use: {live_data}"
+                f"Acting with relay to pause power use: {live_data}"
             )
             sec_pause = (
                 MIN_PER_H - current_time.minute
             ) * SEC_PER_MIN - current_time.second
-            sec_pause = min(sec_pause, 3 * SEC_PER_MIN)
+            sec_pause = min(sec_pause, HYSTERESIS_MINUTES * SEC_PER_MIN)
             if sec_pause > 15:
                 acted_time = current_time
                 pause_with_relay(sec_pause)
                 supervised_load_maybe_active = False
-
-        if (
-            not acting_needed
-            and acted_time is not None
-            and acted_time.minute is not None
-            and ((current_time.minute - acted_time.minute) > HYSTERESIS_MINUTES)
-        ):
-            acted_time.minute = None  # Remove budget hysteresis
 
         if acting_needed and acted_time is None and supervised_load_maybe_active:
             acted_time = current_time
@@ -328,4 +322,4 @@ while True:
         loop = asyncio.run(start())
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
-    time.sleep(60)
+    time.sleep(SEC_PER_MIN)
