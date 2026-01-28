@@ -381,10 +381,9 @@ async def start():
     exported_value = 0.0
     self_used_energy = {"high": 0.0, "low": 0.0}
     self_used_value = 0.0
-    daily_energy_excl_ev = 0.0
-    peak_daily_excl_ev = 0.0
+    day_energy_excl_ev = 0.0
+    daily_energy_excl_ev = []
     heat_pump_uncovered = 0.0
-    peak_energy_day = "None"
     hourly_energy_samples = []
 
     for power_sample in hourly_consumption_data:
@@ -396,14 +395,10 @@ async def start():
                 todays_arbitrage_savings = get_arbitrage_profit(curr_day_samples)
                 arbitrage_savings += todays_arbitrage_savings
             curr_day_samples = {}
-            if peak_daily_excl_ev < daily_energy_excl_ev:
-                peak_energy_day = curr_time_utc_str
-                peak_daily_excl_ev = daily_energy_excl_ev
-            if (24 * HEAT_PUMP_MAX_CURRENT) < daily_energy_excl_ev:
-                heat_pump_uncovered += daily_energy_excl_ev - (
-                    24 * HEAT_PUMP_MAX_CURRENT
-                )
-            daily_energy_excl_ev = 0.0
+            daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
+            if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
+                heat_pump_uncovered += day_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
+            day_energy_excl_ev = 0.0
 
         if power_sample["consumption"] is None:
             continue
@@ -497,13 +492,11 @@ async def start():
             )
             other_energy["low"] += curr_power
         other_cost += curr_power * curr_hour_price
-        daily_energy_excl_ev += curr_power
+        day_energy_excl_ev += curr_power
 
-    if peak_daily_excl_ev < daily_energy_excl_ev:
-        peak_energy_day = "last day in period"
-        peak_daily_excl_ev = daily_energy_excl_ev
-    if (24 * HEAT_PUMP_MAX_CURRENT) < daily_energy_excl_ev:
-        heat_pump_uncovered += daily_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
+    daily_energy_excl_ev.append((day_energy_excl_ev, "last day in period"))
+    if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
+        heat_pump_uncovered += day_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
 
     for peak_month, peak_month_pwr in power_peak_incl_ev.items():
         print(
@@ -517,9 +510,13 @@ async def start():
         + f" at energy cost of {other_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
         + f" (avg price: {other_cost/other_energy_combined:.3f})"
     )
+    sorted_daily_energy_excl_ev = sorted(
+        daily_energy_excl_ev, reverse=True, key=lambda x: x[0]
+    )
+    for day_use, day_str in sorted_daily_energy_excl_ev[:3]:
+        print(f"Max energy per day excl EV: {day_use:.3f} kWh @ {day_str}.")
     print(
-        f"Max energy per day excl EV: {peak_daily_excl_ev:.3f} kWh @ {peak_energy_day}. "
-        + f"{heat_pump_uncovered:.3f} kWh used when daily average energy need is above "
+        f"{heat_pump_uncovered:.3f} kWh used when daily average energy need is above "
         + f"{HEAT_PUMP_MAX_CURRENT} kWh/h"
     )
     print(
