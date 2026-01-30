@@ -56,10 +56,16 @@ EV_PLUGOUT_HOUR = WEEKDAY_RESTRICTED_HOURS[0] - 1  # :59
 SPARE_MARGIN_KWH = 0.5
 
 
-def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_after):
+def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt_to):
+    utc_from = str(local_dt_from.astimezone(pytz.utc))
+    utc_t_from = utc_from.replace(" ", "T")
+    zulu_from = utc_from.replace("+00:00", "Z")
+    utc_to_next_h = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=2))
+    zulu_to_next_h = utc_to_next_h.replace("+00:00", "Z")
+
     measurements_url = (
         f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/all?"
-        + f"from={from_date}&to={to_date_after}"
+        + f"from={zulu_from}&to={zulu_to_next_h}"
     )
     measurements = requests.get(
         measurements_url, headers=api_header, timeout=API_TIMEOUT
@@ -74,10 +80,17 @@ def get_easee_hourly_energy_json(api_header, charger_id, from_date, to_date_afte
     prev_measurement = None
     prev_h_measurement = None
     ranged_measurements = measurements.json()["measurements"]
+    if len(ranged_measurements) == 0:
+        print("Warning: No EV measurements for period")
+        return None
     peak_charge_h = 0.0
     peak_charge_measurements = []
     measurement_cnt = 0
     measurement_min = 15
+    if utc_t_from not in ranged_measurements[0]["measuredAt"]:
+        print(
+            f"Warning: EV measurements incomplete - starts at {ranged_measurements[0]['measuredAt']}"
+        )
     if "55:00+00:00" in ranged_measurements[-1]["measuredAt"]:
         measurement_min = 5
     if "5:00+00:00" not in ranged_measurements[-1]["measuredAt"]:
@@ -342,11 +355,6 @@ async def start():
 
     local_dt_to = datetime.datetime.fromisoformat(hourly_consumption_data[-1]["from"])
 
-    utc_from = str(local_dt_from.astimezone(pytz.utc))
-    zulu_from = utc_from.replace("+00:00", "Z")
-    utc_to_next_h = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=2))
-    zulu_to_next_h = utc_to_next_h.replace("+00:00", "Z")
-
     print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
 
     charger_consumption = (
@@ -358,8 +366,8 @@ async def start():
                 "Authorization": "Bearer " + EASEE_API_ACCESS_TOKEN,
             },
             EASEE_CHARGER_ID,
-            zulu_from,
-            zulu_to_next_h,
+            local_dt_from,
+            local_dt_to,
         )
     )
     power_peak_incl_ev = {}
