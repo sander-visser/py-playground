@@ -23,9 +23,9 @@ HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
 RESTRICTED_HOURS = [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]  # HH:00 - HH:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
 # fmt: off
-# kWh/h budget per month: Jan  Feb  Mar   Apr  May  Jun  Jul  Aug  Sept Oct  Nov   Dec
-RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.25, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 3.25, 3.5]
-UNRESTRICTED_KW_BUDGET = [7.0, 7.0, 6.5,  6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5,  7.0]
+# kWh/h budget per month: Jan   Feb   Mar   Apr  May  Jun  Jul  Aug  Sept Oct  Nov   Dec
+RESTRICTED_KW_BUDGET   = [3.75, 3.75, 3.25, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 3.25, 3.5]
+UNRESTRICTED_KW_BUDGET = [7.5,  7.5,  6.5,  6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5,  7.0]
 # fmt: on
 # Diazed tolerates 20% overload current for 15 minutes:
 # https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
@@ -323,3 +323,4 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(SEC_PER_MIN)
+
