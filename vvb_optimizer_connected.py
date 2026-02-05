@@ -97,7 +97,7 @@ LEGIONELLA_INTERVAL = 10  # In days
 WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 3, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 KWH_PER_MWH = 1000
-BASE_COST = 0.6788 / 10.97  # In EUR for tax and transfer costs (wo VAT)
+BASE_COST = 0.7028 / 10.65  # In EUR for tax, broker and transfer (wo VAT)
 HIGH_PRICE_THRESHOLD = 0.15  # In EUR (incl BASE_COST)
 ACCEPTABLE_PRICING_ERROR = 0.003  # In EUR - how far from cheapest considder same
 LOW_PRICE_VARIATION_PERCENT = 1.1  # Limit storage temp if just 10% cheaper
