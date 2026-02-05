@@ -64,12 +64,12 @@ EXTRA_HOT_DURATION_S = 60 * SEC_PER_MIN  # MIN_LEGIONELLA_TEMP duration after PO
 OVERRIDE_UTC_UNIX_TIMESTAMP = None  # -3600 to Simulate script behaviour from 1h ago
 MAX_NETWORK_ATTEMPTS = 10
 UTC_OFFSET_IN_S = 3600
-COP_FACTOR = 2.5  # Utilize leakage unless heatpump will be cheaper
+COP_FACTOR = 2.3  # Utilize leakage unless heatpump will be cheaper
 HIGH_WATER_TAKEOUT_LIKELYHOOD = (
     0.2  # Percent chance that thermostat will heat at MIN_TEMP setting during max price
 )
 HEAT_LEAK_VALUE_THRESHOLD = 10
-EXTREME_COLD_THRESHOLD = -8  # Heat leak always valuable
+EXTREME_COLD_THRESHOLD = -4  # Heat leak always valuable
 MAX_HOURS_NEEDED_TO_HEAT = (
     4  # Should exceed (MIN_DAILY_TEMP - MIN_TEMP) / DEGREES_PER_H
 )
@@ -94,7 +94,7 @@ MIN_USABLE_TEMP = 35  # Good for hand washing, and one hour away from shower tem
 MIN_DAILY_TEMP = 50
 MIN_LEGIONELLA_TEMP = 65
 LEGIONELLA_INTERVAL = 10  # In days
-WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 4, 6]  # 6 == Sunday
+WEEKDAYS_WITH_EXTRA_TAKEOUT = [0, 2, 3, 6]  # 6 == Sunday
 WEEKDAYS_WITH_EXTRA_MORNING_TAKEOUT = [0, 3]  # 0 == Monday
 KWH_PER_MWH = 1000
 BASE_COST = 0.6788 / 10.97  # In EUR for tax and transfer costs (wo VAT)
