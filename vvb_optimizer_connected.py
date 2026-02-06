@@ -751,12 +751,12 @@ async def quarterly_optimization(
     # Check if single q is cheapest before DAILY_COMFORT_LAST_H
     if LAST_MORNING_HEATING_H < local_hour <= DAILY_COMFORT_LAST_H:
         daily_qs = []
-        for scan_h in range(LAST_MORNING_HEATING_H + 1, DAILY_COMFORT_LAST_H):
+        for scan_h in range(LAST_MORNING_HEATING_H + 1, DAILY_COMFORT_LAST_H + 1):
             daily_qs.extend(cost.today[scan_h]["quartely"])
         for q in range(0, 4):
             if curr_cost[q] <= sorted(daily_qs)[3]:
                 q_temps[q] = max(MIN_USABLE_TEMP, q_temps[cheapest_q])
-                if is_the_cheapest_hour_during_daytime(cost, LAST_MORNING_HEATING_H + 1):
+                if is_the_cheapest_hour_during_daytime(cost, LAST_MORNING_HEATING_H):
                     q_temps[q] = max(MIN_DAILY_TEMP, q_temps[q])
 
     curr_min = time.localtime()[4]
