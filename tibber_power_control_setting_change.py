@@ -11,8 +11,8 @@ import requests
 
 LOGIN_HEADERS = {"Content-Type": "application/x-www-form-urlencoded"}
 REQUEST_BODY = {"email": "user@example.com", "password": "very_secret"}
-FIRST_Q_PWR = "12.0"
-OTHER_Q_PWR = "5.5"
+FIRST_QS_BOOST = "0.25"  # 50% extra first quarter and 25% extra second
+PWR_BUDGET = "7.5"
 
 
 QUERY = """
@@ -25,16 +25,13 @@ mutation SetPulseSettings($homeId: String!, $deviceId: String!, $settings: [Sett
 # TODO get device id from home id "{\"operationName\":\"GetHomeGizmos\",\"variables\":{\"homeId\":\"76dabd8e-017f-4b61-a5a0-3d6731c0f3b3\"},\"query\":\"query GetHomeGizmos($homeId: String!) { me { home(id: $homeId) { gizmos { __typename ... on Gizmo { __typename ...GizmoItem } ... on GizmoGroup { id title gizmos { __typename ...GizmoItem } } } } } }  fragment QueryArgument on QueryArguments { key value }  fragment GizmoItem on Gizmo { id title type isHidden isAlwaysVisible isFixed context { __typename ...QueryArgument } }\"}"
 
 
-variables = {
-    "homeId": "76dabd8e-017f-4b61-a5a0-3d6731c0f3b3",
-    "deviceId": "f934fed9-68ec-4d01-ae4a-cabd6a825ff5",
-    "settings": [{"key": "hourlyConsumptionLimit", "value": "5.5"}],
-}
-
-
 def maximize_gr():
     auth_headers = None
-    global variables
+    variables = {
+        "homeId": "76dabd8e-017f-4b61-a5a0-3d6731c0f3b3",
+        "deviceId": "f934fed9-68ec-4d01-ae4a-cabd6a825ff5",
+        "settings": [{"key": "hourlyConsumptionLimit", "value": "1.0"}],
+    }
     next_q = datetime.datetime.now()
     next_q = next_q + ((next_q.min - next_q) % datetime.timedelta(minutes=15))
     # Begin with current quarter - set rules one minute in advance
@@ -58,10 +55,14 @@ def maximize_gr():
                     "Content-Type": "application/json",
                     "authorization": f"{auth_response.json()['token']}",
                 }
-            if next_q.minute == 59:  # no limits the first q to maximize GR
-                variables["settings"][0]["value"] = FIRST_Q_PWR
+            if next_q.minute == 59:  # boost the first quarter to maximize GR
+                variables["settings"][0]["value"] = PWR_BUDGET * (
+                    1 + FIRST_QS_BOOST * 2
+                )
+            elif next_q.minute == 14:  # boost the second quarter to maximize GR
+                variables["settings"][0]["value"] = PWR_BUDGET * (1 + FIRST_QS_BOOST)
             else:
-                variables["settings"][0]["value"] = OTHER_Q_PWR
+                variables["settings"][0]["value"] = PWR_BUDGET
             next_q += datetime.timedelta(minutes=15)
             print(f"setting {variables}")
             response = requests.post(
