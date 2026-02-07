@@ -2,7 +2,8 @@ Rolling 12 months log created with tibber_easee_peak_power_analyzer.py
 for a freestanding house with 5 occupants outside Gothenburg (without PV installed).
 Household that optimizes pure electric hot water heating using vvb_optimizer_connected.py,
 and reverse cycle heating optimization controlled by sensibo_optimizer.py
-Peak power usage is managed by tibber_power_monitor.py
+Peak power usage is managed by tibber_power_monitor.py via Shelly relay controlled HWS.
+Tibber Grid Rewards (GR) optimization of EV via tibber_power_control_setting_change.py
 Data collection with EV charging excluded (since easy to move in time and restrict peak power)
 
 Visual renderings at https://github.com/sander-visser/py-playground/blob/main/power_plots/README.md
@@ -27,6 +28,7 @@ Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2
 Yearly saving from VVB optimizer and sensibo optimizer (excl EV) when compared to Vattenfall flat monthly rate is 2022 SEK May 2024 - April 2025 (highest saving Dec - Feb)
 
 Yearly energy use Nov-24 to Oct-25 excl EV 12469 kWh
+
 Time tarrif total split according to Vattenfall 2025-10-01 price list (daytime 07:00-21:00 Nov - Mar):
 Sept 2024 - Aug 2025: 2324,25 kWh High. 16749,69 kWh Low (4,5kWp solar avoids 280,04 kWh high).
 
@@ -52,10 +54,10 @@ Underutilized EV charge capacity 21:00 - 05:59 is 236.94 kWh at 0.83 SEK/kWh avg
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.320 kWh/h has occured at 2026-01-12 19:00:00+01:00
+Peak of 4.320 kWh/h has occured at 2026-01-12 19:00:00+01:00  <-- 3.5 kW budget slightly exceeded
 Peak of 4.176 kWh/h has occured at 2026-01-12 18:00:00+01:00
 Peak of 3.926 kWh/h has occured at 2026-01-16 19:00:00+01:00
-Peak of 3.801 kWh/h has occured at 2026-01-12 06:00:00+01:00
+Peak of 3.801 kWh/h has occured at 2026-01-12 06:00:00+01:00  <- -9.5 C outside this hour
 Peak of 3.743 kWh/h has occured at 2026-01-12 20:00:00+01:00
 Peak of 3.650 kWh/h has occured at 2026-01-06 19:00:00+01:00
 Peak of 3.619 kWh/h has occured at 2026-01-28 17:00:00+01:00
@@ -64,7 +66,7 @@ Peak of 3.537 kWh/h has occured at 2026-01-15 20:00:00+01:00
 Peak of 3.525 kWh/h has occured at 2026-01-14 20:00:00+01:00
 
 Low cost peaks:
-Peak of 6.137 kWh/h has occured at 2026-01-11 01:00:00+01:00
+Peak of 6.137 kWh/h has occured at 2026-01-11 01:00:00+01:00  <-- 7.0 kW budget kept
 Peak of 6.030 kWh/h has occured at 2026-01-11 02:00:00+01:00
 Peak of 5.798 kWh/h has occured at 2026-01-06 03:00:00+01:00
 Peak of 5.789 kWh/h has occured at 2026-01-12 05:00:00+01:00
@@ -140,7 +142,7 @@ Under utilized charge capacity 21:00 - 05:59 is 233.95 kWh at 0.48 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.494 kWh/h has occured at 2025-02-17 06:00:00+01:00
+Peak of 4.494 kWh/h has occured at 2025-02-17 06:00:00+01:00  <-- No relay control limiter implemented
 Peak of 4.426 kWh/h has occured at 2025-02-19 20:00:00+01:00
 Peak of 4.358 kWh/h has occured at 2025-02-06 06:00:00+01:00
 Peak of 4.178 kWh/h has occured at 2025-02-20 20:00:00+01:00
@@ -225,7 +227,7 @@ Under utilized charge capacity 21:00 - 05:59 is 368.48 kWh at 0.23 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.734 kWh/h has occured at 2025-03-14 06:00:00+01:00
+Peak of 4.734 kWh/h has occured at 2025-03-14 06:00:00+01:00  <-- Experimental realy control added after 27th
 Peak of 3.721 kWh/h has occured at 2025-03-03 16:00:00+01:00  <-- 16:00 was not being avioded at the time
 Peak of 3.269 kWh/h has occured at 2025-03-05 20:00:00+01:00
 Peak of 3.055 kWh/h has occured at 2025-03-20 06:00:00+01:00
@@ -494,7 +496,7 @@ Peak of 2.412 kWh/h has occured at 2025-06-06 17:00:00+02:00
 Peak of 2.251 kWh/h has occured at 2025-06-02 17:00:00+02:00
 
 Low cost peaks:
-Peak of 4.967 kWh/h has occured at 2025-06-11 14:00:00+02:00   <-- 5.4kW budget kept
+Peak of 4.967 kWh/h has occured at 2025-06-11 14:00:00+02:00  <-- 5.4kW budget kept
 Peak of 4.784 kWh/h has occured at 2025-06-01 18:00:00+02:00
 Peak of 4.495 kWh/h has occured at 2025-06-08 11:00:00+02:00
 Peak of 4.473 kWh/h has occured at 2025-06-19 14:00:00+02:00
@@ -744,7 +746,7 @@ Underutilized EV charge capacity 21:00 - 05:59 is 159.35 kWh at 0.26 SEK/kWh avg
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 3.489 kWh/h has occured at 2025-09-12 16:00:00+02:00
+Peak of 3.489 kWh/h has occured at 2025-09-12 16:00:00+02:00  <-- 16:00 was not being avioded at the time
 Peak of 2.613 kWh/h has occured at 2025-09-08 17:00:00+02:00
 Peak of 2.375 kWh/h has occured at 2025-09-18 17:00:00+02:00
 Peak of 2.360 kWh/h has occured at 2025-09-22 06:00:00+02:00
@@ -756,7 +758,7 @@ Peak of 1.810 kWh/h has occured at 2025-09-25 16:00:00+02:00
 Peak of 1.748 kWh/h has occured at 2025-09-17 17:00:00+02:00
 
 Low cost peaks:
-Peak of 5.386 kWh/h has occured at 2025-09-14 06:00:00+02:00
+Peak of 5.386 kWh/h has occured at 2025-09-14 06:00:00+02:00  <-- 5.4kW budget kept
 Peak of 5.263 kWh/h has occured at 2025-09-06 15:00:00+02:00
 Peak of 5.159 kWh/h has occured at 2025-09-14 16:00:00+02:00
 Peak of 4.771 kWh/h has occured at 2025-09-25 13:00:00+02:00
@@ -1003,7 +1005,7 @@ Under utilized charge capacity 21:00 - 05:59 is 337.36 kWh at 0.24 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 3.791 kWh/h has occured at 2025-12-31 19:00:00+01:00
+Peak of 3.791 kWh/h has occured at 2025-12-31 19:00:00+01:00  <-- 3.5 kW budget slightly exceeded
 Peak of 3.507 kWh/h has occured at 2025-12-31 18:00:00+01:00
 Peak of 3.493 kWh/h has occured at 2025-12-31 17:00:00+01:00
 Peak of 3.348 kWh/h has occured at 2025-12-26 20:00:00+01:00
@@ -1015,7 +1017,7 @@ Peak of 2.871 kWh/h has occured at 2025-12-08 17:00:00+01:00
 Peak of 2.856 kWh/h has occured at 2025-12-02 17:00:00+01:00
 
 Low cost peaks:
-Peak of 6.976 kWh/h has occured at 2025-12-27 19:00:00+01:00
+Peak of 6.976 kWh/h has occured at 2025-12-27 19:00:00+01:00  <-- 7.0 kW budget kept
 Peak of 6.351 kWh/h has occured at 2025-12-27 18:00:00+01:00
 Peak of 6.012 kWh/h has occured at 2025-12-27 17:00:00+01:00
 Peak of 5.555 kWh/h has occured at 2025-12-27 22:00:00+01:00
