@@ -39,14 +39,15 @@ Peak hourly EV charge rate: 6.116 kWh/h.
 Peak EV energy: 2.770 kWh per 15 min.
 Charged for 7905 minutes. Avg rate: 4.659 kW.
 Month peak power incl EV: 7.077 at 2026-01-04 02:00:00+01:00
-Energy used 1761.93 (High: 442.15, Low: 1319.79) kWh at energy cost of 2534.65 SEK (incl VAT and surcharges) (avg price: 1.439)
+Energy used excl EV 1761.93 (High: 442.15, Low: 1319.79) kWh at energy cost of 2534.65 SEK (incl VAT and surcharges) (avg price: 1.439)
 Max energy per day excl EV: 82.195 kWh @ 2026-01-11T23:00:00+00:00.
 Max energy per day excl EV: 77.588 kWh @ 2026-01-04T23:00:00+00:00.
 Max energy per day excl EV: 73.492 kWh @ 2026-01-12T23:00:00+00:00.
 372.884 kWh used when daily average energy need is above 1.9 kWh/h
 Min hourly energy 0.569 kWh (avg of 10)
-Plus EV energy used 613.41 (High: 63.23, Low: 550.18) kWh at energy cost of 726.49 SEK (incl VAT and surcharges) (avg price: 1.184 (excl grid rewards))
-Under utilized charge capacity 21:00 - 05:59 is 236.94 kWh at 0.83 SEK/kWh avg price
+EV energy used 613.41 kWh at energy cost of 726.49 SEK (incl VAT and surcharges) (avg price: 1.184 (excl grid rewards))
+EV Distribution pattern - high: 63.23 low: 550.18 q1: 231.99 q2: 69.84 q3: 121.71 q4: 189.88
+Underutilized EV charge capacity 21:00 - 05:59 is 236.94 kWh at 0.83 SEK/kWh avg price
 
 Top ten peak power hours with EV charging excluded:
 
