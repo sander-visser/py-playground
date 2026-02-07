@@ -98,6 +98,10 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
         # Reconfigure with alsoSendWhenNotCharging == true at
         # https://developer.easee.com/reference/lifetimeenergyreporting_configure
         print(f"Warning: {charger_id} not configured for high res measurements")
+    cons_q1 = 0
+    cons_q2 = 0
+    cons_q3 = 0
+    cons_q4 = 0
     for measurement in ranged_measurements:
         # print(f"scanning {measurement} vs {prev_measurement}")
         if prev_measurement is None:
@@ -136,15 +140,32 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                 if last_date < curr_date:
                     prev_measurement = measurement
 
+                if 0 < last_date.minute <= 15:
+                    cons_q1 += delta_consumption
+                if 15 < last_date.minute <= 30:
+                    cons_q2 += delta_consumption
+                if 30 < last_date.minute <= 45:
+                    cons_q3 += delta_consumption
+                if (45 < last_date.minute <= 60) or last_date.minute == 0:
+                    cons_q4 += delta_consumption
+
                 cons_sum += delta_consumption
                 if last_date.minute == 0:
                     peak_charge_h = max(peak_charge_h, cons_sum)
                     hourly_energy.append(
                         {
                             "consumption": cons_sum,
+                            "consumption-q1": cons_q1,
+                            "consumption-q2": cons_q2,
+                            "consumption-q3": cons_q3,
+                            "consumption-q4": cons_q4,
                             "date": prev_h_measurement["measuredAt"],
                         }
                     )
+                    cons_q1 = 0
+                    cons_q2 = 0
+                    cons_q3 = 0
+                    cons_q4 = 0
                     cons_sum = 0
                     prev_h_measurement = measurement
 
@@ -382,7 +403,7 @@ async def start():
     solar_battery_contents = 0.0
     solar_battery_self_use_kwh = 0.0
     ev_cost = 0.0
-    ev_energy = {"high": 0.0, "low": 0.0}
+    ev_energy = {"high": 0.0, "low": 0.0, "q1": 0.0, "q2": 0.0, "q3": 0.0, "q4": 0.0}
     other_cost = 0.0
     other_energy = {"high": 0.0, "low": 0.0}
     exported_energy = 0.0
@@ -480,6 +501,10 @@ async def start():
                             curr_hour_price, []
                         ).append(curr_power)
                     curr_power -= easee_power_sample["consumption"]
+                    ev_energy["q1"] += easee_power_sample["consumption-q1"]
+                    ev_energy["q2"] += easee_power_sample["consumption-q2"]
+                    ev_energy["q3"] += easee_power_sample["consumption-q3"]
+                    ev_energy["q4"] += easee_power_sample["consumption-q4"]
                     if high_cost_day:
                         ev_energy["high"] += easee_power_sample["consumption"]
                     else:
@@ -513,7 +538,7 @@ async def start():
 
     other_energy_combined = other_energy["low"] + other_energy["high"]
     print(
-        f"Energy used {other_energy_combined:.2f}"
+        f"Energy used excl EV {other_energy_combined:.2f}"
         + f" (High: {other_energy['high']:.2f}, Low: {other_energy['low']:.2f}) kWh"
         + f" at energy cost of {other_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
         + f" (avg price: {other_cost/other_energy_combined:.3f})"
@@ -536,11 +561,13 @@ async def start():
         ev_energy_combined = ev_energy["low"] + ev_energy["high"]
         avg_ev_price = ev_cost / ev_energy_combined
         print(
-            f"Plus EV energy used {ev_energy_combined:.2f}"
-            + f" (High: {ev_energy['high']:.2f}, Low: {ev_energy['low']:.2f}) kWh"
+            f"EV energy used {ev_energy_combined:.2f} kWh"
             + f" at energy cost of {ev_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
             + f" (avg price: {ev_cost/ev_energy_combined:.3f} (excl grid rewards))"
         )
+        print("EV Distribution pattern - ", end="")
+        for key, value in ev_energy.items():
+            print(f"{key}: {value:.2f} ", end="")
         spare_charging_capacity = 0.0
         spare_charging_cost = 0.0
         for pwr_use_price in sorted(power_use_map_during_night):
@@ -553,8 +580,8 @@ async def start():
                     spare_charging_cost += spare_energy * pwr_use_price
 
         print(
-            f"Under utilized charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59 is "
-            + f"{spare_charging_capacity:.2f} kWh at "
+            f"\nUnderutilized EV charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59"
+            + f" is {spare_charging_capacity:.2f} kWh at "
             + f"{(spare_charging_cost/spare_charging_capacity):.2f} SEK/kWh avg price"
         )
         print("\nTop ten peak power hours with EV charging excluded:")
