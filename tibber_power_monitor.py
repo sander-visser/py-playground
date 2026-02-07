@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 """
-Monitor power usage via Tibber and if too high act by controlling load.
-Load controlled via reduce request and/or via a controlling relay.
+Monitor power usage via Tibber Pulse HAN port cloud API.
+If power is too high then act by controlling a load. Load controlled
+via reduce request and/or via a controlling relay (Shelly local API).
 
 If getting issues with certificate verification run on windows:
 export SSL_CERT_FILE=$(python -m certifi)
@@ -18,7 +19,9 @@ import requests
 import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
 # Get personal token from https://developer.tibber.com/settings/access-token
-TIBBER_API_ACCESS_TOKEN = "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
+TIBBER_API_ACCESS_TOKEN = (
+    "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
+)
 HOME_INDEX = 0  # 0 unless multiple Tibber homes registered
 RESTRICTED_HOURS = [6, 7, 8, 9, 10, 16, 17, 18, 19, 20]  # HH:00 - HH:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4]  # 0 is Monday
@@ -40,9 +43,9 @@ ADDED_LOAD_MARGIN_KW = 2.25  # Laundry load
 ADDED_LOAD_MARGIN_DURATION_MINS = 20  # 50 degrees load
 # Ex: Wifi connected boiler (Raspberry Pico WH + servo): vvb_optimizer_connected.py
 ACTION_URL = "http://192.168.1.208/reduceload"  # None if not used
-# Shelly PRO relay with contactor cutting load current - None if not used
-RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
+# Shelly PRO relay with contactor controlling load current - None if not used
 RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is installed
+RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
@@ -165,21 +168,23 @@ def _rt_callback(pkg):
         if load_activation_time is None:
             load_activation_time = current_time
 
-    if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
-        main_fuse_protection_needed = True
-    elif not supervised_load_maybe_active:
-        main_fuse_protection_needed = max(supervised_currents) > (
-            MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
-        )
-
+    time_since_acted = None
     if acted_time is not None:
         time_since_acted = current_time - acted_time
         if time_since_acted.seconds < ((HYSTERESIS_MINUTES - 1) * SEC_PER_MIN):
             budget -= ACTED_HYSTERESIS_KWH
 
+    if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
+        main_fuse_protection_needed = True
+    elif not supervised_load_maybe_active and time_since_acted is not None:
+        main_fuse_protection_needed = max(supervised_currents) > (
+            MAIN_FUSE_MAX_CURRENT - MIN_SUPERVISED_CURRENT
+        )
+
     if main_fuse_protection_needed and RELAY_URL is not None:
+        acted_time = current_time
         logging.info(f"Protecting main fuse: {live_data}")
-        pause_with_relay(5 * SEC_PER_MIN)
+        pause_with_relay(MAX_AUTO_RELAY_TOGGLE_TIME)
         supervised_load_maybe_active = False
     elif live_data["accumulatedConsumptionLastHour"] > (
         budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H
@@ -219,11 +224,10 @@ def _rt_callback(pkg):
         )
         logging.info(
             f"Supervised load active at {live_data['timestamp']}: {supervised_load_maybe_active}\n"
-            + f"Acted to reduce consumption: {acted_time is not None} to keep {budget} kWh budget\n"
-            + f"Unfiltered estimate (kWh/h): {unfiltered_hourly_energy_estimate:.3f}"
-            + f". Filtered estimate: {live_data['estimatedHourConsumption']} + "
-            + f"(reserved) {reserved_energy:.3f} - "
-            + f"(controllable) {controllable_energy:.3f}\n"
+            + f"Acted to reduce consumption to keep {budget} kWh budget: {acted_time is not None}\n"
+            + f"kWh/h estimates - Unfiltered: {unfiltered_hourly_energy_estimate:.3f}"
+            + f". Filtered: {live_data['estimatedHourConsumption']} + "
+            + f"{reserved_energy:.3f} (reserved) - {controllable_energy:.3f} (controllable)"
         )
         acting_needed = (unfiltered_hourly_energy_estimate > budget) or (
             live_data["estimatedHourConsumption"]
@@ -231,17 +235,19 @@ def _rt_callback(pkg):
             - controllable_energy
         ) > budget
         if acting_needed and acted_time is not None and RELAY_URL is not None:
-            logging.info(
-                f"Acting with relay to pause power use: {live_data}"
-            )
-            sec_pause = (
-                MIN_PER_H - current_time.minute
-            ) * SEC_PER_MIN - current_time.second
-            sec_pause = min(sec_pause, HYSTERESIS_MINUTES * SEC_PER_MIN)
-            if sec_pause > 15:
-                acted_time = current_time
-                pause_with_relay(sec_pause)
-                supervised_load_maybe_active = False
+            if (
+                supervised_load_maybe_active
+                or time_since_acted.seconds < MAX_AUTO_RELAY_TOGGLE_TIME
+            ):
+                logging.info(f"Acting with relay to pause power use: {live_data}")
+                sec_pause = (
+                    MIN_PER_H - current_time.minute
+                ) * SEC_PER_MIN - current_time.second
+                sec_pause = min(sec_pause, HYSTERESIS_MINUTES * SEC_PER_MIN)
+                if sec_pause > 15:
+                    acted_time = current_time
+                    pause_with_relay(sec_pause)
+                    supervised_load_maybe_active = False
 
         if acting_needed and acted_time is None and supervised_load_maybe_active:
             acted_time = current_time
@@ -323,5 +329,3 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(SEC_PER_MIN)
-
-
