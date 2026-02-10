@@ -142,7 +142,7 @@ Under utilized charge capacity 21:00 - 05:59 is 233.95 kWh at 0.48 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.494 kWh/h has occured at 2025-02-17 06:00:00+01:00  <-- No relay control limiter implemented
+Peak of 4.494 kWh/h has occured at 2025-02-17 06:00:00+01:00  <-- No relay control limiter implemented. 4kWh budget missed
 Peak of 4.426 kWh/h has occured at 2025-02-19 20:00:00+01:00
 Peak of 4.358 kWh/h has occured at 2025-02-06 06:00:00+01:00
 Peak of 4.178 kWh/h has occured at 2025-02-20 20:00:00+01:00
@@ -227,7 +227,7 @@ Under utilized charge capacity 21:00 - 05:59 is 368.48 kWh at 0.23 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.734 kWh/h has occured at 2025-03-14 06:00:00+01:00  <-- Experimental realy control added after 27th
+Peak of 4.734 kWh/h has occured at 2025-03-14 06:00:00+01:00  <-- Experimental realy control added after 27th. 4kWh missed.
 Peak of 3.721 kWh/h has occured at 2025-03-03 16:00:00+01:00  <-- 16:00 was not being avioded at the time
 Peak of 3.269 kWh/h has occured at 2025-03-05 20:00:00+01:00
 Peak of 3.055 kWh/h has occured at 2025-03-20 06:00:00+01:00
@@ -313,7 +313,7 @@ Under utilized charge capacity 21:00 - 05:59 is 187.27 kWh at 0.28 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 3.566 kWh/h has occured at 2025-04-03 16:00:00+02:00  <-- 16:00 was not being avioded at the time
+Peak of 3.566 kWh/h has occured at 2025-04-03 16:00:00+02:00  <-- 16:00 was not being avioded at the time. 4kWh budget kept
 Peak of 3.400 kWh/h has occured at 2025-04-01 16:00:00+02:00  <-- 16:00 was not being avioded at the time
 Peak of 3.087 kWh/h has occured at 2025-04-21 08:00:00+02:00
 Peak of 2.908 kWh/h has occured at 2025-04-21 17:00:00+02:00
@@ -398,7 +398,7 @@ Under utilized charge capacity 21:00 - 05:59 is 388.91 kWh at 0.35 SEK/kWh avg p
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 3.869 kWh/h has occured at 2025-05-30 16:00:00+02:00  <-- 16:00 was not being avioded at the time
+Peak of 3.869 kWh/h has occured at 2025-05-30 16:00:00+02:00  <-- 16:00 was not being avioded at the time. 6kWh budget kept
 Peak of 3.529 kWh/h has occured at 2025-05-26 16:00:00+02:00  <-- 16:00 was not being avioded at the time
 Peak of 3.321 kWh/h has occured at 2025-05-02 10:00:00+02:00
 Peak of 3.078 kWh/h has occured at 2025-05-22 16:00:00+02:00
