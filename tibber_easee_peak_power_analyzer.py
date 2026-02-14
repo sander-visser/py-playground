@@ -31,12 +31,21 @@ EASEE_CHARGER_ID = (
     "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
 )
 NORDPOOL_PRICE_CODE = "SEK"
-START_DATE = datetime.date.fromisoformat("2025-08-01")  # None for one month back
+NORDPOOL_REGION = "SE3"  # None to skip quarterly EV analysis
+NORDPOOL_URL = (
+    "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?"
+    + f"market=DayAhead&currency={NORDPOOL_PRICE_CODE}&resolutionInMinutes=15&indexNames="
+    + f"{NORDPOOL_REGION}&date="
+)
+START_DATE = datetime.date.fromisoformat("2026-02-01")  # None for one month back
+if (datetime.date.today() - START_DATE).days > 62:
+    NORDPOOL_REGION = None
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
 HTTP_UNAUTHORIZED_CODE = 401
 SECONDS_PER_HOUR = 3600
+KWH_PER_MWH = 1000
 # Get personal token from https://developer.tibber.com/settings/access-token
 TIBBER_API_ACCESS_TOKEN = (
     "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
@@ -89,7 +98,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
     measurement_min = 15
     if utc_t_from not in ranged_measurements[0]["measuredAt"]:
         print(
-            f"Warning: EV measurements incomplete - starts at {ranged_measurements[0]['measuredAt']}"
+            f"Warning: EV charge log incomplete - starts at {ranged_measurements[0]['measuredAt']}"
         )
     if "55:00+00:00" in ranged_measurements[-1]["measuredAt"]:
         measurement_min = 5
@@ -102,14 +111,37 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
     cons_q2 = 0
     cons_q3 = 0
     cons_q4 = 0
+    cost_q1 = 0
+    cost_q2 = 0
+    cost_q3 = 0
+    cost_q4 = 0
+    curr_day = local_dt_from.day
+    raw_cost = (
+        None
+        if NORDPOOL_REGION is None
+        else requests.get(
+            f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
+            timeout=10.0,
+        ).json()
+    )
+    curr_q = 0
+
     for measurement in ranged_measurements:
-        # print(f"scanning {measurement} vs {prev_measurement}")
+        # print(f"scanning {measurement} vs {prev_measurement} {curr_cost}")
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
                 print("Error: Easee from date not an hourly boundary...")
             prev_measurement = measurement
             prev_h_measurement = measurement
         else:
+            curr_cost = (
+                0
+                if raw_cost is None
+                else raw_cost["multiIndexEntries"][curr_q]["entryPerArea"][
+                    NORDPOOL_REGION
+                ]
+            )
+            curr_cost /= KWH_PER_MWH
             curr_date = datetime.datetime.fromisoformat(measurement["measuredAt"])
             last_date = datetime.datetime.fromisoformat(prev_measurement["measuredAt"])
             nbr_measurements = 1
@@ -141,13 +173,18 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                     prev_measurement = measurement
 
                 if 0 < last_date.minute <= 15:
+                    # print(f"{raw_cost['multiIndexEntries'][curr_q]} data: {measurement}")
                     cons_q1 += delta_consumption
+                    cost_q1 += curr_cost * delta_consumption
                 if 15 < last_date.minute <= 30:
                     cons_q2 += delta_consumption
+                    cost_q2 += curr_cost * delta_consumption
                 if 30 < last_date.minute <= 45:
                     cons_q3 += delta_consumption
+                    cost_q3 += curr_cost * delta_consumption
                 if (45 < last_date.minute <= 60) or last_date.minute == 0:
                     cons_q4 += delta_consumption
+                    cost_q4 += curr_cost * delta_consumption
 
                 cons_sum += delta_consumption
                 if last_date.minute == 0:
@@ -159,6 +196,10 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                             "consumption-q2": cons_q2,
                             "consumption-q3": cons_q3,
                             "consumption-q4": cons_q4,
+                            "cost-q1": cost_q1,
+                            "cost-q2": cost_q2,
+                            "cost-q3": cost_q3,
+                            "cost-q4": cost_q4,
                             "date": prev_h_measurement["measuredAt"],
                         }
                     )
@@ -166,6 +207,10 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                     cons_q2 = 0
                     cons_q3 = 0
                     cons_q4 = 0
+                    cost_q1 = 0
+                    cost_q2 = 0
+                    cost_q3 = 0
+                    cost_q4 = 0
                     cons_sum = 0
                     prev_h_measurement = measurement
 
@@ -173,11 +218,26 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                 ":00:00+00:00" not in measurement["measuredAt"]
                 or ":00:00+00:00" not in prev_measurement["measuredAt"]
             ):
-                for i in range(int(nbr_measurements)):
+                for _ in range(int(nbr_measurements)):
                     peak_charge_measurements.append(delta_consumption)
             else:
                 measurement_cnt = None  # Mixed resolutions
             prev_measurement = measurement
+
+            curr_q += 1
+            if curr_q == 24 * 4:
+                curr_q = 0
+                curr_day += 1
+                # print(f"Analyzed day {curr_day} {measurement}")
+                if curr_day <= local_dt_to.day:
+                    raw_cost = (
+                        None
+                        if NORDPOOL_REGION is None
+                        else requests.get(
+                            f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
+                            timeout=10.0,
+                        ).json()
+                    )
 
     if measurement_cnt is None or measurement_min != 60:
         print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
@@ -403,7 +463,18 @@ async def start():
     solar_battery_contents = 0.0
     solar_battery_self_use_kwh = 0.0
     ev_cost = 0.0
-    ev_energy = {"high": 0.0, "low": 0.0, "q1": 0.0, "q2": 0.0, "q3": 0.0, "q4": 0.0}
+    ev_energy = {
+        "high": 0.0,
+        "low": 0.0,
+        "q1_kwh": 0.0,
+        "q2_kwh": 0.0,
+        "q3_kwh": 0.0,
+        "q4_kwh": 0.0,
+        "cost_q1": 0.0,
+        "cost_q2": 0.0,
+        "cost_q3": 0.0,
+        "cost_q4": 0.0,
+    }
     other_cost = 0.0
     other_energy = {"high": 0.0, "low": 0.0}
     exported_energy = 0.0
@@ -501,10 +572,14 @@ async def start():
                             curr_hour_price, []
                         ).append(curr_power)
                     curr_power -= easee_power_sample["consumption"]
-                    ev_energy["q1"] += easee_power_sample["consumption-q1"]
-                    ev_energy["q2"] += easee_power_sample["consumption-q2"]
-                    ev_energy["q3"] += easee_power_sample["consumption-q3"]
-                    ev_energy["q4"] += easee_power_sample["consumption-q4"]
+                    ev_energy["q1_kwh"] += easee_power_sample["consumption-q1"]
+                    ev_energy["q2_kwh"] += easee_power_sample["consumption-q2"]
+                    ev_energy["q3_kwh"] += easee_power_sample["consumption-q3"]
+                    ev_energy["q4_kwh"] += easee_power_sample["consumption-q4"]
+                    ev_energy["cost_q1"] += easee_power_sample["cost-q1"]
+                    ev_energy["cost_q2"] += easee_power_sample["cost-q2"]
+                    ev_energy["cost_q3"] += easee_power_sample["cost-q3"]
+                    ev_energy["cost_q4"] += easee_power_sample["cost-q4"]
                     if high_cost_day:
                         ev_energy["high"] += easee_power_sample["consumption"]
                     else:
@@ -526,6 +601,23 @@ async def start():
             other_energy["low"] += curr_power
         other_cost += curr_power * curr_hour_price
         day_energy_excl_ev += curr_power
+
+    if ev_energy["q1_kwh"] > 0.0:
+        ev_energy["Avg spot price q1 excl VAT and fees"] = (
+            ev_energy["cost_q1"] / ev_energy["q1_kwh"]
+        )
+    if ev_energy["q2_kwh"] > 0.0:
+        ev_energy["Avg spot price q2 excl VAT and fees"] = (
+            ev_energy["cost_q4"] / ev_energy["q2_kwh"]
+        )
+    if ev_energy["q3_kwh"] > 0.0:
+        ev_energy["Avg spot price q3 excl VAT and fees"] = (
+            ev_energy["cost_q4"] / ev_energy["q3_kwh"]
+        )
+    if ev_energy["q4_kwh"] > 0.0:
+        ev_energy["Avg spot price q4 excl VAT and fees"] = (
+            ev_energy["cost_q4"] / ev_energy["q4_kwh"]
+        )
 
     daily_energy_excl_ev.append((day_energy_excl_ev, "last day in period"))
     if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
@@ -565,9 +657,9 @@ async def start():
             + f" at energy cost of {ev_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
             + f" (avg price: {ev_cost/ev_energy_combined:.3f} (excl grid rewards))"
         )
-        print("EV Distribution pattern - ", end="")
+        print("EV Distribution pattern:", end="")
         for key, value in ev_energy.items():
-            print(f"{key}: {value:.2f} ", end="")
+            print(f" {key}: {value:.2f}.", end="")
         spare_charging_capacity = 0.0
         spare_charging_cost = 0.0
         for pwr_use_price in sorted(power_use_map_during_night):
