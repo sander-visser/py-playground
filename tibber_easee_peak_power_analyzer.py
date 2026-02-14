@@ -39,7 +39,7 @@ NORDPOOL_URL = (
 )
 START_DATE = datetime.date.fromisoformat("2026-02-01")  # None for one month back
 if (datetime.date.today() - START_DATE).days > 62:
-    NORDPOOL_REGION = None
+    NORDPOOL_REGION = None  # API only provides last two months
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
 HTTP_SUCCESS_CODE = 200
@@ -608,11 +608,11 @@ async def start():
         )
     if ev_energy["q2_kwh"] > 0.0:
         ev_energy["Avg spot price q2 excl VAT and fees"] = (
-            ev_energy["cost_q4"] / ev_energy["q2_kwh"]
+            ev_energy["cost_q2"] / ev_energy["q2_kwh"]
         )
     if ev_energy["q3_kwh"] > 0.0:
         ev_energy["Avg spot price q3 excl VAT and fees"] = (
-            ev_energy["cost_q4"] / ev_energy["q3_kwh"]
+            ev_energy["cost_q3"] / ev_energy["q3_kwh"]
         )
     if ev_energy["q4_kwh"] > 0.0:
         ev_energy["Avg spot price q4 excl VAT and fees"] = (
