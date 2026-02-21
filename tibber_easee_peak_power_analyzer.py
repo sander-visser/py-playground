@@ -16,6 +16,8 @@ import asyncio
 import copy
 import csv
 import datetime
+import json
+import os
 import statistics
 import sys
 import matplotlib.pyplot as plt
@@ -24,12 +26,10 @@ import pytz
 import requests
 import tibber  # pip install pyTibber (min 0.30.3 - supporting python 3.11 or later)
 
-# curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}'
+# The Easee API access token is read from environment variable (EV analysis skipped if env is missing)
 # Note: Easee access token expires after a few hours
-EASEE_API_ACCESS_TOKEN = None  # Leave as None to analyze without ignoring EV
-EASEE_CHARGER_ID = (
-    "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true
-)
+# export EASEE_API_ACCESS_TOKEN=$(curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}')
+EASEE_CHARGER_ID = "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true, and preferably with high res
 NORDPOOL_PRICE_CODE = "SEK"
 NORDPOOL_REGION = "SE3"  # None to skip quarterly EV analysis
 NORDPOOL_URL = (
@@ -438,13 +438,15 @@ async def start():
 
     print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
 
+    easee_token = os.environ.get("EASEE_API_ACCESS_TOKEN", None)
+
     charger_consumption = (
         None
-        if EASEE_API_ACCESS_TOKEN is None
+        if easee_token is None
         else get_easee_hourly_energy_json(
             {
                 "accept": "application/json",
-                "Authorization": "Bearer " + EASEE_API_ACCESS_TOKEN,
+                "Authorization": "Bearer " + json.loads(easee_token)["accessToken"],
             },
             EASEE_CHARGER_ID,
             local_dt_from,
