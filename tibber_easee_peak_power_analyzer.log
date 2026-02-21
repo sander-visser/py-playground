@@ -48,7 +48,7 @@ Max energy per day excl EV: 73.492 kWh @ 2026-01-12T23:00:00+00:00.
 372.884 kWh used when daily average energy need is above 1.9 kWh/h
 Min hourly energy 0.569 kWh (avg of 10)
 EV energy used 613.41 kWh at energy cost of 726.49 SEK (incl VAT and surcharges) (avg price: 1.184 (excl grid rewards))
-EV Distribution pattern - high: 63.23 low: 550.18 q1: 231.99 q2: 69.84 q3: 121.71 q4: 189.88
+EV Distribution pattern: high: 63.23. low: 550.18. q1_kwh: 231.99. q2_kwh: 69.84. q3_kwh: 121.71. q4_kwh: 189.88. cost_q1: 195.88. cost_q2: 61.21. cost_q3: 103.12. cost_q4: 160.92. Avg spot price q1 excl VAT and fees: 0.84. Avg spot price q2 excl VAT and fees: 0.88. Avg spot price q3 excl VAT and fees: 0.85. Avg spot price q4 excl VAT and fees: 0.85.
 Underutilized EV charge capacity 21:00 - 05:59 is 236.94 kWh at 0.83 SEK/kWh avg price
 
 Top ten peak power hours with EV charging excluded:
