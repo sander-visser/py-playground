@@ -23,7 +23,8 @@ Script uses SMHI solar data to estimate value of a small PV setup. Incl VAT:
     => 1232 + 2512 SEK (+3169 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
   Battery cycles used in one year: 223,5
 
-Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) May 2024 - April 2025 is 1673 SEK incl VAT.
+Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) Feb 2025 - Jan 2026 is 1737 SEK incl VAT.
+Yearly arbitrage savings from 7 kWh battery (two daily cycles without loss) Feb 2025 - Jan 2026 is 2233 SEK incl VAT.
 
 Yearly saving from VVB optimizer and sensibo optimizer (excl EV) when compared to Vattenfall flat monthly rate is 2022 SEK May 2024 - April 2025 (highest saving Dec - Feb)
 
@@ -119,8 +120,12 @@ Analysed with database until: 2026-01-31 15:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 16.28 (High: 0.00, Low: 16.28) kWh - valued at 29.52 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-192.29 SEK (incl VAT) if 100% efficient.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  192.29 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  129.03 SEK from morning cycle.
+  116.63 SEK from afternoon cycle.
 
 
 Scanning home of Sander Visser
@@ -207,8 +212,12 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 84.98 (High: 10.58, Low: 74.41) kWh - valued at 102.96 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-195.75 SEK (incl VAT) if 100% efficient.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  195.75 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  146.40 SEK from morning cycle.
+  105.40 SEK from afternoon cycle.
 
 
 Scanning home of Sander Visser
@@ -292,9 +301,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 6.65 kWh - valued at 7.79 SEK (incl VAT)
 Self use: 294.70 (High: 76.78, Low: 217.92) kWh - valued at 187.43 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-204.73 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  204.73 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  129.77 SEK from morning cycle.
+  158.59 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -378,9 +391,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 35.91 kWh - valued at 17.46 SEK (incl VAT)
 Self use: 485.36 (High: 130.65, Low: 354.70) kWh - valued at 189.78 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-145.52 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  145.52 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  100.61 SEK from morning cycle.
+  96.97 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -463,9 +480,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 119.87 kWh - valued at 67.03 SEK (incl VAT)
 Self use: 602.31 (High: 159.24, Low: 443.07) kWh - valued at 269.04 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-164.19 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  164.19 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  107.81 SEK from morning cycle.
+  131.44 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -549,9 +570,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 131.36 kWh - valued at 35.59 SEK (incl VAT)
 Self use: 605.59 (High: 186.03, Low: 419.56) kWh - valued at 158.14 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-112.84 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  112.84 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  76.32 SEK from morning cycle.
+  82.53 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -634,9 +659,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 307.32 kWh - valued at 150.02 SEK (incl VAT)
 Self use: 401.77 (High: 109.66, Low: 292.11) kWh - valued at 208.38 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-93.94 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  94.31 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  50.85 SEK from morning cycle.
+  59.62 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -719,9 +748,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 47.06 kWh - valued at 36.79 SEK (incl VAT)
 Self use: 538.70 (High: 117.90, Low: 420.79) kWh - valued at 270.90 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-144.07 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  144.07 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  83.65 SEK from morning cycle.
+  118.89 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -811,9 +844,13 @@ Analysed with database until: 2026-01-31 15:00:00+00:00
 Export: 11.65 kWh - valued at 9.91 SEK (incl VAT)
 Self use: 351.61 (High: 101.67, Low: 249.94) kWh - valued at 251.85 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-175.02 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  175.02 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  74.48 SEK from morning cycle.
+  139.12 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -897,9 +934,13 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.92 kWh - valued at 1.20 SEK (incl VAT)
 Self use: 155.60 (High: 47.18, Low: 108.42) kWh - valued at 162.29 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-191.90 SEK (incl VAT) if 100% efficient.
-Note: Not relevant as month when battery is used for solar storage.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  191.89 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  94.45 SEK from morning cycle.
+  110.92 SEK from afternoon cycle.
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
@@ -982,8 +1023,12 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 29.62 (High: 0.25, Low: 29.37) kWh - valued at 38.19 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-185.25 SEK (incl VAT) if 100% efficient.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  185.25 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  96.73 SEK from morning cycle.
+  130.97 SEK from afternoon cycle.
 
 
 Scanning home of Sander Visser
@@ -1070,5 +1115,9 @@ Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 0.00 (High: 0.00, Low: 0.00) kWh - valued at 0.00 SEK (incl VAT)
 
-Arbitrage profit possible with 7.0 kWh battery and one daily cycle:
-124.30 SEK (incl VAT) if 100% efficient.
+Self use arbitrage profit possible with 7.0 kWh battery:
+With one daily cycle if 100% efficient (incl VAT):
+  124.30 SEK.
+With two daily cycles if 100% efficient (incl VAT):
+  69.48 SEK from morning cycle.
+  69.83 SEK from afternoon cycle.
