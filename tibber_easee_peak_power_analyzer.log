@@ -148,9 +148,9 @@ Underutilized EV charge capacity 21:00 - 05:59 is 186.86 kWh at 0.81 SEK/kWh avg
 Top ten peak power hours with EV charging excluded:
 
 High cost peaks - weekdays at [6, 7, 8, 9, 10, 16, 17, 18, 19, 20] :00 - :59
-Peak of 4.691 kWh/h has occured at 2026-02-12 18:00:00+01:00
+Peak of 4.691 kWh/h has occured at 2026-02-12 18:00:00+01:00  <-- 3.75 kW missed. daundry and/or dishwasher
 Peak of 4.601 kWh/h has occured at 2026-02-06 06:00:00+01:00
-Peak of 4.088 kWh/h has occured at 2026-02-02 19:00:00+01:00
+Peak of 4.088 kWh/h has occured at 2026-02-02 19:00:00+01:00  <-- -7 outside
 Peak of 4.036 kWh/h has occured at 2026-02-09 17:00:00+01:00
 Peak of 3.995 kWh/h has occured at 2026-02-19 18:00:00+01:00
 Peak of 3.801 kWh/h has occured at 2026-02-04 19:00:00+01:00
@@ -160,7 +160,7 @@ Peak of 3.549 kWh/h has occured at 2026-02-19 16:00:00+01:00
 Peak of 3.525 kWh/h has occured at 2026-02-20 06:00:00+01:00
 
 Low cost peaks:
-Peak of 6.238 kWh/h has occured at 2026-02-09 03:00:00+01:00
+Peak of 6.238 kWh/h has occured at 2026-02-09 03:00:00+01:00  <-- 7.7 kW budget kept
 Peak of 6.177 kWh/h has occured at 2026-02-15 19:00:00+01:00
 Peak of 6.093 kWh/h has occured at 2026-02-18 00:00:00+01:00
 Peak of 6.031 kWh/h has occured at 2026-02-14 03:00:00+01:00
