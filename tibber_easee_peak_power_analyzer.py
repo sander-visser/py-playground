@@ -276,18 +276,23 @@ def get_irradiance_observation():
     return None
 
 
-def get_arbitrage_profit(curr_day_samples):
-    arbitrage_savings = 0.0
+def get_arbitrage_profit(curr_hourly_samples):
     arbitrage_energy = BATTERY_SIZE_KWH
-    arbitrage_savings -= BATTERY_SIZE_KWH * sorted(curr_day_samples)[0]
-    for energy_price in sorted(curr_day_samples, reverse=True):
-        energy_use = curr_day_samples[energy_price]
+    expensive_hourly_samples = sorted(
+        curr_hourly_samples, reverse=True, key=lambda x: x[0]
+    )
+    arbitrage_savings = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
+    for energy_price, energy_use in expensive_hourly_samples:
         if arbitrage_energy > energy_use:
             arbitrage_savings += energy_use * energy_price
             arbitrage_energy -= energy_use
         else:
             arbitrage_savings += arbitrage_energy * energy_price
+            arbitrage_energy = 0
             break
+    if arbitrage_energy > 0:
+        print(f"Warn: {arbitrage_energy} kWh arbitrage is under utilized this period")
+        arbitrage_savings += arbitrage_energy * expensive_hourly_samples[-1][0]
     return arbitrage_savings
 
 
@@ -460,8 +465,8 @@ async def start():
     power_map_low = {}
     power_map_high = {}
     power_use_map_during_night = {}
-    curr_day_samples = {}
-    arbitrage_savings = 0.0
+    curr_day_samples = []  # hourly list tuple with price, energy
+    arbitrage_savings = {"one_cycle": 0.0, "morning_cycle": 0.0, "afternoon_cycle": 0.0}
     solar_battery_contents = 0.0
     solar_battery_self_use_kwh = 0.0
     ev_cost = 0.0
@@ -494,9 +499,17 @@ async def start():
         curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
         if len(curr_day_samples) == 24:
             if BATTERY_SIZE_KWH is not None:
-                todays_arbitrage_savings = get_arbitrage_profit(curr_day_samples)
-                arbitrage_savings += todays_arbitrage_savings
-            curr_day_samples = {}
+                mid_day_samples = curr_day_samples[10:17]
+                min_cost = sorted(mid_day_samples, key=lambda x: x[0])[0]
+                cheap_hour = 10 + mid_day_samples.index(min_cost)
+                arbitrage_savings["one_cycle"] += get_arbitrage_profit(curr_day_samples)
+                arbitrage_savings["morning_cycle"] += get_arbitrage_profit(
+                    curr_day_samples[0 : (cheap_hour - 1)]
+                )
+                arbitrage_savings["afternoon_cycle"] += get_arbitrage_profit(
+                    curr_day_samples[cheap_hour:23]
+                )
+            curr_day_samples = []
             daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
             if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
                 heat_pump_uncovered += day_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
@@ -514,7 +527,7 @@ async def start():
             time_peak_incl_ev[curr_time.month] = curr_time
         # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
         curr_hour_price = float(power_sample["unitPrice"])
-        curr_day_samples[curr_hour_price + (curr_time.hour * 0.000001)] = curr_power
+        curr_day_samples.append((curr_hour_price, curr_power))
 
         high_cost_day = (
             curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS
@@ -793,11 +806,19 @@ async def start():
             + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
         )
     print(
-        f"\nArbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery and one daily cycle:"
-        + f"\n{arbitrage_savings:.2f} {NORDPOOL_PRICE_CODE} (incl VAT) if 100% efficient."
+        f"\nSelf use arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
+        + "\nWith one daily cycle if 100% efficient (incl VAT):"
+        + f"\n  {arbitrage_savings["one_cycle"]:.2f} {NORDPOOL_PRICE_CODE}."
+    )
+    print(
+        f"With two daily cycles if 100% efficient (incl VAT):"
+        + f"\n  {arbitrage_savings["morning_cycle"]:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
+        + f"\n  {arbitrage_savings["afternoon_cycle"]:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
     )
     if battery_cycle_count > 10:
-        print("Note: Not relevant as month when battery is used for solar storage.")
+        print(
+            "Note: Arbitrage is not relevant as month when battery is used for solar storage."
+        )
 
     await tibber_connection.close_connection()
 
