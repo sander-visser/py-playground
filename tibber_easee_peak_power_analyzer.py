@@ -507,7 +507,7 @@ async def start():
                     curr_day_samples[0 : (cheap_hour - 1)]
                 )
                 arbitrage_savings["afternoon_cycle"] += get_arbitrage_profit(
-                    curr_day_samples[cheap_hour:23]
+                    curr_day_samples[cheap_hour:]
                 )
             curr_day_samples = []
             daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
