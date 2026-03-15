@@ -759,6 +759,21 @@ async def quarterly_optimization(
                 if is_the_cheapest_hour_during_daytime(cost, LAST_MORNING_HEATING_H):
                     q_temps[q] = max(MIN_DAILY_TEMP, q_temps[q])
 
+    # Avoid heating the 4 most expensive quarters inside MAX_HOURS_NEEDED_TO_HEAT
+    scan_h = MAX_HOURS_NEEDED_TO_HEAT
+    scan_qs = []
+    while scan_h >= 0:
+        if (local_hour + scan_h) >= 24:
+            if cost.tomorrow is not None:
+                scan_qs.extend(cost.tomorrow[local_hour + scan_h - 24]["quartely"])
+        else:
+            scan_qs.extend(cost.today[local_hour + scan_h]["quartely"])
+        scan_h -= 1
+
+    for q in range(0, 4):
+        if curr_cost[q] > sorted(scan_qs)[-4]:
+            q_temps[q] = MIN_TEMP
+
     curr_min = time.localtime()[4]
     log_print(f"{curr_min}: Quarterly temps {q_temps} C @ {curr_cost} EUR")
     for q in range(int(curr_min / 15), 4):  # loop the quarters and sub optimize
