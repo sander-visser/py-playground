@@ -50,7 +50,8 @@ KWH_PER_MWH = 1000
 TIBBER_API_ACCESS_TOKEN = (
     "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1"  # Demo token
 )
-WEEKDAY_RESTRICTED_HOURS = [6, 7, 8, 9, 10, 16, 17, 18, 19, 20]  # :00 - :59
+RESTRICTED_HOURS = [7, 8, 9, 10, 16, 17, 18, 19, 20]  # :00 - :59
+RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is monday
 BATTERY_SIZE_KWH = 7.0
 HEAT_PUMP_MAX_CURRENT = 1.9
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
@@ -60,8 +61,8 @@ INSTALLED_PANEL_POWER = (
 )  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
 IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
 IRRADIANCE_MIN = 140  # W / m2 needed for any production
-EV_PLUGIN_HOUR = WEEKDAY_RESTRICTED_HOURS[-1] + 1  # :00
-EV_PLUGOUT_HOUR = WEEKDAY_RESTRICTED_HOURS[0] - 1  # :59
+EV_PLUGIN_HOUR = RESTRICTED_HOURS[-1] + 1  # :00
+EV_PLUGOUT_HOUR = RESTRICTED_HOURS[0] - 1  # :59
 SPARE_MARGIN_KWH = 0.5
 
 
@@ -530,7 +531,8 @@ async def start():
         curr_day_samples.append((curr_hour_price, curr_power))
 
         high_cost_day = (
-            curr_time.weekday() < 5 and curr_time.hour in WEEKDAY_RESTRICTED_HOURS
+            curr_time.weekday() in RESTRICTED_DAYS
+            and curr_time.hour in RESTRICTED_HOURS
         )
 
         if irradiance is not None and curr_utc_time in irradiance:
@@ -693,7 +695,7 @@ async def start():
         )
         print("\nTop ten peak power hours with EV charging excluded:")
 
-    print(f"\nHigh cost peaks - weekdays at {WEEKDAY_RESTRICTED_HOURS} :00 - :59")
+    print(f"\nHigh cost peaks - at {RESTRICTED_HOURS} :00 - :59")
     for peak_pwr in sorted(power_map_high, reverse=True)[0:10]:
         time_str = f"{power_map_high[peak_pwr][0]}"
         for times in power_map_high[peak_pwr][1:]:
