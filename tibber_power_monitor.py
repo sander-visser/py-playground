@@ -30,6 +30,7 @@ RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is Monday
 RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.5]
 UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 6.5, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
 # fmt: on
+BUDGET_FILTER_LEN = 3
 # Diazed tolerates 20% overload current for 15 minutes:
 # https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
 MAIN_FUSE_MAX_CURRENT = (
@@ -96,6 +97,8 @@ def _rt_callback(pkg):
     global current_hour_load_active_sec
     global load_activation_time
     global last_load_report_month
+    global last_adaptive_hour
+    global adaptive_restricted_budget
     global adaptive_unrestricted_budget
 
     data = pkg.get("data")
@@ -117,14 +120,34 @@ def _rt_callback(pkg):
         if restricted_time
         else UNRESTRICTED_KW_BUDGET[current_time.month - 1]
     )
-    if current_time.month != last_load_report_month:
-        adaptive_unrestricted_budget = 0.0
+    if (
+        current_time.month != last_load_report_month
+        or adaptive_unrestricted_budget is None
+        or adaptive_restricted_budget is None
+    ):
+        adaptive_unrestricted_budget = [0.0]
+        adaptive_restricted_budget = [0.0]
         last_load_report_month = current_time.month
-    if not restricted_time:
-        budget = max(budget, adaptive_unrestricted_budget)
-        adaptive_unrestricted_budget = max(
-            adaptive_unrestricted_budget, live_data["accumulatedConsumptionLastHour"]
+    if restricted_time:
+        adaptive_restricted_budget = sorted(adaptive_restricted_budget, reverse=True)
+        del adaptive_restricted_budget[BUDGET_FILTER_LEN:]
+        budget = max(budget, adaptive_restricted_budget[-1])
+        if last_adaptive_hour != current_time.hour and current_time.minute == 59:
+            last_adaptive_hour = current_time.hour
+            adaptive_restricted_budget.append(
+                live_data["accumulatedConsumptionLastHour"]
+            )
+    else:
+        adaptive_unrestricted_budget = sorted(
+            adaptive_unrestricted_budget, reverse=True
         )
+        del adaptive_unrestricted_budget[BUDGET_FILTER_LEN:]
+        budget = max(budget, adaptive_unrestricted_budget[-1])
+        if last_adaptive_hour != current_time.hour and current_time.minute == 59:
+            last_adaptive_hour = current_time.hour
+            adaptive_unrestricted_budget.append(
+                live_data["accumulatedConsumptionLastHour"]
+            )
 
     if (
         live_data["accumulatedConsumptionLastHour"] >= budget
@@ -316,7 +339,9 @@ total_load_active_sec = 0
 current_hour_load_active_sec = 0
 load_activation_time = None
 last_load_report_month = None
-adaptive_unrestricted_budget = 0.0
+last_adaptive_hour = None
+adaptive_unrestricted_budget = None
+adaptive_restricted_budget = None
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -329,3 +354,4 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(SEC_PER_MIN)
+
