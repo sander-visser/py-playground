@@ -298,8 +298,8 @@ def get_arbitrage_profit(curr_hourly_samples):
 
 
 def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
-    low_p_color = "tab:red"
-    high_p_color = "tab:orange"
+    low_p_color = "tab:orange"
+    high_p_color = "tab:red"
     low_e_color = "tab:green"
     high_e_color = "#7600bc"
 
