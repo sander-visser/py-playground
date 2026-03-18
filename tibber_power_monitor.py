@@ -31,6 +31,7 @@ RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
 UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 6.5, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
 # fmt: on
 BUDGET_FILTER_LEN = 3
+MAX_RESTRICTED_KW_BUDGET = 10.0  # Allow adaptive budget adjustment up to this value
 # Diazed tolerates 20% overload current for 15 minutes:
 # https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
 MAIN_FUSE_MAX_CURRENT = (
@@ -132,6 +133,7 @@ def _rt_callback(pkg):
         adaptive_restricted_budget = sorted(adaptive_restricted_budget, reverse=True)
         del adaptive_restricted_budget[BUDGET_FILTER_LEN:]
         budget = max(budget, adaptive_restricted_budget[-1])
+        budget = min(budget, MAX_RESTRICTED_KW_BUDGET)
         if last_adaptive_hour != current_time.hour and current_time.minute == 59:
             last_adaptive_hour = current_time.hour
             adaptive_restricted_budget.append(
