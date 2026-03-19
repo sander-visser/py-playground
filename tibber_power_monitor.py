@@ -50,9 +50,9 @@ RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is instal
 RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
-MAX_AUTO_RELAY_TOGGLE_TIME = 300  # In sec. Manual override must have longer duration
-ACTED_HYSTERESIS_KWH = 0.2  # Once acted lower the budget for HYSTERESIS_MINUTES
-HYSTERESIS_MINUTES = 5  # Max MAX_AUTO_RELAY_TOGGLE_TIME
+MAX_AUTO_RELAY_TOGGLE_SEC = 300  # Manual override must have longer duration
+ACTED_HYSTERESIS_KWH = 0.2  # Once acted lower the budget for one minute
+HYSTERESIS_SEC = 300  # Min duration to keep load off (<= MAX_AUTO_RELAY_TOGGLE_SEC)
 
 API_TIMEOUT = 10.0  # In seconds
 MIN_PER_H = 60
@@ -71,7 +71,7 @@ def pause_with_relay(sec_pause):
             if status_json["output"] == bool(RELAY_MODE):
                 if (
                     "timer_duration" in status_json
-                    and status_json["timer_duration"] > MAX_AUTO_RELAY_TOGGLE_TIME
+                    and status_json["timer_duration"] > MAX_AUTO_RELAY_TOGGLE_SEC
                 ):
                     logging.info("Skipping relay pause since manually paused")
                     return
@@ -196,7 +196,7 @@ def _rt_callback(pkg):
     time_since_acted = None
     if acted_time is not None:
         time_since_acted = current_time - acted_time
-        if time_since_acted.seconds < ((HYSTERESIS_MINUTES - 1) * SEC_PER_MIN):
+        if time_since_acted.seconds <= SEC_PER_MIN:
             budget -= ACTED_HYSTERESIS_KWH
 
     if max(supervised_currents) > MAIN_FUSE_MAX_CURRENT:
@@ -209,7 +209,7 @@ def _rt_callback(pkg):
     if main_fuse_protection_needed and RELAY_URL is not None:
         acted_time = current_time
         logging.info(f"Protecting main fuse: {live_data}")
-        pause_with_relay(MAX_AUTO_RELAY_TOGGLE_TIME)
+        pause_with_relay(MAX_AUTO_RELAY_TOGGLE_SEC)
         supervised_load_maybe_active = False
     elif live_data["accumulatedConsumptionLastHour"] > (
         budget * MINIMUM_LOAD_MINUTES_PER_H / MIN_PER_H
@@ -262,13 +262,13 @@ def _rt_callback(pkg):
         if acting_needed and acted_time is not None and RELAY_URL is not None:
             if (
                 supervised_load_maybe_active
-                or time_since_acted.seconds < MAX_AUTO_RELAY_TOGGLE_TIME
+                or time_since_acted.seconds < MAX_AUTO_RELAY_TOGGLE_SEC
             ):
                 logging.info(f"Acting with relay to pause power use: {live_data}")
                 sec_pause = (
                     MIN_PER_H - current_time.minute
                 ) * SEC_PER_MIN - current_time.second
-                sec_pause = min(sec_pause, HYSTERESIS_MINUTES * SEC_PER_MIN)
+                sec_pause = min(sec_pause, HYSTERESIS_SEC)
                 if sec_pause > 15:
                     acted_time = current_time
                     pause_with_relay(sec_pause)
