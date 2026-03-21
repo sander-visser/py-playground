@@ -51,7 +51,7 @@ RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_SEC = 300  # Manual override must have longer duration
-ACTED_HYSTERESIS_KWH = 0.2  # Once acted lower the budget for one minute
+ACTED_HYSTERESIS_KWH = 0.05  # When acted lower the budget for 1 min to secure min 1 min active time
 HYSTERESIS_SEC = 300  # Min duration to keep load off (<= MAX_AUTO_RELAY_TOGGLE_SEC)
 
 API_TIMEOUT = 10.0  # In seconds
