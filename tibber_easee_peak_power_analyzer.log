@@ -12,15 +12,15 @@ Script uses SMHI solar data to estimate value of a small PV setup. Incl VAT:
 - 1759 kWh/year (@4.5kWp) self use without battery storage system (or changed consumption pattern)
   Value for May 2024 - April 2025 is 1552 SEK (+965 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
 - 3506 kWh/year (@4.5kWp) self use with 7 kWh battery storage system (no changed consumption pattern)
-  661 kWh / year export (value excl network: 325 SEK)
+  661 kWh / year export (export value (excl network): 325 SEK)
   Value for Nov 2024 - Oct 2025 is 3696 SEK (excl ~350 SEK network fee avoidance @0.10 SEK/kWh)
-    => 325 + 1793 SEK (+1578 SEK energy tax effect @2026 level) (excl 0,6 SEK tax credit system to be scrapped)
+    => 325 + 1793 SEK (+1578 SEK energy tax effect @2026 level)
   Battery cycles used in one year: 226,8
   Thus: Arbitrage is more valuable Oct - April
 - 5775 kWh/year (@9kWp) self use with 14 kWh battery storage system (no changed consumption pattern)
-  2712 kWh / year export (value excl network: 1232 SEK)
-  Value for Sept 2024 - Aug 2025 is 6913 SEK (excl ~600 SEK network fee avoidance)
-    => 1232 + 2512 SEK (+3169 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
+  2712 kWh / year export (export value (excl network): 1232 SEK)
+  Value for Sept 2024 - Aug 2025 is 6913 SEK (excl ~600 SEK network fee avoidance @0.10 SEAk/kWh)
+    => 1232 + 2512 SEK (+3169 SEK energy tax effect @2025 higher level)
   Battery cycles used in one year: 223,5
 
 Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) Feb 2025 - Jan 2026 is 1737 SEK incl VAT.
@@ -28,9 +28,10 @@ Yearly arbitrage savings from 7 kWh battery (two daily cycles without loss) Feb 
 
 Yearly saving from VVB optimizer and sensibo optimizer (excl EV) when compared to Vattenfall flat monthly rate is 2022 SEK May 2024 - April 2025 (highest saving Dec - Feb)
 
-Yearly energy use Nov-24 to Oct-25 excl EV 12469 kWh
+Yearly energy use April-25 to Feb-26 excl EV 12633 kWh (+ ~1 cubic meter firewood used).
+~857kWh used to boost underdimensioned heatpump.
 
-Time tarrif total split according to Vattenfall 2025-10-01 price list (daytime 07:00-21:00 Nov - Mar):
+Time tarrif total split (incl EV) according to Vattenfall 2025-10-01 price list (daytime 07:00-21:00 Nov - Mar):
 Sept 2024 - Aug 2025: 2324,25 kWh High. 16749,69 kWh Low (4,5kWp solar avoids 280,04 kWh high).
 
 =========================
