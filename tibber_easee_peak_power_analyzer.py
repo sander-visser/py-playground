@@ -137,7 +137,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
         else:
             curr_cost = (
                 0
-                if raw_cost is None
+                if raw_cost is None or curr_q >= len(raw_cost["multiIndexEntries"])
                 else raw_cost["multiIndexEntries"][curr_q]["entryPerArea"][
                     NORDPOOL_REGION
                 ]
