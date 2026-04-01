@@ -688,11 +688,12 @@ async def start():
                     spare_charging_capacity += spare_energy
                     spare_charging_cost += spare_energy * pwr_use_price
 
-        print(
-            f"\nUnderutilized EV charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59"
-            + f" is {spare_charging_capacity:.2f} kWh at "
-            + f"{(spare_charging_cost/spare_charging_capacity):.2f} SEK/kWh avg price"
-        )
+        if spare_charging_capacity > 0.0:
+            print(
+                f"\nUnderutilized EV charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59"
+                + f" is {spare_charging_capacity:.2f} kWh at "
+                + f"{(spare_charging_cost/spare_charging_capacity):.2f} SEK/kWh avg price"
+            )
         print("\nTop ten peak power hours with EV charging excluded:")
 
     print(f"\nHigh cost peaks - at {RESTRICTED_HOURS} :00 - :59")
