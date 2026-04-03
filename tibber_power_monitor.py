@@ -319,11 +319,15 @@ async def start():
     budget_warn_hour = time.localtime().tm_hour - 1
     while home is not None:
         if budget_warning is not None and budget_warn_hour != time.localtime().tm_hour:
-            budget_warn_hour = time.localtime().tm_hour
-            await tibber_connection.send_notification(
-                budget_warning[0], budget_warning[1]
-            )
-            budget_warning = None
+            try:
+                await tibber_connection.send_notification(
+                    budget_warning[0], budget_warning[1]
+                )
+                budget_warn_hour = time.localtime().tm_hour
+                budget_warning = None
+            except Exception as e:
+                logging.error(f"Notification error: {e}")
+                await asyncio.sleep(60)
         if home.rt_subscription_running:
             alive_timeout = MAX_RETRY_COUNT
         else:
