@@ -37,7 +37,7 @@ NORDPOOL_URL = (
     + f"market=DayAhead&currency={NORDPOOL_PRICE_CODE}&resolutionInMinutes=15&indexNames="
     + f"{NORDPOOL_REGION}&date="
 )
-START_DATE = datetime.date.fromisoformat("2026-02-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2026-04-01")  # None for one month back
 if (datetime.date.today() - START_DATE).days > 62:
     NORDPOOL_REGION = None  # API only provides last two months
 API_TIMEOUT = 10.0  # seconds
@@ -811,12 +811,12 @@ async def start():
     print(
         f"\nSelf use arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
         + "\nWith one daily cycle if 100% efficient (incl VAT):"
-        + f"\n  {arbitrage_savings["one_cycle"]:.2f} {NORDPOOL_PRICE_CODE}."
+        + f"\n  {arbitrage_savings['one_cycle']:.2f} {NORDPOOL_PRICE_CODE}."
     )
     print(
         f"With two daily cycles if 100% efficient (incl VAT):"
-        + f"\n  {arbitrage_savings["morning_cycle"]:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
-        + f"\n  {arbitrage_savings["afternoon_cycle"]:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
+        + f"\n  {arbitrage_savings['morning_cycle']:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
+        + f"\n  {arbitrage_savings['afternoon_cycle']:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
     )
     if battery_cycle_count > 10:
         print(
