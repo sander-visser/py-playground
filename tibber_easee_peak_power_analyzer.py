@@ -52,7 +52,7 @@ TIBBER_API_ACCESS_TOKEN = (
 )
 RESTRICTED_HOURS = [7, 8, 9, 10, 16, 17, 18, 19, 20]  # :00 - :59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is monday
-BATTERY_SIZE_KWH = 7.0
+BATTERY_SIZE_KWH = 7.0  # Set to None to simulate without home battery
 HEAT_PUMP_MAX_CURRENT = 1.9
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
 IRRADIANCE_OBSERVATION = None  # "smhi.csv"  # Cleaned up with leading garbage removed
@@ -489,6 +489,7 @@ async def start():
     exported_value = 0.0
     self_used_energy = {"high": 0.0, "low": 0.0}
     self_used_value = 0.0
+    solar_direct_ev_underutilized_kwh = 0.0
     day_energy_excl_ev = 0.0
     daily_energy_excl_ev = []
     heat_pump_uncovered = 0.0
@@ -573,6 +574,8 @@ async def start():
             else:
                 self_used_energy["low"] += self_use
             self_used_value += self_use * curr_hour_price
+            if curr_time.weekday() > 5 or (curr_time.hour <= 8 or curr_time.hour >= 16):
+                solar_direct_ev_underutilized_kwh += export
             if curr_hour_price >= 0.0:
                 exported_energy += export
                 exported_value += export * curr_hour_price
@@ -807,6 +810,10 @@ async def start():
             f"Self use: {self_used_energy_combined:.2f}"
             + f" (High: {self_used_energy['high']:.2f}, Low: {self_used_energy['low']:.2f}) kWh"
             + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
+        )
+        print(
+            f"EV could have direct used another {solar_direct_ev_underutilized_kwh:.2f} kWh"
+            + " on weekends and weekdays before 8:00 and after 16:00"
         )
     print(
         f"\nSelf use arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
