@@ -574,7 +574,7 @@ async def start():
             else:
                 self_used_energy["low"] += self_use
             self_used_value += self_use * curr_hour_price
-            if curr_time.weekday() > 5 or (curr_time.hour <= 8 or curr_time.hour >= 16):
+            if curr_time.weekday() >= 5 or (curr_time.hour <= 8 or curr_time.hour >= 16):
                 solar_direct_ev_underutilized_kwh += export
             if curr_hour_price >= 0.0:
                 exported_energy += export
