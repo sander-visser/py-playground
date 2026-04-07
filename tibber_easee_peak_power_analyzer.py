@@ -489,6 +489,7 @@ async def start():
     exported_value = 0.0
     self_used_energy = {"high": 0.0, "low": 0.0}
     self_used_value = 0.0
+    solar_to_ev_kwh = 0.0
     solar_direct_ev_underutilized_kwh = 0.0
     day_energy_excl_ev = 0.0
     daily_energy_excl_ev = []
@@ -536,6 +537,7 @@ async def start():
             and curr_time.hour in RESTRICTED_HOURS
         )
 
+        solar_power = None
         if irradiance is not None and curr_utc_time in irradiance:
             curr_irr = irradiance[curr_utc_time]
             if curr_irr[0] == "" or curr_irr[1] == "":
@@ -591,6 +593,8 @@ async def start():
                         power_use_map_during_night.setdefault(
                             curr_hour_price, []
                         ).append(curr_power)
+                    if solar_power is not None:
+                        solar_to_ev_kwh += min(solar_power,  easee_power_sample["consumption"])
                     curr_power -= easee_power_sample["consumption"]
                     ev_energy["q1_kwh"] += easee_power_sample["consumption-q1"]
                     ev_energy["q2_kwh"] += easee_power_sample["consumption-q2"]
@@ -811,6 +815,7 @@ async def start():
             + f" (High: {self_used_energy['high']:.2f}, Low: {self_used_energy['low']:.2f}) kWh"
             + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
         )
+        print(f"EV direct solar use {solar_to_ev_kwh:.2f} kWh")
         print(
             f"EV could have direct used another {solar_direct_ev_underutilized_kwh:.2f} kWh"
             + " on weekends and weekdays before 8:00 and after 16:00"
