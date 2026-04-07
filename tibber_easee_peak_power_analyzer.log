@@ -22,6 +22,8 @@ Script uses SMHI solar data to estimate value of a small PV setup. Incl VAT:
   Value for Sept 2024 - Aug 2025 is 6913 SEK (excl ~600 SEK network fee avoidance @0.10 SEAk/kWh)
     => 1232 + 2512 SEK (+3169 SEK energy tax effect @2025 higher level)
   Battery cycles used in one year: 223,5
+- A 10kWp installation would be enought to power EV with pure solar during summer months.
+  150kWh in March, 360kWh in April, 500kWh in May, 555kWh in June, 540kWh in July, 390kWh in August, 190kWh in September
 
 Yearly arbitrage savings from 7 kWh battery (one daily cycle without loss) Feb 2025 - Jan 2026 is 1737 SEK incl VAT.
 Yearly arbitrage savings from 7 kWh battery (two daily cycles without loss) Feb 2025 - Jan 2026 is 2233 SEK incl VAT.
@@ -120,6 +122,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2026-01-31 15:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 16.28 (High: 0.00, Low: 16.28) kWh - valued at 29.52 SEK (incl VAT)
+EV direct solar use 3.61 kWh
+EV could have direct used another 0.00 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -213,6 +217,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2026-03-01 07:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 74.91 (High: 2.94, Low: 71.96) kWh - valued at 119.30 SEK (incl VAT)
+EV direct solar use 11.50 kWh
+EV could have direct used another 0.00 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -296,6 +302,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2026-04-01 04:00:00+00:00
 Export: 5.24 kWh - valued at 5.51 SEK (incl VAT)
 Self use: 224.96 (High: 71.77, Low: 153.19) kWh - valued at 165.83 SEK (incl VAT)
+EV direct solar use 28.65 kWh
+EV could have direct used another 1.90 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -386,6 +394,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 35.91 kWh - valued at 17.46 SEK (incl VAT)
 Self use: 485.36 (High: 130.65, Low: 354.70) kWh - valued at 189.78 SEK (incl VAT)
+EV direct solar use 63.12 kWh
+EV could have direct used another 30.50 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -475,6 +485,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 119.87 kWh - valued at 67.03 SEK (incl VAT)
 Self use: 602.31 (High: 159.24, Low: 443.07) kWh - valued at 269.04 SEK (incl VAT)
+EV direct solar use 71.86 kWh
+EV could have direct used another 63.25 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -565,6 +577,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 131.36 kWh - valued at 35.59 SEK (incl VAT)
 Self use: 605.59 (High: 186.03, Low: 419.56) kWh - valued at 158.14 SEK (incl VAT)
+EV direct solar use 102.14 kWh
+EV could have direct used another 72.47 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -654,6 +668,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 307.32 kWh - valued at 150.02 SEK (incl VAT)
 Self use: 401.77 (High: 109.66, Low: 292.11) kWh - valued at 208.38 SEK (incl VAT)
+EV direct solar use 51.60 kWh
+EV could have direct used another 143.33 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -743,6 +759,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 47.06 kWh - valued at 36.79 SEK (incl VAT)
 Self use: 538.70 (High: 117.90, Low: 420.79) kWh - valued at 270.90 SEK (incl VAT)
+EV direct solar use 91.61 kWh
+EV could have direct used another 31.25 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -839,6 +857,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2026-01-31 15:00:00+00:00
 Export: 11.65 kWh - valued at 9.91 SEK (incl VAT)
 Self use: 351.61 (High: 101.67, Low: 249.94) kWh - valued at 251.85 SEK (incl VAT)
+EV direct solar use 47.18 kWh
+EV could have direct used another 6.24 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -929,6 +949,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.92 kWh - valued at 1.20 SEK (incl VAT)
 Self use: 155.60 (High: 47.18, Low: 108.42) kWh - valued at 162.29 SEK (incl VAT)
+EV direct solar use 25.26 kWh
+EV could have direct used another 0.92 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -1018,6 +1040,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 29.62 (High: 0.25, Low: 29.37) kWh - valued at 38.19 SEK (incl VAT)
+EV direct solar use 5.27 kWh
+EV could have direct used another 0.00 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
@@ -1110,6 +1134,8 @@ Min solar power required for production: 140 W / m2
 Analysed with database until: 2025-12-30 00:00:00+00:00
 Export: 0.00 kWh - valued at 0.00 SEK (incl VAT)
 Self use: 0.00 (High: 0.00, Low: 0.00) kWh - valued at 0.00 SEK (incl VAT)
+EV direct solar use 0.00 kWh
+EV could have direct used another 0.00 kWh on weekends and weekdays before 8:00 and after 16:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
