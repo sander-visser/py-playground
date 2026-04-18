@@ -27,8 +27,8 @@ RESTRICTED_HOURS = list(range(7, 20 + 1))  # 07:00 - 20:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is Monday
 # fmt: off
 # kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
-RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.5]
-UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 6.5, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
+RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.7, 3.7, 3.7, 3.7, 3.7, 3.7, 3.7, 3.2, 3.3, 3.5]
+UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 7.2, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
 # fmt: on
 BUDGET_FILTER_LEN = 3
 MAX_RESTRICTED_KW_BUDGET = 10.0  # Allow adaptive budget adjustment up to this value
