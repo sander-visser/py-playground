@@ -515,12 +515,10 @@ class TemperatureProvider:
         if self._last_forecast is not None:
             for forecast_point in self._last_forecast:
                 if forecast_point["intervalParametersStartTime"] == rounded_zulu_time:
-                    temperature_forecast_impact = (
-                        self.get_windchill_corrected_temp(
-                            forecast_point["data"]["air_temperature"],
-                            forecast_point["data"]["wind_speed"],
-                            windchill_percent,
-                        )
+                    temperature_forecast_impact = self.get_windchill_corrected_temp(
+                        forecast_point["data"]["air_temperature"],
+                        forecast_point["data"]["wind_speed"],
+                        windchill_percent,
                     )
         if self._verbose and temperature_forecast_impact is not None:
             print(
