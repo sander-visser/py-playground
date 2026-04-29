@@ -51,9 +51,9 @@ TEMPERATURE_URLS = [
 ]
 FORECAST_URL = (
     "https://opendata-download-metfcst.smhi.se/api/"
-    + "category/pmp3g/version/2/geotype/point/lon/12.12860/lat/57.71934/data.json"
+    + "category/snow1g/version/1/geotype/point/lon/12.12860/lat/57.71934/data.json"
 )
-VARIABLE_CLOUDINESS = 3  # https://opendata.smhi.se/apidocs/metfcst/parameters.html
+VARIABLE_CLOUDINESS = 3  # https://opendata.smhi.se/metfcst/snow1gv1/parameters
 
 # Schedule info
 WORKDAY_MORNING = {
@@ -451,14 +451,13 @@ class TemperatureProvider:
 
     def get_now_forcast_param(self, param_name):
         if self._last_forecast is not None:
-            curr_weather = self._last_forecast[0]["parameters"]
-            for par in curr_weather:
-                if par["name"] == param_name:
-                    return par["values"][0]
+            curr_weather = self._last_forecast[0]["data"]
+            if param_name in curr_weather:
+                return curr_weather[param_name]
         return None
 
     def outside_pleasantly_warm(self):
-        curr_weather = self.get_now_forcast_param("Wsymb2")
+        curr_weather = self.get_now_forcast_param("symbol_code")
         return self.outdoor_temperature >= MIN_FLOOR_SENSOR_COMFORT_TEMPERATURE or (
             curr_weather is not None
             and curr_weather <= VARIABLE_CLOUDINESS
@@ -515,22 +514,14 @@ class TemperatureProvider:
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
         if self._last_forecast is not None:
             for forecast_point in self._last_forecast:
-                if forecast_point["validTime"] == rounded_zulu_time:
-                    for param in forecast_point["parameters"]:
-                        if param["name"] == "t":
-                            temperature_forecast_impact = param["values"][0]
-                        if (
-                            param["name"] == "ws"
-                            and temperature_forecast_impact is not None
-                        ):
-                            temperature_forecast_impact = (
-                                self.get_windchill_corrected_temp(
-                                    temperature_forecast_impact,
-                                    param["values"][0],
-                                    windchill_percent,
-                                )
-                            )
-                    break
+                if forecast_point["intervalParametersStartTime"] == rounded_zulu_time:
+                    temperature_forecast_impact = (
+                        self.get_windchill_corrected_temp(
+                            forecast_point["data"]["air_temperature"],
+                            forecast_point["data"]["wind_speed"],
+                            windchill_percent,
+                        )
+                    )
         if self._verbose and temperature_forecast_impact is not None:
             print(
                 f"Forcasted temperature {temperature_forecast_impact} at {rounded_zulu_time}"
