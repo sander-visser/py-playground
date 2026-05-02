@@ -129,9 +129,8 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                 else nordpool_session.get(
                     f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
                     timeout=10.0,
-                )
+                ).json()
             )
-            raw_cost = raw_cost.json()
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
                 print("Error: Easee from date not an hourly boundary...")
