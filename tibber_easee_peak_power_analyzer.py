@@ -117,18 +117,21 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
     cost_q3 = 0
     cost_q4 = 0
     curr_day = local_dt_from.day
-    raw_cost = (
-        None
-        if NORDPOOL_REGION is None
-        else requests.get(
-            f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
-            timeout=10.0,
-        ).json()
-    )
+    raw_cost = None
     curr_q = 0
+    nordpool_session = None if NORDPOOL_REGION is None else requests.Session()
 
     for measurement in ranged_measurements:
-        # print(f"scanning {measurement} vs {prev_measurement} {curr_cost}")
+        if curr_q == 0 and curr_day <= local_dt_to.day:
+            raw_cost = (
+                None
+                if NORDPOOL_REGION is None
+                else nordpool_session.get(
+                    f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
+                    timeout=10.0,
+                )
+            )
+            raw_cost = raw_cost.json()
         if prev_measurement is None:
             if ":00:00+00:00" not in measurement["measuredAt"]:
                 print("Error: Easee from date not an hourly boundary...")
@@ -152,7 +155,7 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                     (curr_date - last_date).seconds / 60 / measurement_min
                 )
                 print(
-                    f"Warn: Lost {nbr_measurements} EV measurements during at {curr_date}"
+                    f"Warn: Lost {nbr_measurements} EV measurements just before {curr_date}"
                 )
 
             consumption_val = measurement["value"] - prev_measurement["value"]
@@ -174,7 +177,6 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
                     prev_measurement = measurement
 
                 if 0 < last_date.minute <= 15:
-                    # print(f"{raw_cost['multiIndexEntries'][curr_q]} data: {measurement}")
                     cons_q1 += delta_consumption
                     cost_q1 += curr_cost * delta_consumption
                 if 15 < last_date.minute <= 30:
@@ -229,16 +231,6 @@ def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt
             if curr_q == 24 * 4:
                 curr_q = 0
                 curr_day += 1
-                # print(f"Analyzed day {curr_day} {measurement}")
-                if curr_day <= local_dt_to.day:
-                    raw_cost = (
-                        None
-                        if NORDPOOL_REGION is None
-                        else requests.get(
-                            f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
-                            timeout=10.0,
-                        ).json()
-                    )
 
     if measurement_cnt is None or measurement_min != 60:
         print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
