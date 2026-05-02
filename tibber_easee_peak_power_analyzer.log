@@ -11,17 +11,17 @@ Visual renderings at https://github.com/sander-visser/py-playground/blob/main/po
 Script uses SMHI solar data to estimate value of a small PV setup. Incl VAT:
 - 1759 kWh/year (@4.5kWp) self use without battery storage system (or changed consumption pattern)
   Value for May 2024 - April 2025 is 1552 SEK (+965 SEK energy tax effect) (excl 0,6 SEK tax credit system to be scrapped)
-- 3506 kWh/year (@4.5kWp) self use with 7 kWh battery storage system (no changed consumption pattern)
-  661 kWh / year export (export value (excl network): 325 SEK)
-  Value for Nov 2024 - Oct 2025 is 3696 SEK (excl ~350 SEK network fee avoidance @0.10 SEK/kWh)
-    => 325 + 1793 SEK (+1578 SEK energy tax effect @2026 level)
-  Battery cycles used in one year: 226,8
+- 3499 kWh/year (@4.5kWp) self use with 7 kWh battery storage system (no changed consumption pattern) avoids 1949 SEK purchase.
+  647 kWh / year export (export value (excl network): 312 SEK)
+  Value for May 2025 - April 2026 is 5763 SEK
+    => 312 + 1949 SEK (+1574 SEK energy tax effect @2026 level) (+1578 SEK from self use arbitrage during 7 months) + (~350 SEK network fee avoidance @0.10 SEK/kWh)
+  Battery cycles used in one year: 226,8 (excl arbitrage)
   Thus: Arbitrage is more valuable Oct - April
-- 5775 kWh/year (@9kWp) self use with 14 kWh battery storage system (no changed consumption pattern)
-  2712 kWh / year export (export value (excl network): 1232 SEK)
-  Value for Sept 2024 - Aug 2025 is 6913 SEK (excl ~600 SEK network fee avoidance @0.10 SEAk/kWh)
-    => 1232 + 2512 SEK (+3169 SEK energy tax effect @2025 higher level)
-  Battery cycles used in one year: 223,5
+- 5626 kWh/year (@9kWp) self use with 14 kWh battery storage system (no changed consumption pattern) avoids 3304 SEK purchase.
+  2615 kWh / year export (export value (excl network): 1223 SEK)
+  Value for May 2025 - April 2026 is 9583 SEK
+    => 1223 + 3304 SEK (+2532 SEK energy tax effect @2026 level) (+1962 SEK from self use arbitrage during 7 months) + (~562 SEK network fee avoidance @0.10 SEK/kWh)
+  Battery cycles used in one year: 225,7 (excl arbitrage)
 - A 10kWp installation would be enought to power EV with pure solar during summer months.
   150kWh in March, 360kWh in April, 500kWh in May, 555kWh in June, 540kWh in July, 390kWh in August, 190kWh in September
 
