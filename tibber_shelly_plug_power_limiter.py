@@ -32,6 +32,10 @@ RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
 UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 6.5, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
 # fmt: on
 BUDGET_FILTER_LEN = 3
+FIRSTLINE_RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is installed
+FIRSTLINE_RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
+FIRSTLINE_RELAY_SET_URL = f"{FIRSTLINE_RELAY_URL}set?id=0&on={FIRSTLINE_RELAY_MODE}&toggle_after=120"
+FIRSTLINE_RELAY_GET_URL = f"{FIRSTLINE_RELAY_URL}getstatus?id=0"
 RELAY_GET_URL = "http://192.168.1.222/rpc/Switch.GetStatus?id=0"
 RELAY_SET_URL = f"http://192.168.1.222/rpc/switch.set?id=0&on=false&toggle_after="
 HEATING_ENERGY_PER_MINUTE_THRESHOLD = 25000  # Wh/min for a 2kW heater
@@ -45,6 +49,19 @@ MAX_RETRY_COUNT = 6  # 10s apart
 
 def pause_with_relay(sec_pause):
     try:
+        if FIRSTLINE_RELAY_URL is not None:
+            firstline_state = requests.get(FIRSTLINE_RELAY_GET_URL, timeout=API_TIMEOUT)
+            if firstline_state.status_code != requests.codes.ok:
+                logging.warning(
+                    f"Failed to check firstline {firstline_state.status_code}"
+                )
+            elif str(firstline_state.json()["output"]).lower() != FIRSTLINE_RELAY_MODE:
+                logging.info(f"Firstline has not yet acted  - do that first")
+                resp = requests.get(FIRSTLINE_RELAY_SET_URL, timeout=API_TIMEOUT)
+                if resp.status_code == requests.codes.ok:
+                    logging.info(f"Waiting for firstline acting to have effect")
+                    return
+
         resp = requests.get(RELAY_SET_URL + f"{sec_pause}", timeout=API_TIMEOUT)
         if resp.status_code != requests.codes.ok:
             logging.warning(f"Acting relay failed {resp.status_code}")
