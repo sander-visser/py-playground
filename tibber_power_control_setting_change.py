@@ -7,12 +7,15 @@ Use the Tibber App interface to adjust power control level to maximize grid rewa
 import datetime
 import time
 
+import pytz
 import requests
 
 LOGIN_HEADERS = {"Content-Type": "application/x-www-form-urlencoded"}
 REQUEST_BODY = {"email": "user@example.com", "password": "very_secret"}
 FIRST_QS_BOOST = 0.25  # 50% extra first quarter and 25% extra second
 PWR_BUDGET = 7.5
+TZ = pytz.timezone("Europe/Amsterdam")
+CAREFUL_HOURS = [12, 13, 17, 18] if PWR_BUDGET <= 6.5 else []
 
 
 QUERY = """
@@ -36,13 +39,13 @@ def maximize_gr():
         "deviceId": DEVICE_ID,
         "settings": [{"key": "hourlyConsumptionLimit", "value": "1.0"}],
     }
-    next_q = datetime.datetime.now()
-    next_q = next_q + ((next_q.min - next_q) % datetime.timedelta(minutes=15))
+    next_q = datetime.datetime.now(TZ)
+    next_q = next_q + datetime.timedelta(minutes=(15 - (next_q.minute % 15)))
     # Begin with current quarter - set rules one minute in advance
     next_q -= datetime.timedelta(minutes=16)
     while True:
         time.sleep(59)  # dont miss a minute
-        now_time = datetime.datetime.now()
+        now_time = datetime.datetime.now(TZ)
 
         if now_time >= next_q:
             if auth_headers is None or next_q.minute == 44:
@@ -60,12 +63,13 @@ def maximize_gr():
                     "authorization": f"{auth_response.json()['token']}",
                 }
             budget = PWR_BUDGET
-            if next_q.minute == 59:  # boost the first quarter to maximize GR
+            next_q += datetime.timedelta(minutes=15)
+            # Boost the first two quarters to maximize GR unless care is needed
+            if next_q.minute == 14 and next_q.hour not in CAREFUL_HOURS:
                 budget *= 1 + FIRST_QS_BOOST * 2
-            elif next_q.minute == 14:  # boost the second quarter to maximize GR
+            elif next_q.minute == 29 and next_q.hour not in CAREFUL_HOURS:
                 budget *= 1 + FIRST_QS_BOOST
             variables["settings"][0]["value"] = f"{budget:.2f}"
-            next_q += datetime.timedelta(minutes=15)
             print(f"setting {variables}")
             response = requests.post(
                 "https://app.tibber.com/v4/gql",
