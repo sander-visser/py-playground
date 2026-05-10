@@ -62,9 +62,10 @@ def pause_with_relay(sec_pause):
                     logging.info(f"Waiting for firstline acting to have effect")
                     return
 
-        resp = requests.get(RELAY_SET_URL + f"{sec_pause}", timeout=API_TIMEOUT)
-        if resp.status_code != requests.codes.ok:
-            logging.warning(f"Acting relay failed {resp.status_code}")
+        if sec_pause is not None:
+            resp = requests.get(RELAY_SET_URL + f"{sec_pause}", timeout=API_TIMEOUT)
+            if resp.status_code != requests.codes.ok:
+                logging.warning(f"Acting relay failed {resp.status_code}")
     except requests.exceptions.ConnectionError:
         logging.warning("Acting relay failed - connection error")
     except requests.exceptions.Timeout:
@@ -138,6 +139,8 @@ def _rt_callback(pkg):
             + f"Possibly acting to reduce consumption to keep {budget} kWh budget.\n"
             + f"kWh/h estimate filtered: {live_data['estimatedHourConsumption']}"
         )
+        if load_last_three_min[0] >= HEATING_ENERGY_PER_MINUTE_THRESHOLD:
+            pause_with_relay(None)  # First line act
         if (
             load_last_three_min[0] >= HEATING_ENERGY_PER_MINUTE_THRESHOLD
             and load_last_three_min[1] >= HEATING_ENERGY_PER_MINUTE_THRESHOLD
