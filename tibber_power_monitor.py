@@ -75,6 +75,12 @@ def pause_with_relay(sec_pause):
                 ):
                     logging.info("Skipping relay pause since manually paused")
                     return
+                if (
+                    datetime.datetime.now(datetime.timezone.utc).timestamp() + 60
+                    > status_json["timer_started_at"]
+                ):
+                    logging.info("Skipping relay pause since recently started")
+                    return
     except requests.exceptions.ConnectionError:
         logging.warning("Polling relay failed - connection error")
     except requests.exceptions.Timeout:
