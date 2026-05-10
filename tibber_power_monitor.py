@@ -68,7 +68,7 @@ def pause_with_relay(sec_pause):
             logging.warning(f"Polling relay failed {resp.status_code}")
         else:
             status_json = resp.json()
-            if status_json["output"] == bool(RELAY_MODE):
+            if str(status_json["output"]).lower() == RELAY_MODE:
                 if (
                     "timer_duration" in status_json
                     and status_json["timer_duration"] > MAX_AUTO_RELAY_TOGGLE_SEC
