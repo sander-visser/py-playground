@@ -76,7 +76,9 @@ def pause_with_relay(sec_pause):
                     logging.info("Skipping relay pause since manually paused")
                     return
                 if (
-                    datetime.datetime.now(datetime.timezone.utc).timestamp() + 60
+                    datetime.datetime.now(datetime.timezone.utc).timestamp()
+                    - status_json["timer_duration"]
+                    + SEC_PER_MIN
                     > status_json["timer_started_at"]
                 ):
                     logging.info("Skipping relay pause since recently started")
