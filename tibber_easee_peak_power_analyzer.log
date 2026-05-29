@@ -392,10 +392,10 @@ EV could have direct used another 9.10 kWh on weekends and weekdays before 8:00 
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  186.76 SEK.
+  186.76 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  109.91 SEK from morning cycle.
-  155.20 SEK from afternoon cycle.
+  109.91 SEK from morning cycle. (0.00 kWh unused potential)
+  155.20 SEK from afternoon cycle. (0.00 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
@@ -483,10 +483,10 @@ EV could have direct used another 63.25 kWh on weekends and weekdays before 8:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  164.19 SEK.
+  164.19 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  107.81 SEK from morning cycle.
-  131.44 SEK from afternoon cycle.
+  97.76 SEK from morning cycle. (1.11 kWh unused potential)
+  138.12 SEK from afternoon cycle. (0.00 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
@@ -575,10 +575,10 @@ EV could have direct used another 72.47 kWh on weekends and weekdays before 8:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  112.84 SEK.
+  112.84 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  76.32 SEK from morning cycle.
-  82.53 SEK from afternoon cycle.
+  70.73 SEK from morning cycle. (3.15 kWh unused potential)
+  86.84 SEK from afternoon cycle. (5.02 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
@@ -666,10 +666,10 @@ EV could have direct used another 143.33 kWh on weekends and weekdays before 8:0
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  94.31 SEK.
+  94.31 SEK (2.14 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  50.85 SEK from morning cycle.
-  59.62 SEK from afternoon cycle.
+  45.73 SEK from morning cycle. (52.76 kWh unused potential)
+  66.72 SEK from afternoon cycle. (43.74 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
@@ -757,10 +757,10 @@ EV could have direct used another 31.25 kWh on weekends and weekdays before 8:00
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  144.07 SEK.
+  144.07 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  83.65 SEK from morning cycle.
-  118.89 SEK from afternoon cycle.
+  74.80 SEK from morning cycle. (3.08 kWh unused potential)
+  124.76 SEK from afternoon cycle. (0.00 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
@@ -855,10 +855,10 @@ EV could have direct used another 6.24 kWh on weekends and weekdays before 8:00 
 
 Self use arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
-  175.02 SEK.
+  175.02 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
-  74.48 SEK from morning cycle.
-  139.12 SEK from afternoon cycle.
+  68.95 SEK from morning cycle. (0.00 kWh unused potential)
+  145.66 SEK from afternoon cycle. (2.03 kWh unused potential)
 Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
