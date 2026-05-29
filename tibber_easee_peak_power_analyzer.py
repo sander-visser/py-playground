@@ -273,19 +273,18 @@ def get_arbitrage_profit(curr_hourly_samples):
     expensive_hourly_samples = sorted(
         curr_hourly_samples, reverse=True, key=lambda x: x[0]
     )
-    arbitrage_savings = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
+    arbitrage_data = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
     for energy_price, energy_use in expensive_hourly_samples:
         if arbitrage_energy > energy_use:
-            arbitrage_savings += energy_use * energy_price
+            arbitrage_data += energy_use * energy_price
             arbitrage_energy -= energy_use
         else:
-            arbitrage_savings += arbitrage_energy * energy_price
+            arbitrage_data += arbitrage_energy * energy_price
             arbitrage_energy = 0
             break
     if arbitrage_energy > 0:
-        print(f"Warn: {arbitrage_energy} kWh arbitrage is under utilized this period")
-        arbitrage_savings += arbitrage_energy * expensive_hourly_samples[-1][0]
-    return arbitrage_savings
+        arbitrage_data += arbitrage_energy * expensive_hourly_samples[-1][0]
+    return arbitrage_energy, arbitrage_data
 
 
 def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
@@ -458,7 +457,14 @@ async def start():
     power_map_high = {}
     power_use_map_during_night = {}
     curr_day_samples = []  # hourly list tuple with price, energy
-    arbitrage_savings = {"one_cycle": 0.0, "morning_cycle": 0.0, "afternoon_cycle": 0.0}
+    arbitrage_data = {
+        "one_cycle_saving": 0.0,
+        "morning_cycle_saving": 0.0,
+        "afternoon_cycle_saving": 0.0,
+        "one_cycle_unused": 0.0,
+        "morning_cycle_unused": 0.0,
+        "afternoon_cycle_unused": 0.0,
+    }
     solar_battery_contents = 0.0
     solar_battery_self_use_kwh = 0.0
     ev_cost = 0.0
@@ -496,13 +502,17 @@ async def start():
                 mid_day_samples = curr_day_samples[10:17]
                 min_cost = sorted(mid_day_samples, key=lambda x: x[0])[0]
                 cheap_hour = 10 + mid_day_samples.index(min_cost)
-                arbitrage_savings["one_cycle"] += get_arbitrage_profit(curr_day_samples)
-                arbitrage_savings["morning_cycle"] += get_arbitrage_profit(
+                unused, savings = get_arbitrage_profit(curr_day_samples)
+                arbitrage_data["one_cycle_saving"] += savings
+                arbitrage_data["one_cycle_unused"] += unused
+                unused, savings = get_arbitrage_profit(
                     curr_day_samples[0 : (cheap_hour - 1)]
                 )
-                arbitrage_savings["afternoon_cycle"] += get_arbitrage_profit(
-                    curr_day_samples[cheap_hour:]
-                )
+                arbitrage_data["morning_cycle_saving"] += savings
+                arbitrage_data["morning_cycle_unused"] += unused
+                unused, savings = get_arbitrage_profit(curr_day_samples[cheap_hour:])
+                arbitrage_data["afternoon_cycle_saving"] += savings
+                arbitrage_data["afternoon_cycle_unused"] += unused
             curr_day_samples = []
             daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
             if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
@@ -567,7 +577,9 @@ async def start():
             else:
                 self_used_energy["low"] += self_use
             self_used_value += self_use * curr_hour_price
-            if curr_time.weekday() >= 5 or (curr_time.hour <= 8 or curr_time.hour >= 16):
+            if curr_time.weekday() >= 5 or (
+                curr_time.hour <= 8 or curr_time.hour >= 16
+            ):
                 solar_direct_ev_underutilized_kwh += export
             if curr_hour_price >= 0.0:
                 exported_energy += export
@@ -585,7 +597,9 @@ async def start():
                             curr_hour_price, []
                         ).append(curr_power)
                     if solar_power is not None:
-                        solar_to_ev_kwh += min(solar_power,  easee_power_sample["consumption"])
+                        solar_to_ev_kwh += min(
+                            solar_power, easee_power_sample["consumption"]
+                        )
                     curr_power -= easee_power_sample["consumption"]
                     ev_energy["q1_kwh"] += easee_power_sample["consumption-q1"]
                     ev_energy["q2_kwh"] += easee_power_sample["consumption-q2"]
@@ -814,12 +828,15 @@ async def start():
     print(
         f"\nSelf use arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
         + "\nWith one daily cycle if 100% efficient (incl VAT):"
-        + f"\n  {arbitrage_savings['one_cycle']:.2f} {NORDPOOL_PRICE_CODE}."
+        + f"\n  {arbitrage_data['one_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE}"
+        + f" ({arbitrage_data['one_cycle_unused']:.2f} kWh unused potential)"
     )
     print(
         f"With two daily cycles if 100% efficient (incl VAT):"
-        + f"\n  {arbitrage_savings['morning_cycle']:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
-        + f"\n  {arbitrage_savings['afternoon_cycle']:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
+        + f"\n  {arbitrage_data['morning_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
+        + f" ({arbitrage_data['morning_cycle_unused']:.2f} kWh unused potential)"
+        + f"\n  {arbitrage_data['afternoon_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
+        + f" ({arbitrage_data['afternoon_cycle_unused']:.2f} kWh unused potential)"
     )
     if battery_cycle_count > 10:
         print(
