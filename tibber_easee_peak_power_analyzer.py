@@ -53,6 +53,7 @@ TIBBER_API_ACCESS_TOKEN = (
 RESTRICTED_HOURS = list(range(7,21))  # :00 - :59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is monday
 BATTERY_SIZE_KWH = 7.0  # Set to None to simulate without home battery
+ARBITRAGE_RESALE_COST = 0.55  # Tax and transfer
 HEAT_PUMP_MAX_CURRENT = 1.9
 # Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
 IRRADIANCE_OBSERVATION = None  # "smhi.csv"  # Cleaned up with leading garbage removed
@@ -273,18 +274,31 @@ def get_arbitrage_profit(curr_hourly_samples):
     expensive_hourly_samples = sorted(
         curr_hourly_samples, reverse=True, key=lambda x: x[0]
     )
-    arbitrage_data = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
+    # Assume full charge possible in just one hour
+    arbitrage_value = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
+    # Assume carry over energy existed that can be used before the charge hour
     for energy_price, energy_use in expensive_hourly_samples:
         if arbitrage_energy > energy_use:
-            arbitrage_data += energy_use * energy_price
+            arbitrage_value += energy_use * energy_price
             arbitrage_energy -= energy_use
         else:
-            arbitrage_data += arbitrage_energy * energy_price
+            arbitrage_value += arbitrage_energy * energy_price
             arbitrage_energy = 0
             break
+
     if arbitrage_energy > 0:
-        arbitrage_data += arbitrage_energy * expensive_hourly_samples[-1][0]
-    return arbitrage_energy, arbitrage_data
+        if (
+            expensive_hourly_samples[0][0] - expensive_hourly_samples[-1][0]
+        ) > ARBITRAGE_RESALE_COST:
+            # Sell all surplus at the most expensive hour
+            arbitrage_value += arbitrage_energy * (
+                expensive_hourly_samples[0][0] - ARBITRAGE_RESALE_COST
+            )
+            arbitrage_energy = 0
+        else:
+            # Full charge was not needed
+            arbitrage_value += arbitrage_energy * expensive_hourly_samples[-1][0]
+    return arbitrage_energy, arbitrage_value
 
 
 def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
@@ -502,16 +516,16 @@ async def start():
                 mid_day_samples = curr_day_samples[10:17]
                 min_cost = sorted(mid_day_samples, key=lambda x: x[0])[0]
                 cheap_hour = 10 + mid_day_samples.index(min_cost)
-                unused, savings = get_arbitrage_profit(curr_day_samples)
-                arbitrage_data["one_cycle_saving"] += savings
+                unused, saving = get_arbitrage_profit(curr_day_samples)
+                arbitrage_data["one_cycle_saving"] += saving
                 arbitrage_data["one_cycle_unused"] += unused
-                unused, savings = get_arbitrage_profit(
+                unused, saving = get_arbitrage_profit(
                     curr_day_samples[0 : (cheap_hour - 1)]
                 )
-                arbitrage_data["morning_cycle_saving"] += savings
+                arbitrage_data["morning_cycle_saving"] += saving
                 arbitrage_data["morning_cycle_unused"] += unused
-                unused, savings = get_arbitrage_profit(curr_day_samples[cheap_hour:])
-                arbitrage_data["afternoon_cycle_saving"] += savings
+                unused, saving = get_arbitrage_profit(curr_day_samples[cheap_hour:])
+                arbitrage_data["afternoon_cycle_saving"] += saving
                 arbitrage_data["afternoon_cycle_unused"] += unused
             curr_day_samples = []
             daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
@@ -826,7 +840,7 @@ async def start():
             + " on weekends and weekdays before 8:00 and after 16:00"
         )
     print(
-        f"\nSelf use arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
+        f"\nSelf use and resale arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
         + "\nWith one daily cycle if 100% efficient (incl VAT):"
         + f"\n  {arbitrage_data['one_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE}"
         + f" ({arbitrage_data['one_cycle_unused']:.2f} kWh unused potential)"
