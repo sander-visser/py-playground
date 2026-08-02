@@ -7,7 +7,7 @@ historic consumption with Easee EV charging excluded.
 Can be used to confirm energy use (when EV is excluded) is
 cheaper on high resolution tariff.
 
-Can also use SHMI solar irradiation database to calculate value
+Can also use SMHI solar irradiation database to calculate value
 of future solar installation. Self use with current pattern and
 improvement of self use if home battery is also added.
 """
@@ -38,7 +38,7 @@ NORDPOOL_URL = (
     + f"{NORDPOOL_REGION}&date="
 )
 START_DATE = datetime.date.fromisoformat("2026-04-01")  # None for one month back
-if (datetime.date.today() - START_DATE).days > 62:
+if START_DATE is not None and (datetime.date.today() - START_DATE).days > 60:
     NORDPOOL_REGION = None  # API only provides last two months
 API_TIMEOUT = 10.0  # seconds
 EASEE_API_BASE = "https://api.easee.com/api"
@@ -416,7 +416,12 @@ async def start():
     await tibber_connection.update_info()
     print(f"Scanning home of {tibber_connection.name}")
 
-    home = tibber_connection.get_homes()[0]
+    homes = tibber_connection.get_homes()
+    if len(homes) == 0:
+        print("No active homes go get consumption from")
+        await tibber_connection.close_connection()
+        return
+    home = homes[0]
     hourly_consumption_data = None
     if START_DATE is not None:
         hours_in_month = (
