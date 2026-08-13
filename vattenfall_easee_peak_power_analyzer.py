@@ -1,0 +1,910 @@
+#!/usr/bin/env python
+
+"""
+Visualize peak power and energy distribution based on Vattenfall
+historic consumption with Easee EV charging excluded.
+
+Can be used to confirm energy use (when EV is excluded) is
+cheaper on high resolution tariff.
+
+Can also use SMHI solar irradiation database to calculate value
+of future solar installation. Self use with current pattern and
+improvement of self use if home battery is also added.
+"""
+
+import asyncio
+import base64
+import copy
+import csv
+import datetime
+import json
+import os
+import statistics
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+import pytz
+import requests
+from zoneinfo import ZoneInfo
+
+# The Easee API access token is read from environment variable (EV analysis skipped if env is missing)
+# Note: Easee access token expires after a few hours
+# export EASEE_API_ACCESS_TOKEN=$(curl --request POST --url https://api.easee.com/api/accounts/login --header 'accept: application/json' --header 'content-type: application/*+json' --data '{ "userName": "the@email.com", "password": "the_pass"}')
+EASEE_CHARGER_ID = "EHVZ2792"  # Note: Must be configured with alsoSendWhenNotCharging == true, and preferably with high res
+NORDPOOL_PRICE_CODE = "SEK"
+NORDPOOL_REGION = "SE3"  # None to skip quarterly EV analysis
+NORDPOOL_URL = (
+    "https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?"
+    + f"market=DayAhead&currency={NORDPOOL_PRICE_CODE}&resolutionInMinutes=15&indexNames="
+    + f"{NORDPOOL_REGION}&date="
+)
+# 2H valid JWT needs refresh...
+VATTENFALL_HEADERS = "LUggJ2FjY2VwdDogYXBwbGljYXRpb24vanNvbicgLUggJ2FjY2VwdC1sYW5ndWFnZTogc3YsZW47cT0wLjknIC1IICdjYWNoZS1jb250cm9sOiBuby1jYWNoZScgLWIgJy5WRklkVG9rZW49ZXlKcmFXUWlPaUpwWVcxdVp5NWpiM0p3TG5aaGRIUmxibVpoYkd3dVkyOXRYekl3TWpZaUxDSmhiR2NpT2lKU1V6STFOaUo5LlAuUzsnIC1IICd1c2VyLWFnZW50OiBNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTUxLjAuMC4wIFNhZmFyaS81MzcuMzYgRWRnLzE1MS4wLjAuMCc="
+VATTENFALL_COST = "ElectricityConsumptionCost"
+VATTENFALL_USE = "ElectricityConsumption"
+VATTENFALL_RESOLUTION = "Hourly"  # 'QuarterHour'
+METER_CODE = "PTE73xx"
+VATTENFALL_BASE = f"https://selfserviceapi.www.vattenfall.se//elements/my-energy/premises/{METER_CODE}/measurement?resolution={VATTENFALL_RESOLUTION}\\&measurementType="
+START_DATE = datetime.date.fromisoformat("2026-08-01")
+if START_DATE is not None and (datetime.date.today() - START_DATE).days > 60:
+    NORDPOOL_REGION = None  # Nordpool API only provides last two months
+API_TIMEOUT = 10.0  # seconds
+EASEE_API_BASE = "https://api.easee.com/api"
+HTTP_SUCCESS_CODE = 200
+HTTP_UNAUTHORIZED_CODE = 401
+SECONDS_PER_HOUR = 3600
+KWH_PER_MWH = 1000
+RESTRICTED_HOURS = list(range(7, 21))  # :00 - :59
+RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is monday
+BATTERY_SIZE_KWH = 7.0  # Set to None to simulate without home battery
+ARBITRAGE_RESALE_COST = 0.55  # Tax and transfer
+HEAT_PUMP_MAX_CURRENT = 1.9
+# Gotten from "https://www.smhi.se/data/solstralning/solstralning/irradiance/71415"
+IRRADIANCE_OBSERVATION = None  # "smhi.csv"  # Cleaned up with leading garbage removed
+INSTALLED_PANEL_POWER = (
+    10 * 0.45
+)  # 10x 450W panels (perfect solar tracking assumed, could be refined by using pvlib...)
+IRRADIANCE_FULL = 1000  # W / m2 needed to get full panel production
+IRRADIANCE_MIN = 140  # W / m2 needed for any production
+EV_PLUGIN_HOUR = RESTRICTED_HOURS[-1] + 1  # :00
+EV_PLUGOUT_HOUR = RESTRICTED_HOURS[0] - 1  # :59
+SPARE_MARGIN_KWH = 0.5
+
+
+def get_easee_hourly_energy_json(api_header, charger_id, local_dt_from, local_dt_to):
+    utc_from = str(local_dt_from.astimezone(pytz.utc))
+    utc_t_from = utc_from.replace(" ", "T")
+    zulu_from = utc_from.replace("+00:00", "Z")
+    utc_to_next_h = str(local_dt_to.astimezone(pytz.utc) + datetime.timedelta(hours=2))
+    zulu_to_next_h = utc_to_next_h.replace("+00:00", "Z")
+
+    measurements_url = (
+        f"{EASEE_API_BASE}/chargers/lifetime-energy/{charger_id}/all?"
+        + f"from={zulu_from}&to={zulu_to_next_h}"
+    )
+    measurements = requests.get(
+        measurements_url, headers=api_header, timeout=API_TIMEOUT
+    )
+    if measurements.status_code != HTTP_SUCCESS_CODE:
+        if measurements.status_code == HTTP_UNAUTHORIZED_CODE:
+            print("Error: Easee access token expired...")
+        else:
+            print(f"{measurements.status_code} Error: {measurements.text}")
+        sys.exit(1)
+    hourly_energy = []
+    prev_measurement = None
+    prev_h_measurement = None
+    ranged_measurements = measurements.json()["measurements"]
+    if len(ranged_measurements) == 0:
+        print("Warning: No EV measurements for period")
+        return None
+    peak_charge_h = 0.0
+    peak_charge_measurements = []
+    measurement_cnt = 0
+    measurement_min = 15
+    if utc_t_from not in ranged_measurements[0]["measuredAt"]:
+        print(
+            f"Warning: EV charge log incomplete - starts at {ranged_measurements[0]['measuredAt']}"
+        )
+    if "55:00+00:00" in ranged_measurements[-1]["measuredAt"]:
+        measurement_min = 5
+    if "5:00+00:00" not in ranged_measurements[-1]["measuredAt"]:
+        measurement_min = 60
+        # Reconfigure with alsoSendWhenNotCharging == true at
+        # https://developer.easee.com/reference/lifetimeenergyreporting_configure
+        print(f"Warning: {charger_id} not configured for high res measurements")
+    cons_q1 = 0
+    cons_q2 = 0
+    cons_q3 = 0
+    cons_q4 = 0
+    cost_q1 = 0
+    cost_q2 = 0
+    cost_q3 = 0
+    cost_q4 = 0
+    curr_day = local_dt_from.day
+    raw_cost = None
+    curr_q = 0
+    nordpool_session = None if NORDPOOL_REGION is None else requests.Session()
+
+    for measurement in ranged_measurements:
+        if curr_q == 0 and curr_day <= local_dt_to.day:
+            raw_cost = (
+                None
+                if NORDPOOL_REGION is None
+                else nordpool_session.get(
+                    f"{NORDPOOL_URL}{local_dt_from.year}-{local_dt_from.month}-{curr_day}",
+                    timeout=10.0,
+                ).json()
+            )
+        if prev_measurement is None:
+            if ":00:00+00:00" not in measurement["measuredAt"]:
+                print("Error: Easee from date not an hourly boundary...")
+            prev_measurement = measurement
+            prev_h_measurement = measurement
+        else:
+            curr_cost = (
+                0
+                if raw_cost is None or curr_q >= len(raw_cost["multiIndexEntries"])
+                else raw_cost["multiIndexEntries"][curr_q]["entryPerArea"][
+                    NORDPOOL_REGION
+                ]
+            )
+            curr_cost /= KWH_PER_MWH
+            curr_date = datetime.datetime.fromisoformat(measurement["measuredAt"])
+            last_date = datetime.datetime.fromisoformat(prev_measurement["measuredAt"])
+            nbr_measurements = 1
+
+            if curr_date - last_date > datetime.timedelta(minutes=measurement_min):
+                nbr_measurements = int(
+                    (curr_date - last_date).seconds / 60 / measurement_min
+                )
+                print(
+                    f"Warn: Lost {nbr_measurements} EV measurements just before {curr_date}"
+                )
+
+            consumption_val = measurement["value"] - prev_measurement["value"]
+            if consumption_val > 0.1 and measurement_cnt is not None:
+                measurement_cnt += nbr_measurements
+
+            delta_consumption = (
+                measurement["value"] - prev_measurement["value"]
+            ) / nbr_measurements
+            cons_sum = prev_measurement["value"] - prev_h_measurement["value"]
+            measurement = copy.deepcopy(prev_measurement)
+            while last_date < curr_date:
+                last_date += datetime.timedelta(minutes=measurement_min)
+                measurement["measuredAt"] = str(last_date.astimezone(pytz.utc)).replace(
+                    " ", "T"
+                )
+                measurement["value"] += delta_consumption
+                if last_date < curr_date:
+                    prev_measurement = measurement
+
+                if 0 < last_date.minute <= 15:
+                    cons_q1 += delta_consumption
+                    cost_q1 += curr_cost * delta_consumption
+                if 15 < last_date.minute <= 30:
+                    cons_q2 += delta_consumption
+                    cost_q2 += curr_cost * delta_consumption
+                if 30 < last_date.minute <= 45:
+                    cons_q3 += delta_consumption
+                    cost_q3 += curr_cost * delta_consumption
+                if (45 < last_date.minute <= 60) or last_date.minute == 0:
+                    cons_q4 += delta_consumption
+                    cost_q4 += curr_cost * delta_consumption
+
+                cons_sum += delta_consumption
+                if last_date.minute == 0:
+                    peak_charge_h = max(peak_charge_h, cons_sum)
+                    hourly_energy.append(
+                        {
+                            "consumption": cons_sum,
+                            "consumption-q1": cons_q1,
+                            "consumption-q2": cons_q2,
+                            "consumption-q3": cons_q3,
+                            "consumption-q4": cons_q4,
+                            "cost-q1": cost_q1,
+                            "cost-q2": cost_q2,
+                            "cost-q3": cost_q3,
+                            "cost-q4": cost_q4,
+                            "date": prev_h_measurement["measuredAt"],
+                        }
+                    )
+                    cons_q1 = 0
+                    cons_q2 = 0
+                    cons_q3 = 0
+                    cons_q4 = 0
+                    cost_q1 = 0
+                    cost_q2 = 0
+                    cost_q3 = 0
+                    cost_q4 = 0
+                    cons_sum = 0
+                    prev_h_measurement = measurement
+
+            if measurement_min == 60 or (
+                ":00:00+00:00" not in measurement["measuredAt"]
+                or ":00:00+00:00" not in prev_measurement["measuredAt"]
+            ):
+                for _ in range(int(nbr_measurements)):
+                    peak_charge_measurements.append(delta_consumption)
+            else:
+                measurement_cnt = None  # Mixed resolutions
+            prev_measurement = measurement
+
+            curr_q += 1
+            if curr_q == 24 * 4:
+                curr_q = 0
+                curr_day += 1
+
+    if measurement_cnt is None or measurement_min != 60:
+        print(f"Peak hourly EV charge rate: {peak_charge_h:.3f} kWh/h.")
+    if measurement_cnt is not None and measurement_cnt != 0:
+        print(
+            f"Peak EV energy: {max(peak_charge_measurements):.3f} kWh per {measurement_min} min."
+            + f"\nCharged for {measurement_cnt * measurement_min} minutes. Avg rate: "
+            + f"{(sum(peak_charge_measurements) / ((measurement_cnt*measurement_min)/60)):.3f} kW."
+        )
+
+    return hourly_energy
+
+
+def get_irradiance_observation():
+    if IRRADIANCE_OBSERVATION is None:
+        return None
+    with open(IRRADIANCE_OBSERVATION, encoding="utf-8") as csvf:
+        csv_lines = csvf.readlines()
+        while True:
+            curr_line = csv_lines.pop(0)
+            if curr_line.startswith("Datum"):
+                csv_lines.insert(0, curr_line)
+                break
+        csv_reader = csv.DictReader(csv_lines, delimiter=";")
+        solar_irr = {}
+        for data in csv_reader:
+            datetime_str = f"{data['Datum']} {data['Tid (UTC)']}"
+            datetime_object = datetime.datetime.strptime(
+                datetime_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=datetime.timezone.utc)
+            solar_irr[datetime_object] = (
+                data["Global Irradians (svenska stationer)"],
+                data["Solskenstid"],
+            )
+        return solar_irr
+    return None
+
+
+def get_arbitrage_profit(curr_hourly_samples):
+    arbitrage_energy = BATTERY_SIZE_KWH
+    expensive_hourly_samples = sorted(
+        curr_hourly_samples, reverse=True, key=lambda x: x[0]
+    )
+    # Assume full charge possible in just one hour
+    arbitrage_value = -1 * BATTERY_SIZE_KWH * expensive_hourly_samples[-1][0]
+    # Assume carry over energy existed that can be used before the charge hour
+    for energy_price, energy_use in expensive_hourly_samples:
+        if arbitrage_energy > energy_use:
+            arbitrage_value += energy_use * energy_price
+            arbitrage_energy -= energy_use
+        else:
+            arbitrage_value += arbitrage_energy * energy_price
+            arbitrage_energy = 0
+            break
+
+    if arbitrage_energy > 0:
+        if (
+            expensive_hourly_samples[0][0] - expensive_hourly_samples[-1][0]
+        ) > ARBITRAGE_RESALE_COST:
+            # Sell all surplus at the most expensive hour
+            arbitrage_value += arbitrage_energy * (
+                expensive_hourly_samples[0][0] - ARBITRAGE_RESALE_COST
+            )
+            arbitrage_energy = 0
+        else:
+            # Full charge was not needed
+            arbitrage_value += arbitrage_energy * expensive_hourly_samples[-1][0]
+    return arbitrage_energy, arbitrage_value
+
+
+def render_visualization(start_date, low_prices, low_cons, high_prices, high_cons):
+    low_p_color = "tab:orange"
+    high_p_color = "tab:red"
+    low_e_color = "tab:green"
+    high_e_color = "#7600bc"
+
+    x = np.arange(0, 25)  # Render line til 24:00
+    high_prices.append(None)  # Render line til 24:00
+    low_prices.append(None)  # Render line til 24:00
+
+    low_avg_cons = []
+    low_peak_cons = []
+    for cons in low_cons:
+        low_avg_cons.append(cons["avg"])
+        low_peak_cons.append(cons["max"])
+    low_avg_cons.append(None)  # Render line til 24:00
+    low_peak_cons.append(None)  # Render line til 24:00
+
+    high_avg_cons = []
+    high_peak_cons = []
+    for cons in high_cons:
+        high_avg_cons.append(cons["avg"])
+        high_peak_cons.append(cons["max"])
+    high_avg_cons.append(None)  # Render line til 24:00
+    high_peak_cons.append(None)  # Render line til 24:00
+
+    low_avg = np.array(low_avg_cons)
+    low_peak = np.array(low_peak_cons)
+    high_avg = np.array(high_avg_cons)
+    high_peak = np.array(high_peak_cons)
+    fig, axes = plt.subplots()
+    plt.xticks(x)
+    price_twin = axes.twinx()
+    price_twin.grid(linestyle="-")
+    price_twin.plot(
+        x,
+        np.array(low_prices),
+        color=low_p_color,
+        label="none congested",
+        drawstyle="steps-post",
+    )
+    price_twin.plot(
+        x,
+        np.array(high_prices),
+        color=high_p_color,
+        label="congested",
+        drawstyle="steps-post",
+    )
+    price_twin.set_ylabel("Energy price avg (SEK incl VAT and surcharges)")
+
+    axes.plot(
+        x,
+        low_avg,
+        color=low_e_color,
+        label="avg (none congested)",
+        drawstyle="steps-post",
+    )
+    axes.plot(
+        x,
+        low_peak,
+        color=low_e_color,
+        label="peak (none congested)",
+        drawstyle="steps-post",
+        linestyle="--",
+    )
+    axes.plot(
+        x,
+        high_avg,
+        color=high_e_color,
+        label="avg (congested)",
+        drawstyle="steps-post",
+    )
+    axes.plot(
+        x,
+        high_peak,
+        color=high_e_color,
+        label="peak (congested)",
+        drawstyle="steps-post",
+        linestyle="--",
+    )
+    axes.set_xlabel("start hour")
+    axes.set_ylabel("Energy use (kWh/h)")
+    axes.grid(linestyle="--")
+
+    # widen to make room for legends on the side
+    fig.set_figwidth(fig.get_figwidth() * 1.35)
+
+    # Shrink x axis
+    box = axes.get_position()
+    axes.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+
+    price_legend = price_twin.legend(
+        title="Avg energy price", loc="upper left", bbox_to_anchor=(1.13, 0.5)
+    )
+    energy_legend = axes.legend(
+        title="Energy use", loc="lower left", bbox_to_anchor=(1.13, 0.5)
+    )
+
+    plt.title(f"Energy usage pattern {start_date}")
+    plt.savefig(f"{start_date}.png")
+    # plt.show()
+
+
+async def start():
+    irradiance = get_irradiance_observation()
+
+    hourly_consumption_data = []
+    if START_DATE is not None:
+        hours_in_month = (
+            (31 * 24)
+            if START_DATE.month in [1, 3, 5, 7, 8, 10, 12]
+            else (30 * 24) if START_DATE.month != 2 else 28 * 24
+        )
+        if START_DATE.month == 2 and (START_DATE.year % 4) == 0:
+            hours_in_month += 24
+        if START_DATE.month == 3:
+            hours_in_month -= 1
+        if START_DATE.month == 10:
+            hours_in_month += 1
+        start_local_timestamp = datetime.datetime.combine(START_DATE, datetime.time())
+        end_local_timestamp = int(
+            (
+                start_local_timestamp + datetime.timedelta(hours=hours_in_month)
+            ).timestamp()
+        )
+        start_local_timestamp = int(start_local_timestamp.timestamp())
+    else:
+        print("Need a time!")
+        sys.exit(1)
+
+    vattenfall_cost = os.environ.get("VATTENFALL_COST", None)
+    vattenfall_use = os.environ.get("VATTENFALL_USE", None)
+    if vattenfall_cost is None or vattenfall_use is None:
+        print("Env variables with energy use json missing...")
+        vattenfall_headers = base64.b64decode(VATTENFALL_HEADERS).decode("ascii")
+        print(
+            f"export VATTENFALL_COST=$(curl --url {VATTENFALL_BASE}{VATTENFALL_COST}\\&startDate={start_local_timestamp}\\&endDate={end_local_timestamp} {vattenfall_headers})"
+        )
+        print(
+            f"export VATTENFALL_USE=$(curl --url {VATTENFALL_BASE}{VATTENFALL_USE}\\&startDate={start_local_timestamp}\\&endDate={end_local_timestamp} {vattenfall_headers})"
+        )
+        sys.exit(1)
+
+    idx = 0
+    use_json = json.loads(vattenfall_use)
+    cost_json = json.loads(vattenfall_cost)
+    use_items = use_json["items"]
+    cost_items = cost_json["items"]
+    if (
+        use_json["premiseId"] != cost_json["premiseId"]
+        or use_json["resolution"] != cost_json["resolution"]
+        or use_json["startDate"] != cost_json["startDate"]
+    ):
+        print(
+            f"Error cost and cons are not in sync! {use_json['startDate']} {cost_json['startDate']}"
+        )
+        sys.exit(1)
+    kwh_cost = 0.0
+    for item in cost_items:
+        if "value" not in use_items[idx]["measurement"]:
+            break
+        if "value" not in item["measurement"]:
+            break
+
+        from_sample = f"{item['year']}-{item['month']:02}-{item['day']:02}T{item['hour']:02}:00:00.000+02:00"
+        to_sample = str(
+            datetime.datetime.fromisoformat(from_sample) + datetime.timedelta(hours=1)
+        )
+        sample_cons = use_items[idx]["measurement"]["value"]
+        sample_cost = item["measurement"]["value"] / 100
+        if sample_cons > 0:  # else cost not known - assume same as last hour...
+            kwh_cost = sample_cost / sample_cons
+        pwr_sample = {
+            "to": to_sample.replace(" ", "T"),
+            "cost": sample_cost,
+            "unitPrice": kwh_cost,
+            "from": from_sample,
+            "consumption": sample_cons,
+        }
+        idx += 1
+        hourly_consumption_data.append(pwr_sample)
+
+    if len(hourly_consumption_data) == 0:
+        print("Missing data. Future date?")
+        return
+
+    local_dt_from = datetime.datetime.fromisoformat(hourly_consumption_data[0]["from"])
+
+    local_dt_to = datetime.datetime.fromisoformat(hourly_consumption_data[-1]["from"])
+
+    print(f"Scanning peak power {local_dt_from} - {local_dt_to}...")
+
+    easee_token = os.environ.get("EASEE_API_ACCESS_TOKEN", None)
+
+    charger_consumption = (
+        None
+        if easee_token is None
+        else get_easee_hourly_energy_json(
+            {
+                "accept": "application/json",
+                "Authorization": "Bearer " + json.loads(easee_token)["accessToken"],
+            },
+            EASEE_CHARGER_ID,
+            local_dt_from,
+            local_dt_to,
+        )
+    )
+    power_peak_incl_ev = {}
+    time_peak_incl_ev = {}
+    power_hour_samples = {}
+    high_power_hour_samples = {}
+    power_map_low = {}
+    power_map_high = {}
+    power_use_map_during_night = {}
+    curr_day_samples = []  # hourly list tuple with price, energy
+    arbitrage_data = {
+        "one_cycle_saving": 0.0,
+        "morning_cycle_saving": 0.0,
+        "afternoon_cycle_saving": 0.0,
+        "one_cycle_unused": 0.0,
+        "morning_cycle_unused": 0.0,
+        "afternoon_cycle_unused": 0.0,
+    }
+    solar_battery_contents = 0.0
+    solar_battery_self_use_kwh = 0.0
+    ev_cost = 0.0
+    ev_energy = {
+        "high": 0.0,
+        "low": 0.0,
+        "q1_kwh": 0.0,
+        "q2_kwh": 0.0,
+        "q3_kwh": 0.0,
+        "q4_kwh": 0.0,
+        "cost_q1": 0.0,
+        "cost_q2": 0.0,
+        "cost_q3": 0.0,
+        "cost_q4": 0.0,
+    }
+    other_cost = 0.0
+    other_energy = {"high": 0.0, "low": 0.0}
+    exported_energy = 0.0
+    exported_value = 0.0
+    self_used_energy = {"high": 0.0, "low": 0.0}
+    self_used_value = 0.0
+    solar_to_ev_kwh = 0.0
+    solar_direct_ev_underutilized_kwh = 0.0
+    day_energy_excl_ev = 0.0
+    daily_energy_excl_ev = []
+    heat_pump_uncovered = 0.0
+    hourly_energy_samples = []
+
+    for power_sample in hourly_consumption_data:
+        curr_time = datetime.datetime.fromisoformat(power_sample["from"])
+        curr_utc_time = curr_time.astimezone(pytz.utc)
+        curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
+        if len(curr_day_samples) == 24:
+            if BATTERY_SIZE_KWH is not None:
+                mid_day_samples = curr_day_samples[10:17]
+                min_cost = sorted(mid_day_samples, key=lambda x: x[0])[0]
+                cheap_hour = 10 + mid_day_samples.index(min_cost)
+                unused, saving = get_arbitrage_profit(curr_day_samples)
+                arbitrage_data["one_cycle_saving"] += saving
+                arbitrage_data["one_cycle_unused"] += unused
+                unused, saving = get_arbitrage_profit(
+                    curr_day_samples[0 : (cheap_hour - 1)]
+                )
+                arbitrage_data["morning_cycle_saving"] += saving
+                arbitrage_data["morning_cycle_unused"] += unused
+                unused, saving = get_arbitrage_profit(curr_day_samples[cheap_hour:])
+                arbitrage_data["afternoon_cycle_saving"] += saving
+                arbitrage_data["afternoon_cycle_unused"] += unused
+            curr_day_samples = []
+            daily_energy_excl_ev.append((day_energy_excl_ev, curr_time_utc_str))
+            if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
+                heat_pump_uncovered += day_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
+            day_energy_excl_ev = 0.0
+
+        if power_sample["consumption"] is None:
+            continue
+        curr_power = float(power_sample["consumption"])
+        hourly_energy_samples.append(curr_power)
+        if (
+            curr_time.month not in power_peak_incl_ev
+            or curr_power > power_peak_incl_ev[curr_time.month]
+        ):
+            power_peak_incl_ev[curr_time.month] = curr_power
+            time_peak_incl_ev[curr_time.month] = curr_time
+        # print(f"Analyzing {curr_time_utc_str} with power {curr_power}")
+        curr_hour_price = float(power_sample["unitPrice"])
+        curr_day_samples.append((curr_hour_price, curr_power))
+
+        high_cost_day = (
+            curr_time.weekday() in RESTRICTED_DAYS
+            and curr_time.hour in RESTRICTED_HOURS
+        )
+
+        solar_power = None
+        if irradiance is not None and curr_utc_time in irradiance:
+            curr_irr = irradiance[curr_utc_time]
+            if curr_irr[0] == "" or curr_irr[1] == "":
+                curr_irr = (0, 0)
+                # print(f"Missing solar data for {curr_utc_time}")
+            irr_power = min(IRRADIANCE_FULL, float(curr_irr[0]))
+            irr_duration = float(curr_irr[1])
+            self_use = 0.0
+            export = 0.0
+            if irr_power > IRRADIANCE_MIN:
+                solar_power = irr_power / IRRADIANCE_FULL * INSTALLED_PANEL_POWER
+                self_use = curr_power * irr_duration / SECONDS_PER_HOUR
+                solar_factor = solar_power / curr_power
+
+                if solar_factor < 1:
+                    self_use *= solar_factor
+                export = solar_power - self_use
+
+                if (
+                    BATTERY_SIZE_KWH is not None
+                    and solar_battery_contents < BATTERY_SIZE_KWH
+                ):
+                    solar_battery_contents += export
+                    export = 0
+                    if solar_battery_contents > BATTERY_SIZE_KWH:
+                        export = solar_battery_contents - BATTERY_SIZE_KWH
+                        solar_battery_contents = BATTERY_SIZE_KWH
+            if BATTERY_SIZE_KWH is not None:
+                if (curr_power - self_use) > 0:
+                    discharge = min(solar_battery_contents, (curr_power - self_use))
+                    self_use += discharge
+                    solar_battery_contents -= discharge
+                    solar_battery_self_use_kwh += discharge
+            if high_cost_day:
+                self_used_energy["high"] += self_use
+            else:
+                self_used_energy["low"] += self_use
+            self_used_value += self_use * curr_hour_price
+            if curr_time.weekday() >= 5 or (
+                curr_time.hour <= 8 or curr_time.hour >= 16
+            ):
+                solar_direct_ev_underutilized_kwh += export
+            if curr_hour_price >= 0.0:
+                exported_energy += export
+                exported_value += export * curr_hour_price
+
+        if charger_consumption is not None:
+            for easee_power_sample in charger_consumption:
+                if easee_power_sample["date"] == curr_time_utc_str:
+                    # easee_power_sample["consumption"] <= 0.1 and
+                    if (
+                        curr_time.hour >= EV_PLUGIN_HOUR
+                        or curr_time.hour <= EV_PLUGOUT_HOUR
+                    ):
+                        power_use_map_during_night.setdefault(
+                            curr_hour_price, []
+                        ).append(curr_power)
+                    if solar_power is not None:
+                        solar_to_ev_kwh += min(
+                            solar_power, easee_power_sample["consumption"]
+                        )
+                    curr_power -= easee_power_sample["consumption"]
+                    ev_energy["q1_kwh"] += easee_power_sample["consumption-q1"]
+                    ev_energy["q2_kwh"] += easee_power_sample["consumption-q2"]
+                    ev_energy["q3_kwh"] += easee_power_sample["consumption-q3"]
+                    ev_energy["q4_kwh"] += easee_power_sample["consumption-q4"]
+                    ev_energy["cost_q1"] += easee_power_sample["cost-q1"]
+                    ev_energy["cost_q2"] += easee_power_sample["cost-q2"]
+                    ev_energy["cost_q3"] += easee_power_sample["cost-q3"]
+                    ev_energy["cost_q4"] += easee_power_sample["cost-q4"]
+                    if high_cost_day:
+                        ev_energy["high"] += easee_power_sample["consumption"]
+                    else:
+                        ev_energy["low"] += easee_power_sample["consumption"]
+                    ev_cost += curr_hour_price * easee_power_sample["consumption"]
+                    break
+
+        if high_cost_day:
+            power_map_high.setdefault(curr_power, []).append(curr_time)
+            high_power_hour_samples.setdefault(curr_time.hour, []).append(
+                {curr_power: curr_hour_price}
+            )
+            other_energy["high"] += curr_power
+        else:
+            power_map_low.setdefault(curr_power, []).append(curr_time)
+            power_hour_samples.setdefault(curr_time.hour, []).append(
+                {curr_power: curr_hour_price}
+            )
+            other_energy["low"] += curr_power
+        other_cost += curr_power * curr_hour_price
+        day_energy_excl_ev += curr_power
+
+    if ev_energy["q1_kwh"] > 0.0:
+        ev_energy["Avg spot price q1 excl VAT and fees"] = (
+            ev_energy["cost_q1"] / ev_energy["q1_kwh"]
+        )
+    if ev_energy["q2_kwh"] > 0.0:
+        ev_energy["Avg spot price q2 excl VAT and fees"] = (
+            ev_energy["cost_q2"] / ev_energy["q2_kwh"]
+        )
+    if ev_energy["q3_kwh"] > 0.0:
+        ev_energy["Avg spot price q3 excl VAT and fees"] = (
+            ev_energy["cost_q3"] / ev_energy["q3_kwh"]
+        )
+    if ev_energy["q4_kwh"] > 0.0:
+        ev_energy["Avg spot price q4 excl VAT and fees"] = (
+            ev_energy["cost_q4"] / ev_energy["q4_kwh"]
+        )
+
+    daily_energy_excl_ev.append((day_energy_excl_ev, "last day in period"))
+    if (24 * HEAT_PUMP_MAX_CURRENT) < day_energy_excl_ev:
+        heat_pump_uncovered += day_energy_excl_ev - (24 * HEAT_PUMP_MAX_CURRENT)
+
+    for peak_month, peak_month_pwr in power_peak_incl_ev.items():
+        print(
+            f"Month peak power incl EV: {peak_month_pwr:.3f} at {time_peak_incl_ev[peak_month]}"
+        )
+
+    other_energy_combined = other_energy["low"] + other_energy["high"]
+    print(
+        f"Energy used excl EV {other_energy_combined:.2f}"
+        + f" (High: {other_energy['high']:.2f}, Low: {other_energy['low']:.2f}) kWh"
+        + f" at energy cost of {other_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+        + f" (avg price: {other_cost/other_energy_combined:.3f})"
+    )
+    sorted_daily_energy_excl_ev = sorted(
+        daily_energy_excl_ev, reverse=True, key=lambda x: x[0]
+    )
+    for day_use, day_str in sorted_daily_energy_excl_ev[:3]:
+        print(f"Max energy per day excl EV: {day_use:.3f} kWh @ {day_str}.")
+    print(
+        f"{heat_pump_uncovered:.3f} kWh used when daily average energy need is above "
+        + f"{HEAT_PUMP_MAX_CURRENT} kWh/h"
+    )
+    print(
+        f"Min hourly energy {(sum(sorted(hourly_energy_samples)[0:10])/10):.3f} kWh (avg of 10)"
+    )
+    if charger_consumption is None or ev_energy["low"] == 0.0:
+        print("\nTop ten peak power hours:")
+    else:
+        ev_energy_combined = ev_energy["low"] + ev_energy["high"]
+        avg_ev_price = ev_cost / ev_energy_combined
+        print(
+            f"EV energy used {ev_energy_combined:.2f} kWh"
+            + f" at energy cost of {ev_cost:.2f} {NORDPOOL_PRICE_CODE} (incl VAT and surcharges)"
+            + f" (avg price: {ev_cost/ev_energy_combined:.3f})"
+        )
+        print("EV Distribution pattern:", end="")
+        for key, value in ev_energy.items():
+            print(f" {key}: {value:.2f}.", end="")
+        spare_charging_capacity = 0.0
+        spare_charging_cost = 0.0
+        for pwr_use_price in sorted(power_use_map_during_night):
+            if pwr_use_price > avg_ev_price:
+                break
+            for pwr_use_energy in power_use_map_during_night[pwr_use_price]:
+                if (peak_month_pwr - pwr_use_energy) > SPARE_MARGIN_KWH:
+                    spare_energy = (peak_month_pwr - pwr_use_energy) - SPARE_MARGIN_KWH
+                    spare_charging_capacity += spare_energy
+                    spare_charging_cost += spare_energy * pwr_use_price
+
+        if spare_charging_capacity > 0.0:
+            print(
+                f"\nUnderutilized EV charge capacity {EV_PLUGIN_HOUR}:00 - 0{EV_PLUGOUT_HOUR}:59"
+                + f" is {spare_charging_capacity:.2f} kWh at "
+                + f"{(spare_charging_cost/spare_charging_capacity):.2f} SEK/kWh avg price"
+            )
+        print("\nTop ten peak power hours with EV charging excluded:")
+
+    print(f"\nHigh cost peaks - at {RESTRICTED_HOURS} :00 - :59")
+    for peak_pwr in sorted(power_map_high, reverse=True)[0:10]:
+        time_str = f"{power_map_high[peak_pwr][0]}"
+        for times in power_map_high[peak_pwr][1:]:
+            time_str += "".join(f", {times}")
+        print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
+
+    print("\nLow cost peaks:")
+    for peak_pwr in sorted(power_map_low, reverse=True)[0:10]:
+        time_str = f"{power_map_low[peak_pwr][0]}"
+        for times in power_map_low[peak_pwr][1:]:
+            time_str += "".join(f", {times}")
+        print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
+
+    if charger_consumption is None:
+        print("\nPower use distribution. High is weekdays when power tariff is active:")
+    else:
+        print(
+            "\nPower use distribution with EV charging excluded. High is weekdays when power tariff is active:"
+        )
+
+    high_prices = []
+    high_cons = []
+    low_prices = []
+    low_cons = []
+    for hour in range(24):
+        if hour in high_power_hour_samples:
+            price_list = []
+            consumption_list = []
+            price_sum = 0.0
+            for hour_sample in high_power_hour_samples[hour]:
+                price_list.append(list(hour_sample.values())[0])
+                consumption_list.append(list(hour_sample.keys())[0])
+                price_sum += list(hour_sample.values())[0] * list(hour_sample.keys())[0]
+            high_prices.append(price_sum / sum(consumption_list))
+            high_cons.append(
+                {
+                    "avg": statistics.fmean(consumption_list),
+                    "max": sorted(consumption_list)[-1],
+                }
+            )
+            print(
+                f"{hour:2}-{(hour+1):2} High Avg: "
+                + f"{high_cons[hour]['avg']:.2f} kW"
+                + f" @{high_prices[hour]:.2f}"
+                + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh."
+                + f" Peak: {high_cons[hour]['max']:.2f} kWh/h"
+            )
+        else:
+            high_prices.append(None)
+            high_cons.append({"avg": None, "max": None})
+    for hour in range(24):
+        price_list = []
+        consumption_list = []
+        price_sum = 0.0
+        if hour not in power_hour_samples:
+            low_prices.append(None)
+            low_cons.append({"avg": None, "max": None})
+            continue
+        for hour_sample in power_hour_samples[hour]:
+            price_list.append(list(hour_sample.values())[0])
+            consumption_list.append(list(hour_sample.keys())[0])
+            price_sum += list(hour_sample.values())[0] * list(hour_sample.keys())[0]
+        low_prices.append(price_sum / sum(consumption_list))
+        low_cons.append(
+            {
+                "avg": statistics.fmean(consumption_list),
+                "max": sorted(consumption_list)[-1],
+            }
+        )
+        print(
+            f"{hour:2}-{(hour+1):2}  Low Avg: "
+            + f"{low_cons[hour]['avg']:.2f} kW"
+            + f" @{low_prices[hour]:.2f}"
+            + f" (flat avg: {statistics.fmean(price_list):.2f}) SEK/kWh."
+            + f" Peak: {low_cons[hour]['max']:.2f} kWh/h"
+        )
+
+    render_visualization(
+        f"{str(local_dt_from)[:10]}_{str(local_dt_to)[:10]}",
+        low_prices,
+        low_cons,
+        high_prices,
+        high_cons,
+    )
+
+    battery_cycle_count = 0
+    if irradiance is not None:
+        battery_str = ""
+        if BATTERY_SIZE_KWH is not None:
+            battery_cycle_count = solar_battery_self_use_kwh / BATTERY_SIZE_KWH
+            battery_str = (
+                f" when combined with {BATTERY_SIZE_KWH} kWh energy storage"
+                + f" cycle count used {battery_cycle_count:.1f}"
+            )
+        print(
+            f"\nEstimated value from {INSTALLED_PANEL_POWER} kWp solar installation"
+            + battery_str
+            + " (excl energy tax and network transfer cost, incl VAT."
+            + " Note: Assuming broker fee and network benefit cancel each other out)"
+        )
+        print(f"Min solar power required for production: {IRRADIANCE_MIN} W / m2")
+        print(f"Analysed with database until: {list(irradiance.keys())[-1]}")
+        print(
+            f"Export: {exported_energy:.2f} kWh - valued at {exported_value:.2f} SEK (incl VAT)"
+        )
+        self_used_energy_combined = self_used_energy["high"] + self_used_energy["low"]
+        print(
+            f"Self use: {self_used_energy_combined:.2f}"
+            + f" (High: {self_used_energy['high']:.2f}, Low: {self_used_energy['low']:.2f}) kWh"
+            + f" - valued at {self_used_value:.2f} SEK (incl VAT)"
+        )
+        print(f"EV direct solar use {solar_to_ev_kwh:.2f} kWh")
+        print(
+            f"EV could have direct used another {solar_direct_ev_underutilized_kwh:.2f} kWh"
+            + " on weekends and weekdays before 8:00 and after 16:00"
+        )
+    print(
+        f"\nSelf use and resale arbitrage profit possible with {BATTERY_SIZE_KWH} kWh battery:"
+        + "\nWith one daily cycle if 100% efficient (incl VAT):"
+        + f"\n  {arbitrage_data['one_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE}"
+        + f" ({arbitrage_data['one_cycle_unused']:.2f} kWh unused potential)"
+    )
+    print(
+        "With two daily cycles if 100% efficient (incl VAT):"
+        + f"\n  {arbitrage_data['morning_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE} from morning cycle."
+        + f" ({arbitrage_data['morning_cycle_unused']:.2f} kWh unused potential)"
+        + f"\n  {arbitrage_data['afternoon_cycle_saving']:.2f} {NORDPOOL_PRICE_CODE} from afternoon cycle."
+        + f" ({arbitrage_data['afternoon_cycle_unused']:.2f} kWh unused potential)"
+    )
+    if battery_cycle_count > 10:
+        print(
+            "Note: Arbitrage is not relevant as month when battery is used for solar storage."
+        )
+
+
+loop = asyncio.run(start())
