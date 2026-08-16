@@ -318,7 +318,7 @@ async def start():
     home = None
     try:
         await tibber_connection.update_info()
-        home = tibber_connection.get_homes()[HOME_INDEX]
+        home = tibber_connection.get_homes(only_active=False)[HOME_INDEX]
         await home.rt_subscribe(_rt_callback)
     except Exception as e:
         logging.error(f"Setup error: {e}")
