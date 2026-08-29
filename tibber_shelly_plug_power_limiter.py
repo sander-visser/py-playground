@@ -28,8 +28,8 @@ RESTRICTED_HOURS = list(range(7, 20 + 1))  # 07:00 - 20:59
 RESTRICTED_DAYS = [0, 1, 2, 3, 4, 5, 6]  # 0 is Monday
 # fmt: off
 # kWh/h budget per month: Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sept Oct  Nov  Dec
-RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.5]
-UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 6.5, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
+RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.2, 3.0, 3.0, 2.5, 2.5, 3.0, 3.0, 3.0, 3.2, 3.5]
+UNRESTRICTED_KW_BUDGET = [17,  17,  17,  17,  17,  17,  17,  17,  17,  17,  17,  17 ]
 # fmt: on
 BUDGET_FILTER_LEN = 3
 FIRSTLINE_RELAY_URL = "http://192.168.1.191/rpc/switch."  # Set None if no relay is installed
@@ -165,7 +165,7 @@ async def start():
     home = None
     try:
         await tibber_connection.update_info()
-        home = tibber_connection.get_homes()[HOME_INDEX]
+        home = tibber_connection.get_homes(only_active=False)[HOME_INDEX]
         await home.rt_subscribe(_rt_callback)
     except Exception as e:
         logging.error(f"Setup error: {e}")
