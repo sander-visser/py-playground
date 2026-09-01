@@ -611,7 +611,7 @@ async def start():
             irr_duration = float(curr_irr[1])
             self_use = 0.0
             export = 0.0
-            if irr_power > IRRADIANCE_MIN:
+            if irr_power > IRRADIANCE_MIN and curr_power > 0:
                 solar_power = irr_power / IRRADIANCE_FULL * INSTALLED_PANEL_POWER
                 self_use = curr_power * irr_duration / SECONDS_PER_HOUR
                 solar_factor = solar_power / curr_power
