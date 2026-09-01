@@ -731,12 +731,21 @@ Power use distribution with EV charging excluded. High is weekdays when power ta
 22-23  Low Avg: 0.83 kW @0.81 (flat avg: 1.02) SEK/kWh. Peak: 3.67 kWh/h
 23-24  Low Avg: 1.00 kW @0.56 (flat avg: 0.86) SEK/kWh. Peak: 7.83 kWh/h
 
+Estimated value from 4.5 kWp solar installation when combined with 7.0 kWh energy storage cycle count used 37.1 (excl energy tax and network transfer cost, incl VAT. Note: Assuming broker fee and network benefit cancel each other out)
+Min solar power required for production: 140 W / m2
+Analysed with database until: 2026-08-31 23:00:00+00:00
+Export: 61.89 kWh - valued at 61.75 SEK (incl VAT)
+Self use: 528.15 (High: 470.11, Low: 58.03) kWh - valued at 436.96 SEK (incl VAT)
+EV direct solar use 52.00 kWh
+EV could have direct used another 41.23 kWh on weekends and weekdays before 8:00 and after 16:00
+
 Self use and resale arbitrage profit possible with 7.0 kWh battery:
 With one daily cycle if 100% efficient (incl VAT):
   179.21 SEK (0.00 kWh unused potential)
 With two daily cycles if 100% efficient (incl VAT):
   70.24 SEK from morning cycle. (4.10 kWh unused potential)
   135.79 SEK from afternoon cycle. (0.00 kWh unused potential)
+Note: Arbitrage is not relevant as month when battery is used for solar storage.
 
 
 Scanning home of Sander Visser
