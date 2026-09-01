@@ -44,7 +44,7 @@ VATTENFALL_COST = "ElectricityConsumptionCost"
 VATTENFALL_USE = "ElectricityConsumption"
 VATTENFALL_RESOLUTION = "Hourly"  # 'QuarterHour'
 METER_CODE = "PTE73xx"
-VATTENFALL_BASE = f"https://selfserviceapi.www.vattenfall.se//elements/my-energy/premises/{METER_CODE}/measurement?resolution={VATTENFALL_RESOLUTION}\\&measurementType="
+VATTENFALL_BASE = f"https://selfserviceapi.www.vattenfall.se/elements/my-energy/premises/{METER_CODE}/measurement?resolution={VATTENFALL_RESOLUTION}&measurementType="
 START_DATE = datetime.date.fromisoformat("2026-08-01")
 if START_DATE is not None and (datetime.date.today() - START_DATE).days > 60:
     NORDPOOL_REGION = None  # Nordpool API only provides last two months
@@ -438,13 +438,13 @@ async def start():
     vattenfall_cost = os.environ.get("VATTENFALL_COST", None)
     vattenfall_use = os.environ.get("VATTENFALL_USE", None)
     if vattenfall_cost is None or vattenfall_use is None:
-        print("Env variables with energy use json missing...")
+        print(f"Env variables with energy use json missing for {METER_CODE}...")
         vattenfall_headers = base64.b64decode(VATTENFALL_HEADERS).decode("ascii")
         print(
-            f"export VATTENFALL_COST=$(curl --url {VATTENFALL_BASE}{VATTENFALL_COST}\\&startDate={start_local_timestamp}\\&endDate={end_local_timestamp} {vattenfall_headers})"
+            f"export VATTENFALL_COST=$(curl --url '{VATTENFALL_BASE}{VATTENFALL_COST}&startDate={start_local_timestamp}&endDate={end_local_timestamp}' {vattenfall_headers})"
         )
         print(
-            f"export VATTENFALL_USE=$(curl --url {VATTENFALL_BASE}{VATTENFALL_USE}\\&startDate={start_local_timestamp}\\&endDate={end_local_timestamp} {vattenfall_headers})"
+            f"export VATTENFALL_USE=$(curl --url {VATTENFALL_BASE}{VATTENFALL_USE}&startDate={start_local_timestamp}&endDate={end_local_timestamp} {vattenfall_headers})"
         )
         sys.exit(1)
 
