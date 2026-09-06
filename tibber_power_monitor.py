@@ -167,6 +167,8 @@ def _rt_callback(pkg):
     if 23 == current_time.hour and current_time.minute == 59:
         adaptive_unrestricted_budget.append(today_unrestricted_budget)
         adaptive_restricted_budget.append(today_restricted_budget)
+        today_unrestricted_budget = 0.0
+        today_restricted_budget = 0.0
 
     if (
         live_data["accumulatedConsumptionLastHour"] >= budget
