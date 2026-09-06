@@ -31,7 +31,6 @@ RESTRICTED_KW_BUDGET   = [3.5, 3.5, 3.7, 3.7, 3.7, 3.7, 3.7, 3.7, 3.7, 3.2, 3.3,
 UNRESTRICTED_KW_BUDGET = [7.5, 7.5, 7.2, 6.0, 5.5, 5.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
 # fmt: on
 BUDGET_FILTER_LEN = 3
-MAX_RESTRICTED_KW_BUDGET = 10.0  # Allow adaptive budget adjustment up to this value
 # Diazed tolerates 20% overload current for 15 minutes:
 # https://ifoelectric.com/wp-content/uploads/2022/09/Ifo_D-sak_TD.pdf
 MAIN_FUSE_MAX_CURRENT = (
@@ -51,7 +50,9 @@ RELAY_MODE = "true"  # Set "false" if normally open (NO) relay is used
 RELAY_SET_URL = f"{RELAY_URL}set?id=0&on={RELAY_MODE}&toggle_after="
 RELAY_GET_URL = f"{RELAY_URL}getstatus?id=0"
 MAX_AUTO_RELAY_TOGGLE_SEC = 300  # Manual override must have longer duration
-ACTED_HYSTERESIS_KWH = 0.05  # When acted lower the budget for 1 min to secure min 1 min active time
+ACTED_HYSTERESIS_KWH = (
+    0.05  # When acted lower the budget for 1 min to secure min 1 min active time
+)
 HYSTERESIS_SEC = 300  # Min duration to keep load off (<= MAX_AUTO_RELAY_TOGGLE_SEC)
 
 API_TIMEOUT = 10.0  # In seconds
@@ -106,7 +107,8 @@ def _rt_callback(pkg):
     global current_hour_load_active_sec
     global load_activation_time
     global last_load_report_month
-    global last_adaptive_hour
+    global today_restricted_budget
+    global today_unrestricted_budget
     global adaptive_restricted_budget
     global adaptive_unrestricted_budget
 
@@ -136,16 +138,18 @@ def _rt_callback(pkg):
     ):
         adaptive_unrestricted_budget = [0.0]
         adaptive_restricted_budget = [0.0]
+        today_unrestricted_budget = 0.0
+        today_restricted_budget = 0.0
         last_load_report_month = current_time.month
     if restricted_time:
         adaptive_restricted_budget = sorted(adaptive_restricted_budget, reverse=True)
         del adaptive_restricted_budget[BUDGET_FILTER_LEN:]
         budget = max(budget, adaptive_restricted_budget[-1])
-        budget = min(budget, MAX_RESTRICTED_KW_BUDGET)
-        if last_adaptive_hour != current_time.hour and current_time.minute == 59:
-            last_adaptive_hour = current_time.hour
-            adaptive_restricted_budget.append(
-                live_data["accumulatedConsumptionLastHour"]
+        today_restricted_budget = max(today_restricted_budget, budget)
+        budget = today_restricted_budget
+        if current_time.minute == 59:
+            today_restricted_budget = max(
+                today_restricted_budget, live_data["accumulatedConsumptionLastHour"]
             )
     else:
         adaptive_unrestricted_budget = sorted(
@@ -153,11 +157,16 @@ def _rt_callback(pkg):
         )
         del adaptive_unrestricted_budget[BUDGET_FILTER_LEN:]
         budget = max(budget, adaptive_unrestricted_budget[-1])
-        if last_adaptive_hour != current_time.hour and current_time.minute == 59:
-            last_adaptive_hour = current_time.hour
-            adaptive_unrestricted_budget.append(
-                live_data["accumulatedConsumptionLastHour"]
+        today_unrestricted_budget = max(today_unrestricted_budget, budget)
+        budget = today_unrestricted_budget
+        if current_time.minute == 59:
+            today_unrestricted_budget = max(
+                today_unrestricted_budget, live_data["accumulatedConsumptionLastHour"]
             )
+
+    if 23 == current_time.hour and current_time.minute == 59:
+        adaptive_unrestricted_budget.append(today_unrestricted_budget)
+        adaptive_restricted_budget.append(today_restricted_budget)
 
     if (
         live_data["accumulatedConsumptionLastHour"] >= budget
@@ -353,7 +362,8 @@ total_load_active_sec = 0
 current_hour_load_active_sec = 0
 load_activation_time = None
 last_load_report_month = None
-last_adaptive_hour = None
+today_unrestricted_budget = None
+today_restricted_budget = None
 adaptive_unrestricted_budget = None
 adaptive_restricted_budget = None
 logging.basicConfig(
@@ -368,4 +378,3 @@ while True:
     except tibber.exceptions.FatalHttpExceptionError:
         logging.error("Server issues detected...")
     time.sleep(SEC_PER_MIN)
-
