@@ -37,7 +37,7 @@ NORDPOOL_URL = (
     + f"market=DayAhead&currency={NORDPOOL_PRICE_CODE}&resolutionInMinutes=15&indexNames="
     + f"{NORDPOOL_REGION}&date="
 )
-START_DATE = datetime.date.fromisoformat("2026-04-01")  # None for one month back
+START_DATE = datetime.date.fromisoformat("2026-09-01")  # None for one month back
 if START_DATE is not None and (datetime.date.today() - START_DATE).days > 60:
     NORDPOOL_REGION = None  # API only provides last two months
 API_TIMEOUT = 10.0  # seconds
@@ -513,6 +513,7 @@ async def start():
     hourly_energy_samples = []
 
     for power_sample in hourly_consumption_data:
+        print(f"powersample {power_sample}")
         curr_time = datetime.datetime.fromisoformat(power_sample["from"])
         curr_utc_time = curr_time.astimezone(pytz.utc)
         curr_time_utc_str = str(curr_utc_time).replace(" ", "T")
