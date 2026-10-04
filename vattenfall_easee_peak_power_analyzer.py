@@ -786,7 +786,7 @@ async def start():
         print(f"Peak of {peak_pwr:.3f} kWh/h has occured at {time_str}")
 
     if charger_consumption is None:
-        print("\nPower use distribution. High is weekdays when power tariff is active:")
+        print("\nPower use distribution. High is daytime when power tariff is active:")
     else:
         print(
             "\nPower use distribution with EV charging excluded. High is weekdays when power tariff is active:"
