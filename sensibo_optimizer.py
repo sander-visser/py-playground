@@ -70,7 +70,7 @@ WORKDAY_AFTERNOON_COMFORT_BY_HOUR = 15
 DINNER_HOUR = 17  # Min 1h after WORKDAY_AFTERNOON_COMFORT_BY_HOUR
 WORKDAY_COMFORT_UNTIL_HOUR = 22
 WEEKEND_COMFORT_UNTIL_HOUR = 23
-SECONDS_BETWEEN_COMMANDS = 1.5
+SECONDS_BETWEEN_COMMANDS = 3.0
 SCHOOL_DAYS = [1, 2, 3, 4, 5]  # 1=monday
 AT_HOME_DAYS = [6, 7]  # 7=sunday
 
@@ -586,7 +586,7 @@ class SensiboController:
         self._client = client
         self._uid = uid
         self._skip_ahead = True
-        self._current_settings = {}
+        self._current_settings = self._client.pod_ac_state(self._uid)
         self._max_temp = max_temp
 
     def last_requested_setting(self, setting):
@@ -619,7 +619,9 @@ class SensiboController:
                 print(f"Skipping Sensibo sending due to invalid hour {valid_hour}")
         else:
             if force:
-                self._current_settings = {}
+                self._current_settings = self._client.pod_ac_state(self._uid)
+                sleep(SECONDS_BETWEEN_COMMANDS)
+                print(f"Force resynced current settings {self._current_settings}")
             if valid_hour is not None:
                 self._skip_ahead = False
             first_setting = True
@@ -1412,6 +1414,10 @@ if __name__ == "__main__":
             if e.response.status_code == 403:
                 print("403: check the API key")
                 sys.exit(1)
+            if e.response.status_code == 408:
+                print("Got a timeout - fast reset")
+                sleep(10)
+                continue
             print(f"Resetting optimizer due to error 6 {e.response.status_code}")
         except requests.exceptions.RequestException as e:
             print(
